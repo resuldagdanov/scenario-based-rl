@@ -1,0 +1,6 @@
+[submodule "scenario_runner"]
+	path = scenario_runner
+	url = https://github.com/carla-simulator/scenario_runner.git
+[submodule "carla"]
+	path = carla
+	url = https://github.com/carla-simulator/carla.git
