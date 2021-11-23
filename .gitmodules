@@ -4,3 +4,6 @@
 [submodule "carla"]
 	path = carla
 	url = https://github.com/carla-simulator/carla.git
+[submodule "leaderboard"]
+	path = leaderboard
+	url = https://github.com/carla-simulator/leaderboard.git
