@@ -77,8 +77,7 @@ import numpy as np
 import random
 import math
 
-chkpt_dir = parent + "/models/saved_models" #todo: change this to relative path
-print(f"chkpt_dir {chkpt_dir}")
+chkpt_dir = parent + "/models/saved_models" #where models are saved
 
 # ==============================================================================
 # -- Global functions ----------------------------------------------------------
