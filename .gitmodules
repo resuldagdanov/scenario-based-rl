@@ -7,3 +7,6 @@
 [submodule "leaderboard"]
 	path = leaderboard
 	url = https://github.com/carla-simulator/leaderboard.git
+[submodule "reinforcement-learning"]
+	path = reinforcement-learning
+	url = https://github.com/carla-simulator/reinforcement-learning.git
