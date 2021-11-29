@@ -26,9 +26,9 @@ In another terminal,
 
     cd scenario-based-rl/agents/rl_training
 
-    python main.py --scenario $scenario_name
+    python main.py --scenario $scenario_name --max_episode $max_episode_number
     
-    ex: python main.py --scenario DynamicObjectCrossing_1
+    ex: python main.py --scenario DynamicObjectCrossing_1 --max_episode 1000
 
 
 ## List of Supported Scenarios
