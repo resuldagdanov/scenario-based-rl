@@ -964,7 +964,7 @@ class RLAgent(object):
                 brake = abs(accel_brake)
                 throttle = 0.0
 
-            self.controller._control.throttle = 0.5 #throttle
+            self.controller._control.throttle = 0.5 #throttle #todo: change this
             self.controller._control.steer = 0.0 #steer
             self.controller._control.brake = 0.0 #brake
             self.world.player.apply_control(self.controller._control)
@@ -993,10 +993,10 @@ class RLAgent(object):
 
             step_num += 1
 
-            if self.is_terminal:
+            if self.is_terminal: #todo: when self.is_terminal turns into true here, the last step is not added to the agent's buffer, do it with if else above
                 break
 
-            if step_num == self.max_step: #todo: add terminal criteria
+            if step_num == self.max_step:
                 self.set_terminal(True)
 
     def initialize_agent_world(self):

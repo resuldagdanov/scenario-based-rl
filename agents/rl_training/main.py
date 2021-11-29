@@ -2,6 +2,8 @@ import threading
 import sys
 import os
 from types import SimpleNamespace
+import argparse
+from argparse import RawTextHelpFormatter
   
 #to add the parent "agents" folder to sys path and import models
 current = os.path.dirname(os.path.realpath(__file__))
@@ -14,15 +16,15 @@ from _scenario_runner.scenario_runner import ScenarioRunner
 from rl_training.rl_agent import RLAgent
 
 class ScenarioRunnerThread (threading.Thread):
-    def __init__(self, threadID, name):
+    def __init__(self, threadID, name, main_arguments):
         threading.Thread.__init__(self)
         self.threadID = threadID
         self.name = name
-        arguments = self.get_arguments()
+        arguments = self.get_arguments(main_arguments)
         self.scenario_runner = ScenarioRunner(arguments)
 
-    def get_arguments(self):
-        scenario = 'FollowLeadingVehicle_1'
+    def get_arguments(self, main_arguments):
+        scenario = main_arguments.scenario
         return SimpleNamespace(additionalScenario='', agent=None, agentConfig='', configFile='', debug=False, file=False, host='127.0.0.1', json=False, junit=False, list=False, openscenario=None, openscenarioparams=None, output=False, outputDir='', port='2000', randomize=False, record='', reloadWorld=True, repetitions=1, route=None, scenario=scenario, sync=False, timeout='10.0', trafficManagerPort='8000', trafficManagerSeed='0', waitForEgo=False) #todo: understand reloadWorld and repetitions arguments
 
     def run(self):
@@ -76,20 +78,29 @@ class RLAgentThread (threading.Thread):
     def destroy_agent_world(self):
         self.rl_agent.destroy_agent_world()
 
-scenarioRunnerThread = ScenarioRunnerThread(1, "ScenarioRunnerThread")
-RLagentThread = RLAgentThread(2, "RLAgentThread")
+def main():
+    parser = argparse.ArgumentParser(description="Main", formatter_class=RawTextHelpFormatter)
+    parser.add_argument(
+        '--scenario', default='FollowLeadingVehicle_1', help='Name of the scenario to be executed. Use the preposition \'group:\' to run all scenarios of one class, e.g. ControlLoss or FollowLeadingVehicle (default: FollowLeadingVehicle_1)')
+    main_arguments = parser.parse_args()
 
-scenarioRunnerThread.start()
-RLagentThread.start()
+    scenarioRunnerThread = ScenarioRunnerThread(1, "ScenarioRunnerThread", main_arguments)
+    RLagentThread = RLAgentThread(2, "RLAgentThread")
 
-scenarioRunnerThread.join() #wait for scenarioRunnerThread to stop
-RLagentThread.set_terminal(status = True)
+    scenarioRunnerThread.start()
+    RLagentThread.start()
 
-"""
-for episode in range(num_episodes-1):
-    scenarioRunnerThread.run()
     scenarioRunnerThread.join() #wait for scenarioRunnerThread to stop
     RLagentThread.set_terminal(status = True)
-"""
 
-RLagentThread.join() #wait for RLagentThread to stop
+    """
+    for episode in range(num_episodes-1):
+        scenarioRunnerThread.run()
+        scenarioRunnerThread.join() #wait for scenarioRunnerThread to stop
+        RLagentThread.set_terminal(status = True)
+    """
+
+    RLagentThread.join() #wait for RLagentThread to stop
+
+if __name__ == "__main__":
+    main()
