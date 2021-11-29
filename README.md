@@ -3,21 +3,31 @@ Implementation of Deep Reinforcement Learning Methods on Carla Simulation with T
 
 ## version
 carla version 0.9.12
+
 python 3.8.10
+
 unreal engine 4.26.2
+
 scenario_runner 0.9.12
+
 leaderboard ?
+
 pygame 2.0.1
 
 
 ## how to run
 In one terminal,
+
     cd CARLA_0.9.12
+
     ./CarlaUE4.sh
 
 In another terminal,
+
     cd scenario-based-rl/agents/rl_training
+
     python main.py --scenario $scenario_name
+    
     ex: python main.py --scenario DynamicObjectCrossing_1
 
 
