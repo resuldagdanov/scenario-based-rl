@@ -520,7 +520,7 @@ class ScenarioRunner(object):
         print("No more scenarios .... Exiting")
         return result
 
-
+"""
 def main():
     scenario = 'FollowLeadingVehicle_1'
     arguments = SimpleNamespace(additionalScenario='', agent=None, agentConfig='', configFile='', debug=False, file=False, host='127.0.0.1', json=False, junit=False, list=False, openscenario=None, openscenarioparams=None, output=False, outputDir='', port='2000', randomize=False, record='', reloadWorld=True, repetitions=1, route=None, scenario=scenario, sync=False, timeout='10.0', trafficManagerPort='8000', trafficManagerSeed='0', waitForEgo=False)
@@ -542,3 +542,4 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
+"""

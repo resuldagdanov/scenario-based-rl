@@ -80,7 +80,7 @@ class RLAgentThread (threading.Thread):
 def main():
     parser = argparse.ArgumentParser(description="Main", formatter_class=RawTextHelpFormatter)
     parser.add_argument(
-        '--scenario', default='FollowLeadingVehicle_1', help='Name of the scenario to be executed. Use the preposition \'group:\' to run all scenarios of one class, e.g. ControlLoss or FollowLeadingVehicle (default: FollowLeadingVehicle_1)')
+        '--scenario', default='StationaryObjectCrossing_1', help='Name of the scenario to be executed. Use the preposition \'group:\' to run all scenarios of one class, e.g. ControlLoss or FollowLeadingVehicle (default: StationaryObjectCrossing_1)')
     parser.add_argument(
         '--max_episode', default=1, help='Number of episodes to train the agent (default: 1)')
     
