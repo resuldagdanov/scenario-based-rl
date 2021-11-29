@@ -8,6 +8,8 @@ current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
 sys.path.append(parent)
 
+num_episodes = 1
+
 from _scenario_runner.scenario_runner import ScenarioRunner
 from rl_training.rl_agent import RLAgent
 
@@ -21,7 +23,7 @@ class ScenarioRunnerThread (threading.Thread):
 
     def get_arguments(self):
         scenario = 'FollowLeadingVehicle_1'
-        return SimpleNamespace(additionalScenario='', agent=None, agentConfig='', configFile='', debug=False, file=False, host='127.0.0.1', json=False, junit=False, list=False, openscenario=None, openscenarioparams=None, output=False, outputDir='', port='2000', randomize=False, record='', reloadWorld=True, repetitions=1, route=None, scenario=scenario, sync=False, timeout='10.0', trafficManagerPort='8000', trafficManagerSeed='0', waitForEgo=False)
+        return SimpleNamespace(additionalScenario='', agent=None, agentConfig='', configFile='', debug=False, file=False, host='127.0.0.1', json=False, junit=False, list=False, openscenario=None, openscenarioparams=None, output=False, outputDir='', port='2000', randomize=False, record='', reloadWorld=True, repetitions=1, route=None, scenario=scenario, sync=False, timeout='10.0', trafficManagerPort='8000', trafficManagerSeed='0', waitForEgo=False) #todo: understand reloadWorld and repetitions arguments
 
     def run(self):
         #print ("Starting " + self.name)
@@ -55,10 +57,24 @@ class RLAgentThread (threading.Thread):
     def run(self):
         print ("Starting " + self.name)
         try:
-            self.rl_agent.game_loop()
+            self.rl_agent.initialize_agent_world()
+            self.rl_agent.run_one_episode()
+
+            """
+            for episode in range(num_episodes):
+                print(f"episode {episode}")
+                self.rl_agent.run_one_episode()
+            """
+            self.rl_agent.destroy_agent_world()
         except Exception as error:
             print(error)
         #print ("End of run of " + self.name)
+
+    def set_terminal(self, status):
+        self.rl_agent.set_terminal(status)
+
+    def destroy_agent_world(self):
+        self.rl_agent.destroy_agent_world()
 
 scenarioRunnerThread = ScenarioRunnerThread(1, "ScenarioRunnerThread")
 RLagentThread = RLAgentThread(2, "RLAgentThread")
@@ -67,7 +83,13 @@ scenarioRunnerThread.start()
 RLagentThread.start()
 
 scenarioRunnerThread.join() #wait for scenarioRunnerThread to stop
-#print("scenarioRunnerThread.join()")
-RLagentThread.rl_agent.set_terminal(True)
+RLagentThread.set_terminal(status = True)
 
-#print ("Exiting Main Thread")
+"""
+for episode in range(num_episodes-1):
+    scenarioRunnerThread.run()
+    scenarioRunnerThread.join() #wait for scenarioRunnerThread to stop
+    RLagentThread.set_terminal(status = True)
+"""
+
+RLagentThread.join() #wait for RLagentThread to stop

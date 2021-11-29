@@ -933,113 +933,112 @@ class RLAgent(object):
     def __init__(self, args):
         self.args = args
         self.is_terminal = False
+        self.max_step = 1000
 
     def set_terminal(self, status):
         self.is_terminal = status
-        #print(f"is_terminal is changed to {self.is_terminal}")
+        print(f"is_terminal is changed to {self.is_terminal}")
 
-    def game_loop(self):
-        args = self.args
-        pygame.init()
-        pygame.font.init()
-        world = None
+    def run_one_episode(self):
+        episode_reward = 0
+        step_num = 0
+        self.set_terminal(False)
 
-        try:
-            client = carla.Client(args.host, args.port)
-            client.set_timeout(20.0)
-            sim_world = client.get_world()
+        while True:
+            self.clock.tick_busy_loop(60)
+            #if controller.parse_events(client, world, clock):
+            #    return
 
-            display = pygame.display.set_mode(
-                (args.width, args.height),
-                pygame.HWSURFACE | pygame.DOUBLEBUF)
-            display.fill((0,0,0))
+            state = np.zeros((30, 40, 3))
+            action = self.agent.choose_action(state)
+
+            steer = float(action[0])
+            accel_brake = float(action[1])
+
+            steer = steer * 0.5
+
+            if accel_brake >= 0:
+                throttle = accel_brake
+                brake = 0.0
+            else:
+                brake = abs(accel_brake)
+                throttle = 0.0
+
+            self.controller._control.throttle = 0.5 #throttle
+            self.controller._control.steer = 0.0 #steer
+            self.controller._control.brake = 0.0 #brake
+            self.world.player.apply_control(self.controller._control)
+            self.world.tick(self.clock)
+
+            #if not world.tick(clock):
+            #    return
+
+            self.world.render(self.display)
             pygame.display.flip()
 
-            hud = HUD(args.width, args.height)
-            world = World(sim_world, hud, args)
-            controller = KeyboardControl(world, args.autopilot)
+            next_state = np.zeros((30, 40, 3))
 
-            sim_world.wait_for_tick()
+            velocity = self.world.player.get_velocity()
+            kmh = int(3.6 * math.sqrt(velocity.x**2 + velocity.y**2 + velocity.z**2))
+            reward = kmh*10
 
-            clock = pygame.time.Clock()
+            print(f"step {step_num} action {action} reward {reward} is_terminal {self.is_terminal}")
 
-            agent = initialize_agent()
-            #print("agent initialized")
+            self.agent.remember(state, action, reward, next_state, self.is_terminal)
+            self.agent.learn()
 
-            num_episodes = 1
-            max_step = 1000
-            for episode in range(num_episodes):
-                print(f"episode {episode}")
-                episode_reward = 0
+            #state = next_state
+            episode_reward += reward
+            #plot(agent)
 
-                step_num = 0
-                while True:
-                    clock.tick_busy_loop(60)
-                    #if controller.parse_events(client, world, clock):
-                    #    return
+            step_num += 1
 
-                    state = np.zeros((30, 40, 3))
-                    action = agent.choose_action(state)
+            if self.is_terminal:
+                break
 
-                    steer = float(action[0])
-                    accel_brake = float(action[1])
+            if step_num == self.max_step: #todo: add terminal criteria
+                self.set_terminal(True)
 
-                    steer = steer * 0.5
+    def initialize_agent_world(self):
+        args = self.args #todo: remove and replace all args with self.args
+        pygame.init()
+        pygame.font.init()
+        self.world = None
 
-                    if accel_brake >= 0:
-                        throttle = accel_brake
-                        brake = 0.0
-                    else:
-                        brake = abs(accel_brake)
-                        throttle = 0.0
+        self.client = carla.Client(args.host, args.port)
+        self.client.set_timeout(20.0)
+        sim_world =  self.client.get_world()
 
-                    controller._control.throttle = 0.5 #throttle
-                    controller._control.steer = 0.0 #steer
-                    controller._control.brake = 0.0 #brake
-                    world.player.apply_control(controller._control)
-                    world.tick(clock)
+        self.display = pygame.display.set_mode(
+            (args.width, args.height),
+            pygame.HWSURFACE | pygame.DOUBLEBUF)
+        self.display.fill((0,0,0))
+        pygame.display.flip()
 
-                    #if not world.tick(clock):
-                    #    return
+        hud = HUD(args.width, args.height)
+        self.world = World(sim_world, hud, args)
+        self.controller = KeyboardControl(self.world, args.autopilot)
 
-                    world.render(display)
-                    pygame.display.flip()
+        sim_world.wait_for_tick()
 
-                    next_state = np.zeros((30, 40, 3))
+        self.clock = pygame.time.Clock()
 
-                    velocity = world.player.get_velocity()
-                    kmh = int(3.6 * math.sqrt(velocity.x**2 + velocity.y**2 + velocity.z**2))
-                    reward = kmh*10
+        self.agent = initialize_agent()
+        #print("agent initialized")
 
-                    print(f"step {step_num} action {action} reward {reward} is_terminal {self.is_terminal}")
+        print("agent world is initialized")
+            
+    def destroy_agent_world(self):
+        if (self.world and self.world.recording_enabled):
+             self.client.stop_recorder()
 
-                    agent.remember(state, action, reward, next_state, self.is_terminal)
-                    agent.learn()
+        if self.world is not None:
+            # prevent destruction of ego vehicle
+            if  self.args.keep_ego_vehicle:
+                self.world.player = None
+            self.world.destroy()
 
-                    #state = next_state
-                    episode_reward += reward
-                    #plot(agent)
-
-                    step_num += 1
-
-                    if self.is_terminal:
-                        break
-
-                    if step_num == max_step: #todo: add terminal criteria
-                        self.is_terminal = True
-
-        finally:
-            if (world and world.recording_enabled):
-                client.stop_recorder()
-
-            if world is not None:
-                # prevent destruction of ego vehicle
-                if args.keep_ego_vehicle:
-                    world.player = None
-                world.destroy()
-
-            pygame.quit()
-
+        pygame.quit()
 
 # ==============================================================================
 # -- main() --------------------------------------------------------------------
