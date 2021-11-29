@@ -189,6 +189,8 @@ class ScenarioRunner(object):
 
         CarlaDataProvider.cleanup()
 
+        
+        """
         for i, _ in enumerate(self.ego_vehicles):
             if self.ego_vehicles[i]:
                 if not self._args.waitForEgo and self.ego_vehicles[i] is not None and self.ego_vehicles[i].is_alive:
@@ -200,6 +202,7 @@ class ScenarioRunner(object):
         if self.agent_instance:
             self.agent_instance.destroy()
             self.agent_instance = None
+        """
 
     def _prepare_ego_vehicles(self, ego_vehicles):
         """
@@ -261,12 +264,14 @@ class ScenarioRunner(object):
         if self._args.file:
             filename = config_name + current_time + ".txt"
 
+        """
         if not self.manager.analyze_scenario(self._args.output, filename, junit_filename, json_filename):
             print("All scenario tests were passed successfully!")
         else:
             print("Not all scenario tests were successful")
             if not (self._args.output or filename or junit_filename):
                 print("Please run with --output for further information")
+        """
 
     def _record_criteria(self, criteria, name):
         """
@@ -439,15 +444,15 @@ class ScenarioRunner(object):
         result = False
 
         # Load the scenario configurations provided in the config file
-        scenario_configurations = ScenarioConfigurationParser.parse_scenario_configuration(
+        self.scenario_configurations = ScenarioConfigurationParser.parse_scenario_configuration(
             self._args.scenario,
             self._args.configFile)
-        if not scenario_configurations:
+        if not self.scenario_configurations:
             print("Configuration for scenario {} cannot be found!".format(self._args.scenario))
             return result
 
         # Execute each configuration
-        for config in scenario_configurations:
+        for config in self.scenario_configurations:
             for _ in range(self._args.repetitions):
                 self.finished = False
                 result = self._load_and_run_scenario(config)
