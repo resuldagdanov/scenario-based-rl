@@ -2,7 +2,7 @@
 Implementation of Deep Reinforcement Learning Methods on Carla Simulation with Trainings Based on Scenarios
 
 ## version
-carla version 0.9.12
+carla version 0.9.13
 
 python 3.8.10
 
@@ -18,7 +18,7 @@ pygame 2.0.1
 ## how to run
 In one terminal,
 
-    cd CARLA_0.9.12
+    cd CARLA_0.9.13
 
     ./CarlaUE4.sh
 
