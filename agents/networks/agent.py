@@ -1,13 +1,12 @@
 import torch as T
 import torch.nn.functional as F
-import numpy as np
 from .buffer import ReplayBuffer
-from .networks import ActorNetwork, CriticNetwork, ValueNetwork
+from .networks import ActorNetwork, CriticNetwork, ValueNetwork, RESNET50Model
 
 class Agent():
     def __init__(self, device, max_action, alpha=0.0003, beta=0.0003, input_dims=[8], gamma=0.99, n_actions=2, max_size=1000000, tau=0.005,
-            layer1_size=256, layer2_size=256, batch_size=128, reward_scale=2, chkpt_dir="tmp/sac"):
-        self.cnn_output_size = 10
+            layer1_size=256, layer2_size=256, batch_size=128, reward_scale=2, checkpoint_dir="tmp/sac"):
+        self.cnn_output_size = 1000
         self.gamma = gamma
         self.tau = tau
         self.memory = ReplayBuffer(max_size, input_dims, n_actions)
@@ -16,11 +15,13 @@ class Agent():
 
         print("device ", device)
 
-        self.actor = ActorNetwork(device, alpha, input_dims, self.cnn_output_size, n_actions=n_actions, name='actor', max_action=max_action, chkpt_dir=chkpt_dir)
-        self.critic_1 = CriticNetwork(device, beta, input_dims, self.cnn_output_size, n_actions=n_actions, name='critic_1', chkpt_dir=chkpt_dir)
-        self.critic_2 = CriticNetwork(device, beta, input_dims, self.cnn_output_size, n_actions=n_actions, name='critic_2', chkpt_dir=chkpt_dir)
-        self.value = ValueNetwork(device, beta, input_dims, self.cnn_output_size, name='value', chkpt_dir=chkpt_dir)
-        self.target_value = ValueNetwork(device, beta, input_dims, self.cnn_output_size, name='target_value', chkpt_dir=chkpt_dir)
+        resnet50_model = RESNET50Model(device, input_dims, checkpoint_dir=checkpoint_dir)
+
+        self.actor = ActorNetwork(resnet50_model, device, alpha, input_dims, self.cnn_output_size, n_actions=n_actions, name='actor', max_action=max_action, checkpoint_dir=checkpoint_dir)
+        self.critic_1 = CriticNetwork(resnet50_model, device, beta, input_dims, self.cnn_output_size, n_actions=n_actions, name='critic_1', checkpoint_dir=checkpoint_dir)
+        self.critic_2 = CriticNetwork(resnet50_model, device, beta, input_dims, self.cnn_output_size, n_actions=n_actions, name='critic_2', checkpoint_dir=checkpoint_dir)
+        self.value = ValueNetwork(resnet50_model, device, beta, input_dims, self.cnn_output_size, name='value', checkpoint_dir=checkpoint_dir)
+        self.target_value = ValueNetwork(resnet50_model, device, beta, input_dims, self.cnn_output_size, name='target_value', checkpoint_dir=checkpoint_dir)
 
         self.actor_losses = []
         self.critic_losses = []
@@ -34,9 +35,7 @@ class Agent():
         print("critic_losses ", self.critic_losses)
         print("value_losses ", self.value_losses)
 
-    def choose_action(self, observation):
-        #print("observation.shape ", observation.shape)
-        state = T.Tensor([observation]).to(self.actor.device)
+    def choose_action(self, state):
         actions, _ = self.actor.sample_normal(state, reparameterize=False)
 
         return actions.cpu().detach().numpy()[0]
@@ -58,7 +57,7 @@ class Agent():
             value_state_dict[name] = tau*value_state_dict[name].clone() + \
                     (1-tau)*target_value_state_dict[name].clone()
 
-        self.target_value.load_state_dict(value_state_dict)
+        self.target_value.load_state_dict(value_state_dict, strict=False)
 
     def learn(self):
         if self.memory.mem_cntr < self.batch_size:

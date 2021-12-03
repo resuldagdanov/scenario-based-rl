@@ -6,7 +6,6 @@ import random
 import math
 import os
 import sys
-from types import SimpleNamespace
 import torch as T
 
 current = os.path.dirname(os.path.realpath(__file__))
@@ -18,12 +17,9 @@ from networks.agent import Agent
 import carla
 from carla import ColorConverter as cc
 
-import argparse
-
 import time
 import collections
 import datetime
-import logging
 import math
 import weakref
 
@@ -666,16 +662,16 @@ class RLAgent(object):
         random.seed(1) #todo: add seed to the args
         np.random.seed(1)
 
-        is_cpu = True #todo:add this to the args
+        is_cpu = False #todo:add this to the args
 
         if is_cpu:
-            device = 'cpu'
+            device = 'cpu' #T.device("cpu")
         else:
-            device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
+            device = 'cuda' if T.cuda.is_available() else 'cpu' #T.device('cuda:0' if T.cuda.is_available() else 'cpu')
 
         print("device ", device)
 
-        input_dims = (30, 40, 3)  # env.observation_space.shape
+        input_dims = (3, 30, 40)  # env.observation_space.shape
         n_actions = 2  # env.action_space.shape[0]
         max_action = [1., 1.]  # env.action_space.high #todo: check the usage
 
@@ -683,9 +679,12 @@ class RLAgent(object):
 
         batch_size = 64
         buffer_size = 500_000
-        chkpt_dir = "models/saved_models" #todo: change this to relative path
+        checkpoint_dir = parent + os.path.sep + "models"
+        print(f"models will be saved to {checkpoint_dir}")
         agent = Agent(device, max_action, input_dims=input_dims, n_actions=n_actions,
-                    max_size=buffer_size, batch_size=batch_size, chkpt_dir=chkpt_dir)
+                    max_size=buffer_size, batch_size=batch_size, checkpoint_dir=checkpoint_dir)
+
+        #agent.load_models()
 
         return agent
 
@@ -713,7 +712,7 @@ class RLAgent(object):
         self.clock = pygame.time.Clock()
 
         self.agent = self.initialize_agent()
-        #print("agent initialized")
+        print("agent initialized")
 
         print("agent world is initialized")
 
@@ -725,7 +724,7 @@ class RLAgent(object):
         while True:
             self.clock.tick_busy_loop(60)
 
-            state = np.zeros((30, 40, 3))
+            state = np.zeros((3, 30, 40))
             action = self.agent.choose_action(state)
 
             steer = float(action[0])
@@ -741,9 +740,9 @@ class RLAgent(object):
                 throttle = 0.0
 
             vc = carla.VehicleControl()
-            vc.throttle = 0.5 #throttle #todo: change this
-            vc.steer = 0.0 #steer
-            vc.brake = 0.0 #brake
+            vc.throttle = throttle
+            vc.steer = steer
+            vc.brake = brake
             self.world.player.apply_control(vc)
             self.world.tick(self.clock)
 
@@ -753,7 +752,7 @@ class RLAgent(object):
             self.world.render(self.display)
             pygame.display.flip()
 
-            next_state = np.zeros((30, 40, 3))
+            next_state = np.zeros((3, 30, 40))
 
             velocity = self.world.player.get_velocity()
             kmh = int(3.6 * math.sqrt(velocity.x**2 + velocity.y**2 + velocity.z**2))
@@ -771,6 +770,7 @@ class RLAgent(object):
             step_num += 1
 
             if self.is_terminal: #todo: when self.is_terminal turns into true here, the last step is not added to the agent's buffer, do it with if else above
+                self.agent.save_models()
                 break
 
             if step_num == self.max_step:

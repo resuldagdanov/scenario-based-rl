@@ -23,3 +23,4 @@ bin-release/
 # logs and models
 checkpoint/logs/
 checkpoint/models/
+agents/models/

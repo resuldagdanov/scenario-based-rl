@@ -4,7 +4,7 @@ import os
 from types import SimpleNamespace
 import argparse
 from argparse import RawTextHelpFormatter
-  
+
 #to add the parent "agents" folder to sys path and import models
 current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
@@ -96,10 +96,10 @@ def main():
     RLagentThread.set_terminal(status = True)
 
     """
-    for episode in range(main_arguments.max_episode-1):
-        scenarioRunnerThread.run()
-        scenarioRunnerThread.join() #wait for scenarioRunnerThread to stop
-        RLagentThread.set_terminal(status = True)
+    #for episode in range(main_arguments.max_episode-1):
+    #    scenarioRunnerThread.run()
+    #    scenarioRunnerThread.join() #wait for scenarioRunnerThread to stop
+    #    RLagentThread.set_terminal(status = True)
     """
 
     RLagentThread.join() #wait for RLagentThread to stop
