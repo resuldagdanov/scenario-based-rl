@@ -13,8 +13,6 @@ class Agent():
         self.batch_size = batch_size
         self.n_actions = n_actions
 
-        print("device ", device)
-
         resnet50_model = RESNET50Model(device, input_dims, checkpoint_dir=checkpoint_dir)
 
         self.actor = ActorNetwork(resnet50_model, device, alpha, input_dims, self.cnn_output_size, n_actions=n_actions, name='actor', max_action=max_action, checkpoint_dir=checkpoint_dir)
@@ -41,6 +39,8 @@ class Agent():
         return actions.cpu().detach().numpy()[0]
 
     def remember(self, state, action, reward, new_state, done):
+        if done:
+            print(f"remember {done}")
         self.memory.store_transition(state, action, reward, new_state, done)
 
     def update_network_parameters(self, tau=None):

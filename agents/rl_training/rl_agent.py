@@ -15,30 +15,27 @@ class RLAgent(object):
     def __init__(self, args, agent):
         self.args = args
         self.is_terminal = False
-        self.max_step = 200 #1000
+        self.max_step = 200
         self.agent = agent
 
     def set_terminal(self, status):
         self.is_terminal = status
 
     def initialize_agent_world(self):
-        args = self.args #todo: remove and replace all args with self.args
         pygame.init()
         pygame.font.init()
         self.world = None
 
-        self.client = carla.Client(args.host, args.port)
+        self.client = carla.Client(self.args.host, self.args.port)
         self.client.set_timeout(20.0)
         sim_world =  self.client.get_world()
 
-        self.display = pygame.display.set_mode(
-            (args.width, args.height),
-            pygame.HWSURFACE | pygame.DOUBLEBUF)
+        self.display = pygame.display.set_mode((self.args.width, self.args.height), pygame.HWSURFACE | pygame.DOUBLEBUF)
         self.display.fill((0,0,0))
         pygame.display.flip()
 
-        hud = HUD(args.width, args.height)
-        self.world = World(sim_world, hud, args)
+        hud = HUD(self.args.width, self.args.height)
+        self.world = World(sim_world, hud, self.args)
 
         sim_world.wait_for_tick()
 
@@ -68,7 +65,7 @@ class RLAgent(object):
                 throttle = 0.0
 
             vc = carla.VehicleControl()
-            vc.throttle = 0.5 #throttle
+            vc.throttle = 0.5 #throttle #todo:change this
             vc.steer = 0.0 #steer
             vc.brake = 0.0 #brake
             self.world.player.apply_control(vc)
@@ -98,7 +95,8 @@ class RLAgent(object):
             step_num += 1
 
             if self.is_terminal: #todo: when self.is_terminal turns into true here, the last step is not added to the agent's buffer, do it with if else above
-                self.agent.save_models()
+                if self.args.save_model:
+                    self.agent.save_models()
                 break
 
             if step_num == self.max_step:
