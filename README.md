@@ -30,7 +30,7 @@ In another terminal,
     parser.add_argument(
         '--scenario', default='StationaryObjectCrossing_1', help='Name of the scenario to be executed. Use the preposition \'group:\' to run all scenarios of one class, e.g. ControlLoss or FollowLeadingVehicle (default: StationaryObjectCrossing_1)')
     parser.add_argument(
-        '--max_episode', default=10, help='Number of episodes to train the agent (default: 10)', type=int)
+        '--max_episode', default=2, help='Number of episodes to train the agent (default: 2)', type=int)
     parser.add_argument(
         '--seed', default=1, help='Seed for random and numpy packages (default: 1)', type=int)
     parser.add_argument(
@@ -43,6 +43,10 @@ In another terminal,
          '--load_model', help='Load saved models for RL Agent (default is False)', action='store_true')
     parser.add_argument(
          '--save_model', help='Save models of RL Agent (default is True)', action='store_false')
+    parser.add_argument(
+        '--height', default=720, help='Camera height (default: 720)', type=int)
+    parser.add_argument(
+        '--width', default=1280, help='Camera width (default: 1280)', type=int)
     """
 
     python main.py --scenario $scenario_name --max_episode $max_episode_number ...

@@ -72,6 +72,10 @@ def main():
          '--load_model', help='Load saved models for RL Agent (default is False)', action='store_true')
     parser.add_argument(
          '--save_model', help='Save models of RL Agent (default is True)', action='store_false')
+    parser.add_argument(
+        '--height', default=720, help='Camera height (default: 720)', type=int)
+    parser.add_argument(
+        '--width', default=1280, help='Camera width (default: 1280)', type=int)
     
     main_arguments = parser.parse_args()
 
@@ -88,13 +92,16 @@ def main():
 
     print("device: ", device)
 
+    res = str(main_arguments.width) + "x" + str(main_arguments.height)
+    print(f"res: {res}")
+
     agent, resnet50_model = initialize_agent(main_arguments, device)
     print("\n\n")
 
     scenario_runner_args = SimpleNamespace(max_episode=main_arguments.max_episode, additionalScenario='', agent=None, agentConfig='', configFile='', debug=False, file=False, host='127.0.0.1', json=False, junit=False, list=False, openscenario=None, openscenarioparams=None, output=False, outputDir='', port='2000', randomize=False, record='', reloadWorld=True, repetitions=1, route=None, scenario=main_arguments.scenario, sync=False, timeout='10.0', trafficManagerPort='8000', trafficManagerSeed='0', waitForEgo=False)
     scenario_runner = ScenarioRunner(scenario_runner_args)
 
-    rl_agent_args = SimpleNamespace(max_episode=main_arguments.max_episode, save_model=main_arguments.save_model, autopilot=False, debug=False, height=720, host='127.0.0.1', keep_ego_vehicle=False, port=2000, res='1280x720', rolename='hero', width=1280)
+    rl_agent_args = SimpleNamespace(max_episode=main_arguments.max_episode, save_model=main_arguments.save_model, autopilot=False, debug=False, height=main_arguments.height, host='127.0.0.1', keep_ego_vehicle=False, port=2000, res=res, rolename='hero', width=main_arguments.width)
     rl_agent = RLAgent(rl_agent_args, agent, resnet50_model)
 
     for episode in range(main_arguments.max_episode):
