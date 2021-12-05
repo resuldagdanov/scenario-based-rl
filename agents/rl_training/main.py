@@ -49,7 +49,7 @@ def main():
     parser.add_argument(
         '--scenario', default='StationaryObjectCrossing_1', help='Name of the scenario to be executed. Use the preposition \'group:\' to run all scenarios of one class, e.g. ControlLoss or FollowLeadingVehicle (default: StationaryObjectCrossing_1)')
     parser.add_argument(
-        '--max_episode', default=3, help='Number of episodes to train the agent (default: 3)', type=int)
+        '--max_episode', default=10, help='Number of episodes to train the agent (default: 10)', type=int)
     parser.add_argument(
         '--seed', default=1, help='Seed for random and numpy packages (default: 1)', type=int)
     parser.add_argument(

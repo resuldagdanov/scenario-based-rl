@@ -65,9 +65,9 @@ class RLAgent(object):
                 throttle = 0.0
 
             vc = carla.VehicleControl()
-            vc.throttle = 0.5 #throttle #todo:change this
-            vc.steer = 0.0 #steer
-            vc.brake = 0.0 #brake
+            vc.throttle = throttle #todo:change this
+            vc.steer = steer
+            vc.brake = brake
             self.world.player.apply_control(vc)
             self.world.tick(self.clock)
 
