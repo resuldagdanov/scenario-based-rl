@@ -26,7 +26,26 @@ In another terminal,
 
     cd scenario-based-rl/agents/rl_training
 
-    python main.py --scenario $scenario_name --max_episode $max_episode_number
+    """
+    parser.add_argument(
+        '--scenario', default='StationaryObjectCrossing_1', help='Name of the scenario to be executed. Use the preposition \'group:\' to run all scenarios of one class, e.g. ControlLoss or FollowLeadingVehicle (default: StationaryObjectCrossing_1)')
+    parser.add_argument(
+        '--max_episode', default=10, help='Number of episodes to train the agent (default: 10)', type=int)
+    parser.add_argument(
+        '--seed', default=1, help='Seed for random and numpy packages (default: 1)', type=int)
+    parser.add_argument(
+        '--cpu', help='true=CPU false=CUDA (default is True)', action='store_false')
+    parser.add_argument(
+        '--batch_size', default=64, help='Batch size for RL Agent (default: 64)', type=int)
+    parser.add_argument(
+        '--buffer_size', default=500_000, help='Buffer size for RL Agent (default: 500_000)', type=int)
+    parser.add_argument(
+         '--load_model', help='Load saved models for RL Agent (default is False)', action='store_true')
+    parser.add_argument(
+         '--save_model', help='Save models of RL Agent (default is True)', action='store_false')
+    """
+
+    python main.py --scenario $scenario_name --max_episode $max_episode_number ...
     
     ex: python main.py --scenario DynamicObjectCrossing_1 --max_episode 1000
 

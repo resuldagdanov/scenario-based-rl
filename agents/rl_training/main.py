@@ -59,7 +59,7 @@ def main():
     parser.add_argument(
         '--buffer_size', default=500_000, help='Buffer size for RL Agent (default: 500_000)', type=int)
     parser.add_argument(
-         '--load_model', help='Load saved models for RL Agent (default is false)', action='store_true')
+         '--load_model', help='Load saved models for RL Agent (default is False)', action='store_true')
     parser.add_argument(
          '--save_model', help='Save models of RL Agent (default is True)', action='store_false')
     
