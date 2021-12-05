@@ -37,8 +37,7 @@ class RESNET50Model(nn.Module):
         return out
 
 class CriticNetwork(nn.Module):
-    def __init__(self, resnet50_model, device, beta, input_dims, cnn_output_size, n_actions, fc1_dims=256, fc2_dims=256,
-            name='critic', checkpoint_dir='tmp/sac'):
+    def __init__(self, device, beta, state_size, n_actions, fc1_dims=256, fc2_dims=256, name='critic', checkpoint_dir='tmp/sac'):
         super(CriticNetwork, self).__init__()
         self.fc1_dims = fc1_dims
         self.fc2_dims = fc2_dims
@@ -47,9 +46,7 @@ class CriticNetwork(nn.Module):
         self.checkpoint_dir = checkpoint_dir
         self.checkpoint_file = os.path.join(self.checkpoint_dir, name)
 
-        self.resnet50_model = resnet50_model
-
-        self.fc1 = nn.Linear(cnn_output_size + self.n_actions, self.fc1_dims)
+        self.fc1 = nn.Linear(state_size + self.n_actions, self.fc1_dims)
         self.fc2 = nn.Linear(self.fc1_dims, self.fc2_dims)
         self.q = nn.Linear(self.fc2_dims, 1)
 
@@ -59,7 +56,6 @@ class CriticNetwork(nn.Module):
         self.to(self.device)
 
     def forward(self, state, action):
-        state = self.resnet50_model(state)
         action_value = self.fc1(T.cat([state, action], dim=1))
         action_value = F.relu(action_value)
         action_value = self.fc2(action_value)
@@ -70,19 +66,13 @@ class CriticNetwork(nn.Module):
         return q
 
     def save_checkpoint(self):
-        model_weights_dict = {}
-        for name in self.state_dict():
-            if name.find("resnet") == -1:
-                model_weights_dict[name] = self.state_dict()[name]
-
-        T.save(model_weights_dict, self.checkpoint_file)
+        T.save(self.state_dict(), self.checkpoint_file)
 
     def load_checkpoint(self):
-        self.load_state_dict(T.load(self.checkpoint_file), strict=False)
+        self.load_state_dict(T.load(self.checkpoint_file))
 
 class ValueNetwork(nn.Module):
-    def __init__(self, resnet50_model, device, beta, input_dims, cnn_output_size, fc1_dims=256, fc2_dims=256,
-            name='value', checkpoint_dir='tmp/sac'):
+    def __init__(self, device, beta, state_size, fc1_dims=256, fc2_dims=256, name='value', checkpoint_dir='tmp/sac'):
         super(ValueNetwork, self).__init__()
         self.fc1_dims = fc1_dims
         self.fc2_dims = fc2_dims
@@ -90,9 +80,7 @@ class ValueNetwork(nn.Module):
         self.checkpoint_dir = checkpoint_dir
         self.checkpoint_file = os.path.join(self.checkpoint_dir, name)
 
-        self.resnet50_model = resnet50_model
-
-        self.fc1 = nn.Linear(cnn_output_size, self.fc1_dims)
+        self.fc1 = nn.Linear(state_size, self.fc1_dims)
         self.fc2 = nn.Linear(self.fc1_dims, fc2_dims)
         self.v = nn.Linear(self.fc2_dims, 1)
 
@@ -102,7 +90,6 @@ class ValueNetwork(nn.Module):
         self.to(self.device)
 
     def forward(self, state):
-        state = self.resnet50_model(state)
         state_value = self.fc1(state)
         state_value = F.relu(state_value)
         state_value = self.fc2(state_value)
@@ -112,19 +99,13 @@ class ValueNetwork(nn.Module):
         return v
 
     def save_checkpoint(self):
-        model_weights_dict = {}
-        for name in self.state_dict():
-            if name.find("resnet") == -1:
-                model_weights_dict[name] = self.state_dict()[name]
-
-        T.save(model_weights_dict, self.checkpoint_file)
+        T.save(self.state_dict(), self.checkpoint_file)
 
     def load_checkpoint(self):
-        self.load_state_dict(T.load(self.checkpoint_file), strict=False)
+        self.load_state_dict(T.load(self.checkpoint_file))
 
 class ActorNetwork(nn.Module):
-    def __init__(self, resnet50_model, device, alpha, input_dims, cnn_output_size, max_action, fc1_dims=256, 
-            fc2_dims=256, n_actions=2, name='actor', checkpoint_dir='tmp/sac'):
+    def __init__(self, device, alpha, state_size, max_action, fc1_dims=256, fc2_dims=256, n_actions=2, name='actor', checkpoint_dir='tmp/sac'):
         super(ActorNetwork, self).__init__()
         self.fc1_dims = fc1_dims
         self.fc2_dims = fc2_dims
@@ -135,9 +116,7 @@ class ActorNetwork(nn.Module):
         self.max_action = max_action
         self.reparam_noise = 1e-6
 
-        self.resnet50_model = resnet50_model
-
-        self.fc1 = nn.Linear(cnn_output_size, self.fc1_dims)
+        self.fc1 = nn.Linear(state_size, self.fc1_dims)
         self.fc2 = nn.Linear(self.fc1_dims, self.fc2_dims)
         self.mu = nn.Linear(self.fc2_dims, self.n_actions)
         self.sigma = nn.Linear(self.fc2_dims, self.n_actions)
@@ -148,7 +127,6 @@ class ActorNetwork(nn.Module):
         self.to(self.device)
 
     def forward(self, state):
-        state = self.resnet50_model(state)
         prob = self.fc1(state)
         prob = F.relu(prob)
         prob = self.fc2(prob)
@@ -179,12 +157,7 @@ class ActorNetwork(nn.Module):
         return action, log_probs
 
     def save_checkpoint(self):
-        model_weights_dict = {}
-        for name in self.state_dict():
-            if name.find("resnet") == -1:
-                model_weights_dict[name] = self.state_dict()[name]
-
-        T.save(model_weights_dict, self.checkpoint_file)
+        T.save(self.state_dict(), self.checkpoint_file)
 
     def load_checkpoint(self):
-        self.load_state_dict(T.load(self.checkpoint_file), strict=False)
+        self.load_state_dict(T.load(self.checkpoint_file))

@@ -12,11 +12,12 @@ sys.path.append(parent)
 from _scenario_runner.manual_control import HUD, World
 
 class RLAgent(object):
-    def __init__(self, args, agent):
+    def __init__(self, args, agent, resnet50_model):
         self.args = args
         self.is_terminal = False
         self.max_step = 200
         self.agent = agent
+        self.resnet50_model = resnet50_model
 
     def set_terminal(self, status):
         self.is_terminal = status
@@ -49,7 +50,8 @@ class RLAgent(object):
         while True:
             self.clock.tick_busy_loop(60)
 
-            state = np.zeros((3, 30, 40))
+            observation = np.zeros((3, 30, 40))
+            state = self.resnet50_model(observation)
             action = self.agent.choose_action(state)
 
             steer = float(action[0])
@@ -77,7 +79,8 @@ class RLAgent(object):
             self.world.render(self.display)
             pygame.display.flip()
 
-            next_state = np.zeros((3, 30, 40))
+            next_observation = np.zeros((3, 30, 40))
+            next_state = self.resnet50_model(next_observation)
 
             velocity = self.world.player.get_velocity()
             kmh = int(3.6 * math.sqrt(velocity.x**2 + velocity.y**2 + velocity.z**2))
@@ -85,10 +88,9 @@ class RLAgent(object):
 
             print(f"\tstep {step_num} action {action} reward {reward} is_terminal {self.is_terminal}")
 
-            self.agent.remember(state, action, reward, next_state, self.is_terminal)
+            self.agent.remember(np.array(state), action, reward, np.array(next_state), self.is_terminal) #todo: np.array(state)
             self.agent.learn()
 
-            #state = next_state
             episode_reward += reward
             #plot(agent)
 
