@@ -50,7 +50,14 @@ class RLAgent(object):
         while True:
             self.clock.tick_busy_loop(60)
 
-            observation = np.zeros((3, 30, 40))
+            #observation_np = np.zeros((3, 30, 40))
+            if self.world != None and self.world.camera_manager != None and self.world.camera_manager.is_saved and self.world.camera_manager.rgb_data.any() != None:
+                observation = self.world.camera_manager.rgb_data
+                observation = np.reshape(observation, (3, self.args.height, self.args.width))
+            else:
+                #print("observation is none")
+                observation = np.zeros((3, self.args.height, self.args.width))
+            
             state = self.resnet50_model(observation)
             action = self.agent.choose_action(state)
 
@@ -79,16 +86,25 @@ class RLAgent(object):
             self.world.render(self.display)
             pygame.display.flip()
 
-            next_observation = np.zeros((3, 30, 40))
+            if self.world != None and self.world.camera_manager != None and self.world.camera_manager.is_saved and self.world.camera_manager.rgb_data.any() != None:
+                next_observation = self.world.camera_manager.rgb_data
+                next_observation = np.reshape(next_observation, (3, self.args.height, self.args.width))
+            else:
+                #print("next_observation is none")
+                next_observation = np.zeros((3, self.args.height, self.args.width))
+
             next_state = self.resnet50_model(next_observation)
 
             velocity = self.world.player.get_velocity()
             kmh = int(3.6 * math.sqrt(velocity.x**2 + velocity.y**2 + velocity.z**2))
-            reward = kmh*10
+            if kmh == 0:
+                reward = -10
+            else:
+                reward = kmh*10
 
             print(f"\tstep {step_num} action {action} reward {reward} is_terminal {self.is_terminal}")
 
-            self.agent.remember(np.array(state), action, reward, np.array(next_state), self.is_terminal) #todo: np.array(state)
+            self.agent.remember(np.array(state), np.array(action), np.array(reward), np.array(next_state), np.array(self.is_terminal))
             self.agent.learn()
 
             episode_reward += reward

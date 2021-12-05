@@ -34,7 +34,7 @@ def function_rl_agent(rl_agent):
         traceback.print_exc()
 
 def initialize_agent(args, device):
-    input_dims = (3, 30, 40)
+    input_dims = (3, args.height, args.width)
     n_actions = 2
     max_action = [1., 1.]
 
@@ -59,7 +59,7 @@ def main():
     parser.add_argument(
         '--scenario', default='StationaryObjectCrossing_1', help='Name of the scenario to be executed. Use the preposition \'group:\' to run all scenarios of one class, e.g. ControlLoss or FollowLeadingVehicle (default: StationaryObjectCrossing_1)')
     parser.add_argument(
-        '--max_episode', default=2, help='Number of episodes to train the agent (default: 2)', type=int)
+        '--max_episode', default=10, help='Number of episodes to train the agent (default: 10)', type=int)
     parser.add_argument(
         '--seed', default=1, help='Seed for random and numpy packages (default: 1)', type=int)
     parser.add_argument(
@@ -69,9 +69,9 @@ def main():
     parser.add_argument(
         '--buffer_size', default=500_000, help='Buffer size for RL Agent (default: 500_000)', type=int)
     parser.add_argument(
-         '--load_model', help='Load saved models for RL Agent (default is False)', action='store_true')
+        '--load_model', help='Load saved models for RL Agent (default is False)', action='store_true')
     parser.add_argument(
-         '--save_model', help='Save models of RL Agent (default is True)', action='store_false')
+        '--save_model', help='Save models of RL Agent (default is True)', action='store_false')
     parser.add_argument(
         '--height', default=720, help='Camera height (default: 720)', type=int)
     parser.add_argument(
