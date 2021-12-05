@@ -1,81 +1,60 @@
-import threading
+from threading import Thread
 import sys
 import os
 from types import SimpleNamespace
 import argparse
 from argparse import RawTextHelpFormatter
+import torch as T
+import numpy as np
+import random
+import time
 
 #to add the parent "agents" folder to sys path and import models
 current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
 sys.path.append(parent)
 
+from networks.agent import Agent
 from _scenario_runner.scenario_runner import ScenarioRunner
 from rl_training.rl_agent import RLAgent
 
-class ScenarioRunnerThread (threading.Thread):
-    def __init__(self, name, main_arguments):
-        threading.Thread.__init__(self)
-        self.name = name
-        self.args = self.get_arguments(main_arguments)
-        self.scenario_runner = ScenarioRunner(self.args)
+def function_scenario_runner(scenario_runner):
+    scenario_runner.run()
 
-    def get_arguments(self, main_arguments):
-        scenario = main_arguments.scenario
-        max_episode = main_arguments.max_episode
-        return SimpleNamespace(max_episode=max_episode, additionalScenario='', agent=None, agentConfig='', configFile='', debug=False, file=False, host='127.0.0.1', json=False, junit=False, list=False, openscenario=None, openscenarioparams=None, output=False, outputDir='', port='2000', randomize=False, record='', reloadWorld=True, repetitions=1, route=None, scenario=scenario, sync=False, timeout='10.0', trafficManagerPort='8000', trafficManagerSeed='0', waitForEgo=False) #todo: understand reloadWorld and repetitions arguments
+def function_rlagent(rl_agent):
+    rl_agent.initialize_agent_world()
+    rl_agent.run_one_episode()
+    rl_agent.destroy_agent_world()
 
-    def run(self):
-        #print ("Starting " + self.name)
-        try:
-            result = self.scenario_runner.run()
-            #print(f"result {result}")
-        except Exception as error:
-            print(error)
-        
-        """
-        try:
-            self.scenario_runner.run()
-        finally:
-            if scenario_runner is not None:
-                scenario_runner.destroy()
-                del scenario_runner
-        """
-        #print ("End of run of " + self.name)
+def initialize_agent():
+    random.seed(1) #todo: add seed to the args
+    np.random.seed(1)
 
-class RLAgentThread (threading.Thread):
-    def __init__(self, name, main_arguments):
-        threading.Thread.__init__(self)
-        self.name = name
-        self.args = self.get_arguments(main_arguments)
-        self.rl_agent = RLAgent(self.args)
+    is_cpu = True #todo:add this to the args
 
-    def get_arguments(self, main_arguments):
-        max_episode = main_arguments.max_episode
-        return SimpleNamespace(max_episode=max_episode, autopilot=False, debug=False, height=720, host='127.0.0.1', keep_ego_vehicle=False, port=2000, res='1280x720', rolename='hero', width=1280)
+    if is_cpu:
+        device = 'cpu' #T.device("cpu")
+    else:
+        device = 'cuda' if T.cuda.is_available() else 'cpu' #T.device('cuda:0' if T.cuda.is_available() else 'cpu')
 
-    def run(self):
-        print(f"max_episode {self.args.max_episode}")
-        print ("Starting " + self.name)
-        try:
-            self.rl_agent.initialize_agent_world()
-            self.rl_agent.run_one_episode()
+    print("device ", device)
 
-            """
-            for episode in range(self.args.max_episode):
-                print(f"episode {episode}")
-                self.rl_agent.run_one_episode()
-            """
-            self.rl_agent.destroy_agent_world()
-        except Exception as error:
-            print(error)
-        #print ("End of run of " + self.name)
+    input_dims = (3, 30, 40)  # env.observation_space.shape
+    n_actions = 2  # env.action_space.shape[0]
+    max_action = [1., 1.]  # env.action_space.high #todo: check the usage
 
-    def set_terminal(self, status):
-        self.rl_agent.set_terminal(status)
+    print(f"input_dims {input_dims}\nn_actions {n_actions}\nmax_action {max_action}")
 
-    def destroy_agent_world(self):
-        self.rl_agent.destroy_agent_world()
+    batch_size = 64
+    buffer_size = 500_000
+    checkpoint_dir = parent + os.path.sep + "models"
+    print(f"models will be saved to {checkpoint_dir}")
+    agent = Agent(device, max_action, input_dims=input_dims, n_actions=n_actions,
+                max_size=buffer_size, batch_size=batch_size, checkpoint_dir=checkpoint_dir)
+
+    #agent.load_models()
+
+    return agent
 
 def main():
     parser = argparse.ArgumentParser(description="Main", formatter_class=RawTextHelpFormatter)
@@ -86,23 +65,28 @@ def main():
     
     main_arguments = parser.parse_args()
 
-    scenarioRunnerThread = ScenarioRunnerThread("ScenarioRunnerThread", main_arguments)
-    RLagentThread = RLAgentThread("RLAgentThread", main_arguments)
+    agent = initialize_agent()
 
-    scenarioRunnerThread.start()
-    RLagentThread.start()
+    scenario = main_arguments.scenario
+    max_episode = main_arguments.max_episode
 
-    scenarioRunnerThread.join() #wait for scenarioRunnerThread to stop
-    RLagentThread.set_terminal(status = True)
+    scenario_runner_args = SimpleNamespace(max_episode=max_episode, additionalScenario='', agent=None, agentConfig='', configFile='', debug=False, file=False, host='127.0.0.1', json=False, junit=False, list=False, openscenario=None, openscenarioparams=None, output=False, outputDir='', port='2000', randomize=False, record='', reloadWorld=True, repetitions=1, route=None, scenario=scenario, sync=False, timeout='10.0', trafficManagerPort='8000', trafficManagerSeed='0', waitForEgo=False) #todo: understand reloadWorld and repetitions arguments
+    scenario_runner = ScenarioRunner(scenario_runner_args)
 
-    """
-    #for episode in range(main_arguments.max_episode-1):
-    #    scenarioRunnerThread.run()
-    #    scenarioRunnerThread.join() #wait for scenarioRunnerThread to stop
-    #    RLagentThread.set_terminal(status = True)
-    """
+    rl_agent_args = SimpleNamespace(max_episode=max_episode, autopilot=False, debug=False, height=720, host='127.0.0.1', keep_ego_vehicle=False, port=2000, res='1280x720', rolename='hero', width=1280)
+    rl_agent = RLAgent(rl_agent_args, agent)
 
-    RLagentThread.join() #wait for RLagentThread to stop
+    for episode in range(int(main_arguments.max_episode)):
+        scenario_runner_thread = Thread(target=function_scenario_runner, args=(scenario_runner,))
+        rl_agent_thread = Thread(target=function_rlagent, args=(rl_agent,))
+        
+        scenario_runner_thread.start()
+        rl_agent_thread.start()
+
+        scenario_runner_thread.join()
+        rl_agent.set_terminal(True)
+        rl_agent_thread.join()
+        print(f"End of episode {episode}")
 
 if __name__ == "__main__":
     main()
