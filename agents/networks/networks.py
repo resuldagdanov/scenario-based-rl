@@ -6,6 +6,7 @@ import torch.optim as optim
 from torch.distributions.normal import Normal
 from torchvision import models
 from torchsummary import summary
+import numpy as np
 
 class RESNET50Model(nn.Module):
     def __init__(self, device, input_dims, name='resnet50', checkpoint_dir='tmp/sac'):
@@ -28,7 +29,8 @@ class RESNET50Model(nn.Module):
         #summary(self.resnet50_model, (3, 30, 40), device = self.device)
 
     def forward(self, image):
-        image = T.from_numpy(image)
+        if type(image).__module__ == np.__name__:
+            image = T.from_numpy(image)
         image = T.reshape(image, (-1, self.input_dims[0], self.input_dims[1], self.input_dims[2]))
         image = image.to(self.device, dtype=T.float)
         out = self.resnet50_model(image)
