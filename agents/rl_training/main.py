@@ -8,6 +8,7 @@ import torch as T
 import numpy as np
 import random
 import traceback
+from tensorboardX import SummaryWriter
 
 #to add the parent "agents" folder to sys path and import models
 current = os.path.dirname(os.path.realpath(__file__))
@@ -59,13 +60,13 @@ def main():
     parser.add_argument(
         '--scenario', default='StationaryObjectCrossing_1', help='Name of the scenario to be executed. Use the preposition \'group:\' to run all scenarios of one class, e.g. ControlLoss or FollowLeadingVehicle (default: StationaryObjectCrossing_1)')
     parser.add_argument(
-        '--max_episode', default=10, help='Number of episodes to train the agent (default: 10)', type=int)
+        '--max_episode', default=5, help='Number of episodes to train the agent (default: 5)', type=int)
     parser.add_argument(
         '--seed', default=1, help='Seed for random and numpy packages (default: 1)', type=int)
     parser.add_argument(
         '--cpu', help='true=CPU false=CUDA (default is True)', action='store_false')
     parser.add_argument(
-        '--batch_size', default=64, help='Batch size for RL Agent (default: 64)', type=int)
+        '--batch_size', default=32, help='Batch size for RL Agent (default: 32)', type=int)
     parser.add_argument(
         '--buffer_size', default=500_000, help='Buffer size for RL Agent (default: 500_000)', type=int)
     parser.add_argument(
@@ -96,17 +97,23 @@ def main():
     print(f"res: {res}")
 
     agent, resnet50_model = initialize_agent(main_arguments, device)
-    print("\n\n")
+    print("\n")
+
+    writer = SummaryWriter(comment="_model")
+    total_reward = []
+    total_average_reward = 0.0
+    total_steps = 0
 
     scenario_runner_args = SimpleNamespace(max_episode=main_arguments.max_episode, additionalScenario='', agent=None, agentConfig='', configFile='', debug=False, file=False, host='127.0.0.1', json=False, junit=False, list=False, openscenario=None, openscenarioparams=None, output=False, outputDir='', port='2000', randomize=False, record='', reloadWorld=True, repetitions=1, route=None, scenario=main_arguments.scenario, sync=False, timeout='10.0', trafficManagerPort='8000', trafficManagerSeed='0', waitForEgo=False)
     scenario_runner = ScenarioRunner(scenario_runner_args)
 
-    rl_agent_args = SimpleNamespace(max_episode=main_arguments.max_episode, save_model=main_arguments.save_model, autopilot=False, debug=False, height=main_arguments.height, host='127.0.0.1', keep_ego_vehicle=False, port=2000, res=res, rolename='hero', width=main_arguments.width)
-    rl_agent = RLAgent(rl_agent_args, agent, resnet50_model)
+    rl_agent_args = SimpleNamespace(batch_size=main_arguments.batch_size, max_episode=main_arguments.max_episode, save_model=main_arguments.save_model, autopilot=False, debug=False, height=main_arguments.height, host='127.0.0.1', keep_ego_vehicle=False, port=2000, res=res, rolename='hero', width=main_arguments.width)
+    rl_agent = RLAgent(rl_agent_args, agent, resnet50_model, writer, total_reward, total_average_reward, total_steps)
 
     for episode in range(main_arguments.max_episode):
         scenario_runner_thread = Thread(target=function_scenario_runner, args=(scenario_runner,))
         rl_agent_thread = Thread(target=function_rl_agent, args=(rl_agent,))
+        rl_agent.set_episode(episode)
         
         scenario_runner_thread.start()
         rl_agent_thread.start()
