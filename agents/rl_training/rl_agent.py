@@ -4,6 +4,7 @@ import math
 import os
 import sys
 import numpy as np
+import cv2
 from tensorboardX import SummaryWriter
 
 current = os.path.dirname(os.path.realpath(__file__))
@@ -11,6 +12,7 @@ parent = os.path.dirname(current)
 sys.path.append(parent)
 
 from _scenario_runner.manual_control import HUD, World
+
 
 class RLAgent(object):
     def __init__(self, args, agent, resnet50_model, writer, total_reward, total_average_reward, total_steps):
@@ -37,14 +39,14 @@ class RLAgent(object):
         self.world = None
 
         self.client = carla.Client(self.args.host, self.args.port)
-        self.client.set_timeout(20.0)
+        self.client.set_timeout(float(self.args.timeout))
         sim_world =  self.client.get_world()
 
-        self.display = pygame.display.set_mode((self.args.width, self.args.height), pygame.HWSURFACE | pygame.DOUBLEBUF)
+        self.display = pygame.display.set_mode((self.args.width_pygame, self.args.height_pygame), pygame.HWSURFACE | pygame.DOUBLEBUF)
         self.display.fill((0,0,0))
         pygame.display.flip()
 
-        self.hud = HUD(self.args.width, self.args.height)
+        self.hud = HUD(self.args.width_pygame, self.args.height_pygame)
         self.world = World(sim_world, self.hud, self.args)
 
         sim_world.wait_for_tick()
@@ -56,6 +58,7 @@ class RLAgent(object):
         self.writer.add_scalar("episode reward", episode_reward, self.episode+1)
         self.writer.add_scalar("total average reward - episode", total_average_reward, self.episode+1)
         self.writer.add_scalar("average reward - episode", average_reward, self.episode+1)
+
         if self.total_steps > int(self.args.batch_size):
             self.writer.add_scalar("actor loss - steps", self.agent.actor_losses[len(self.agent.actor_losses)-1], self.total_steps+1)
             self.writer.add_scalar("critic loss - steps", self.agent.critic_losses[len(self.agent.critic_losses)-1], self.total_steps+1)
@@ -69,17 +72,25 @@ class RLAgent(object):
         while True:
             self.clock.tick_busy_loop(60)
 
-            #observation_np = np.zeros((3, 30, 40))
             if self.world != None and self.world.camera_manager != None and self.world.camera_manager.is_saved and self.world.camera_manager.rgb_data.any() != None:
                 observation = self.world.camera_manager.rgb_data
+
+                # convert BGR to RGB image
+                observation = cv2.cvtColor(observation[:, :, :3], cv2.COLOR_BGR2RGB)
                 observation = np.reshape(observation, (3, self.args.height, self.args.width))
-            else:
-                #print("observation is none")
+
+                # print("observation : ", observation, observation.shape)
+            else:  
+                # print("observation is none")
                 observation = np.zeros((3, self.args.height, self.args.width))
             
+            # normalize rgb observation to (0 - 1) before feeding into NN
+            observation = observation / 255
+
+            # input RGB image to neural networks
             state = self.resnet50_model(observation)
             action = self.agent.choose_action(state)
-
+            
             steer = float(action[0])
             accel_brake = float(action[1])
 
@@ -96,11 +107,9 @@ class RLAgent(object):
             vc.throttle = throttle #todo:change this
             vc.steer = steer
             vc.brake = brake
+
             self.world.player.apply_control(vc)
             self.world.tick(self.clock)
-
-            #if not world.tick(clock):
-            #    return
 
             self.world.render(self.display)
             pygame.display.flip()
@@ -108,26 +117,23 @@ class RLAgent(object):
             if self.world != None and self.world.camera_manager != None and self.world.camera_manager.is_saved and self.world.camera_manager.rgb_data.any() != None:
                 next_observation = self.world.camera_manager.rgb_data
                 next_observation = np.reshape(next_observation, (3, self.args.height, self.args.width))
+
+                print("next_observation: ", next_observation, next_observation.shape)
             else:
-                #print("next_observation is none")
+                print("next_observation is none")
                 next_observation = np.zeros((3, self.args.height, self.args.width))
 
+            # TODO: normalize rgb observation before feeding into NN
             next_state = self.resnet50_model(next_observation)
 
-            velocity = self.world.player.get_velocity()
-            kmh = int(3.6 * math.sqrt(velocity.x**2 + velocity.y**2 + velocity.z**2))
-            if kmh == 0:
-                reward = -10
-            else:
-                reward = kmh*10
-
-            if self.hud.is_colhist_saved:
-                reward -= self.hud.collision[len(self.hud.collision)-1] * 100
+            # TODO: redesign reward calculations
+            reward = self.calculate_reward()
 
             print(f"\tstep {step_num} action {action} reward {reward} is_terminal {self.is_terminal}")
 
             state = state.cpu().detach().numpy()[0]
             next_state = next_state.cpu().detach().numpy()[0]
+
             self.agent.remember(np.array(state), np.array(action), np.array(reward), np.array(next_state), np.array(self.is_terminal))
             self.agent.learn()
             #self.plot()
@@ -168,3 +174,17 @@ class RLAgent(object):
             self.world.destroy()
 
         pygame.quit()
+
+    def calculate_reward(self):
+        velocity = self.world.player.get_velocity()
+        kmh = int(3.6 * math.sqrt(velocity.x**2 + velocity.y**2 + velocity.z**2))
+        
+        if kmh == 0:
+            reward = -10
+        else:
+            reward = kmh*10
+
+        if self.hud.is_colhist_saved:
+            reward -= self.hud.collision[len(self.hud.collision)-1] * 100
+
+        return reward

@@ -3,6 +3,7 @@ import torch.nn.functional as F
 from .buffer import ReplayBuffer
 from .networks import ActorNetwork, CriticNetwork, ValueNetwork, RESNET50Model
 
+
 class Agent():
     def __init__(self, device, max_action, alpha=0.0003, beta=0.0003, gamma=0.99, n_actions=2, max_size=1000000, tau=0.005, batch_size=128, reward_scale=2, checkpoint_dir="tmp/sac"):
         self.state_size = (1000,)
@@ -13,8 +14,10 @@ class Agent():
         self.n_actions = n_actions
 
         self.actor = ActorNetwork(device, alpha, self.state_size[0], n_actions=n_actions, name='actor', max_action=max_action, checkpoint_dir=checkpoint_dir)
+        
         self.critic_1 = CriticNetwork(device, beta, self.state_size[0], n_actions=n_actions, name='critic_1', checkpoint_dir=checkpoint_dir)
         self.critic_2 = CriticNetwork(device, beta, self.state_size[0], n_actions=n_actions, name='critic_2', checkpoint_dir=checkpoint_dir)
+        
         self.value = ValueNetwork(device, beta, self.state_size[0], name='value', checkpoint_dir=checkpoint_dir)
         self.target_value = ValueNetwork(device, beta, self.state_size[0], name='target_value', checkpoint_dir=checkpoint_dir)
 
@@ -60,8 +63,7 @@ class Agent():
         if self.memory.mem_cntr < self.batch_size:
             return
 
-        state, action, reward, new_state, done = \
-                self.memory.sample_buffer(self.batch_size)
+        state, action, reward, new_state, done = self.memory.sample_buffer(self.batch_size)
 
         reward = T.tensor(reward, dtype=T.float).to(self.actor.device)
         done = T.tensor(done).to(self.actor.device)

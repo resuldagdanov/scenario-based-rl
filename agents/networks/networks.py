@@ -8,6 +8,7 @@ from torchvision import models
 from torchsummary import summary
 import numpy as np
 
+
 class RESNET50Model(nn.Module):
     def __init__(self, device, input_dims, name='resnet50', checkpoint_dir='tmp/sac'):
         super(RESNET50Model, self).__init__()
@@ -20,21 +21,32 @@ class RESNET50Model(nn.Module):
         self.device = device
         resnet50_model = models.resnet50(pretrained=True)
 
-        #freeze weights
+        # freeze weights
         for param in resnet50_model.parameters():
             param.requires_grad = False
 
         self.resnet50_model = resnet50_model.to(self.device)
 
-        #summary(self.resnet50_model, (3, 30, 40), device = self.device)
+    def normalize_rgb(self, x):
+        x = x.clone()
+        x[:, 0] = (x[:, 0] - 0.485) / 0.229
+        x[:, 1] = (x[:, 1] - 0.456) / 0.224
+        x[:, 2] = (x[:, 2] - 0.406) / 0.225
+        return x
 
     def forward(self, image):
-        if type(image).__module__ == np.__name__:
-            image = T.from_numpy(image)
+        # to tensor and unsquueze for batch dimension
+        image = T.from_numpy(image.copy()).unsqueeze(0)
+
+        # normalize input image (using default torch normalization technique)
+        image = self.normalize_rgb(image)
+
         image = T.reshape(image, (-1, self.input_dims[0], self.input_dims[1], self.input_dims[2]))
         image = image.to(self.device, dtype=T.float)
-        out = self.resnet50_model(image)
-        return out
+        
+        out_image_features = self.resnet50_model(image)
+        return out_image_features
+
 
 class CriticNetwork(nn.Module):
     def __init__(self, device, beta, state_size, n_actions, fc1_dims=256, fc2_dims=256, name='critic', checkpoint_dir='tmp/sac'):
@@ -71,6 +83,7 @@ class CriticNetwork(nn.Module):
     def load_checkpoint(self):
         self.load_state_dict(T.load(self.checkpoint_file))
 
+
 class ValueNetwork(nn.Module):
     def __init__(self, device, beta, state_size, fc1_dims=256, fc2_dims=256, name='value', checkpoint_dir='tmp/sac'):
         super(ValueNetwork, self).__init__()
@@ -103,6 +116,7 @@ class ValueNetwork(nn.Module):
 
     def load_checkpoint(self):
         self.load_state_dict(T.load(self.checkpoint_file))
+
 
 class ActorNetwork(nn.Module):
     def __init__(self, device, alpha, state_size, max_action, fc1_dims=256, fc2_dims=256, n_actions=2, name='actor', checkpoint_dir='tmp/sac'):
