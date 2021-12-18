@@ -1,6 +1,7 @@
 import os
 import sys
 import itertools
+from agents.networks import resnet_backbone
 import torch as T
 import torch.nn.functional as F
 
@@ -13,6 +14,7 @@ from utils.buffer import ReplayBuffer
 from networks.actor_network import ActorNetwork
 from networks.critic_network import CriticNetwork
 from networks.value_network import ValueNetwork
+from networks.resnet_backbone import ResNetBackbone
 
 
 class RLModel():
@@ -22,15 +24,19 @@ class RLModel():
         lrvalue = 0.0005
         n_actions = 2
         buffer_size=200000
+        state_size = 1000 # output size of resnet
 
-        self.actor = ActorNetwork(device=device, lrpolicy=lrpolicy, n_actions=n_actions, max_action=max_action, name='actor', checkpoint_dir='tmp/sac')
-        self.actor_target = ActorNetwork(device=device, lrpolicy=lrpolicy, n_actions=n_actions, max_action=max_action, name='actor', checkpoint_dir='tmp/sac')
+        # load pretrained ResNet
+        resnet_backbone = ResNetBackbone(device=self.device)
 
-        self.critic_1 = CriticNetwork(device=device, lrvalue=lrvalue, n_actions=n_actions, max_action=max_action, name='critic_1', checkpoint_dir='tmp/sac')
-        self.critic_target_1 = CriticNetwork(device=device, lrvalue=lrvalue, n_actions=n_actions, max_action=max_action, name='critic_1', checkpoint_dir='tmp/sac')
+        self.actor = ActorNetwork(device=device, resnet_backbone=resnet_backbone, state_size=state_size, lrpolicy=lrpolicy, n_actions=n_actions, max_action=max_action, name='actor', checkpoint_dir='tmp/sac')
+        self.actor_target = ActorNetwork(device=device,  resnet_backbone=resnet_backbone, state_size=state_size, lrpolicy=lrpolicy, n_actions=n_actions, max_action=max_action, name='actor', checkpoint_dir='tmp/sac')
 
-        self.critic_2 = CriticNetwork(device=device, lrvalue=lrvalue, n_actions=n_actions, max_action=max_action, name='critic_1', checkpoint_dir='tmp/sac')
-        self.critic_target_2 = CriticNetwork(device=device, lrvalue=lrvalue, n_actions=n_actions, max_action=max_action, name='critic_1', checkpoint_dir='tmp/sac')
+        self.critic_1 = CriticNetwork(device=device, resnet_backbone=resnet_backbone, state_size=state_size, lrvalue=lrvalue, n_actions=n_actions, max_action=max_action, name='critic_1', checkpoint_dir='tmp/sac')
+        self.critic_target_1 = CriticNetwork(device=device, resnet_backbone=resnet_backbone, state_size=state_size, lrvalue=lrvalue, n_actions=n_actions, max_action=max_action, name='critic_1', checkpoint_dir='tmp/sac')
+
+        self.critic_2 = CriticNetwork(device=device, resnet_backbone=resnet_backbone, state_size=state_size, lrvalue=lrvalue, n_actions=n_actions, max_action=max_action, name='critic_1', checkpoint_dir='tmp/sac')
+        self.critic_target_2 = CriticNetwork(device=device, resnet_backbone=resnet_backbone, state_size=state_size, lrvalue=lrvalue, n_actions=n_actions, max_action=max_action, name='critic_1', checkpoint_dir='tmp/sac')
         
         self.memory = ReplayBuffer(buffer_size=buffer_size)
 
@@ -65,7 +71,7 @@ class RLModel():
 
         return actions.cpu().detach().numpy()[0]
 
-    # TODO: left here -> check out state representation
+    # TODO: left here -> check out state representation (make a dictionary and search index from the dictionary)
     # compute q-loss
     def calculate_loss_q(self, data):
         states, actions, rewards, next_states, dones = data[0], data[1], data[2], data[3], data[4]
@@ -78,7 +84,7 @@ class RLModel():
 
             q_1_pi_target = self.critic_target_1(next_states, next_action)
             q_2_pi_target = self.critic_target_2(next_states, next_action)
-            q_pi_target = torch.min(q_1_pi_target, q_2_pi_target)
+            q_pi_target = T.min(q_1_pi_target, q_2_pi_target)
 
             # apply q-function
             backup = rewards + self.gamma * (1 - dones) * (q_pi_target - self.alpha * logp_next_action)

@@ -9,7 +9,6 @@ class BrakeNetwork(nn.Module):
         super(BrakeNetwork, self).__init__()
 
         self.device = device
-        self.input_dims = input_dims
         self.name = name
         self.checkpoint_dir = checkpoint_dir
         self.checkpoint_file = os.path.join(self.checkpoint_dir, name)
