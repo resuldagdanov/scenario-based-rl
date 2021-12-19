@@ -158,11 +158,14 @@ class WaypointAgent(AutonomousAgent):
 
         # determine whether to accelerate or brake
         if float(dnn_agent_action[1]) >= 0.0:
-            throttle = dnn_agent_action[1]
             brake = 0.0
+            throttle = dnn_agent_action[1]
+            
+            if throttle >= 0.75:
+                throttle = 0.75
         else:
-            throttle = 0.0
             brake = 1.0
+            throttle = 0.0
 
         steer = float(dnn_agent_action[0])
 
