@@ -64,9 +64,8 @@ class RLModel():
         self.actor_optimizer = self.actor.optimizer
         self.critic_optimizer = self.critic_1.optimizer
 
-    def select_action(self, image, fused_input, deterministic=True):
+    def select_action(self, image_features, fused_input, deterministic=True):
         with T.no_grad():
-            image_features = self.resnet_backbone(image)
             actions, _ = self.actor(image_features=image_features, fused_input=fused_input, deterministic=deterministic, with_logprob=False)
 
         return actions.cpu().detach().numpy()[0]

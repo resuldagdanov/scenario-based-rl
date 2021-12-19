@@ -13,7 +13,7 @@ class ReplayBuffer:
 
     # get experience sample of batch size
     def sample(self, batch_size):
-        image_feature_batch, fused_input_batch, action_batch, reward_batch, next_image_feature_batch, next_fused_input_batch, done_batch = [], [], [], [], []
+        image_feature_batch, fused_input_batch, action_batch, reward_batch, next_image_feature_batch, next_fused_input_batch, done_batch = [], [], [], [], [], [], []
 
         # get one batch randomly from the replay memory
         batch = random.sample(self.memories, batch_size)

@@ -65,6 +65,10 @@ class WaypointAgent(AutonomousAgent):
         self.init_dnn_agent()
 
         self.initialized = True
+        self.push_buffer = False
+
+        self.next_image_features = []
+        self.next_fused_inputs = []
 
         cv2.namedWindow("rgb-front-FOV-60")
 
@@ -153,10 +157,25 @@ class WaypointAgent(AutonomousAgent):
         fused_inputs_torch = torch.from_numpy(fused_inputs.copy()).unsqueeze(0).to(self.device)
 
         # apply freezed pre-trained resnet model onto the image
-        image_features = self.agent.resnet_backbone(dnn_input_image)
+        image_features_torch = self.agent.resnet_backbone(dnn_input_image)
+        image_features = image_features_torch.cpu().detach().numpy()[0]
 
         # get action from actor network
-        dnn_agent_action = np.array(self.agent.select_action(image_features=image_features, fused_input=fused_inputs_torch))
+        dnn_agent_action = np.array(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch))
+
+        # TODO: left here, compute reward and do not save buffer in a ram
+        reward = 0
+        done = 1
+        batch_size = 64
+
+        if self.push_buffer:
+            self.agent.memory.push(image_features, fused_inputs, dnn_agent_action, reward, self.next_image_features, self.next_fused_inputs, done)
+
+            if len(self.agent.memory.memories) > batch_size:
+                self.agent.update(self.agent.memory.sample(batch_size))
+
+        self.next_image_features = image_features
+        self.next_fused_inputs = fused_inputs
 
         # determine whether to accelerate or brake
         if float(dnn_agent_action[1]) >= 0.0:
@@ -174,12 +193,13 @@ class WaypointAgent(AutonomousAgent):
         # TODO: removed PID controller's actions
         # steer, throttle, brake, target_speed = self.get_control(near_node, far_node, data, brake)
 
-        print("(throttle, steer, brake) : ", throttle, steer, brake)
-
         applied_control = carla.VehicleControl()
         applied_control.throttle = throttle
         applied_control.steer = steer
         applied_control.brake = brake
+        
+        self.push_buffer = True
+        print("(throttle, steer, brake) : ", throttle, steer, brake)
 
         return applied_control
 
