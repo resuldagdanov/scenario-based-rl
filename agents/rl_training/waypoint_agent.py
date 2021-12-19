@@ -12,7 +12,6 @@ current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
 sys.path.append(parent)
 
-from model import RLModel
 from utils.pid_controller import PIDController
 from utils.planner import RoutePlanner
 from _scenario_runner.srunner.autoagents.autonomous_agent import AutonomousAgent
@@ -36,16 +35,15 @@ class WaypointAgent(AutonomousAgent):
         checkpoint_dir = parent + os.path.sep + "models"
         print(f"models will be saved to {checkpoint_dir}")
 
-        # self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') # TODO: open cuda
-        self.device = torch.device('cpu')
-
-        self.agent = RLModel(device=self.device)
+        self.device = self.agent.device
 
     def init_auto_pilot(self):
         self._turn_controller = PIDController(K_P=1.25, K_I=0.75, K_D=0.3, n=40)
         self._speed_controller = PIDController(K_P=5.0, K_I=0.5, K_D=1.0, n=40)
 
-    def setup(self, path_to_conf_file):
+    def setup(self, rl_model):
+        self.agent = rl_model
+
         self.initialized = False
         self._sensor_data = SENSOR_CONFIG
 

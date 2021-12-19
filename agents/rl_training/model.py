@@ -15,7 +15,7 @@ from networks.resnet_backbone import ResNetBackbone
 
 
 class RLModel():
-    def __init__(self, device):
+    def __init__(self):
 
         lrpolicy=0.0001
         lrvalue = 0.0005
@@ -23,17 +23,19 @@ class RLModel():
         buffer_size=200000
         state_size = 1000 # output size of resnet
 
+        self.device = T.device('cuda' if T.cuda.is_available() else 'cpu')
+
         # load pretrained ResNet
-        self.resnet_backbone = ResNetBackbone(device=device)
+        self.resnet_backbone = ResNetBackbone(device=self.device)
 
-        self.actor = ActorNetwork(device=device, state_size=state_size, lrpolicy=lrpolicy, n_actions=n_actions, name='actor', checkpoint_dir='tmp/sac')
-        self.actor_target = ActorNetwork(device=device, state_size=state_size, lrpolicy=lrpolicy, n_actions=n_actions, name='actor', checkpoint_dir='tmp/sac')
+        self.actor = ActorNetwork(device=self.device, state_size=state_size, lrpolicy=lrpolicy, n_actions=n_actions, name='actor', checkpoint_dir='tmp/sac')
+        self.actor_target = ActorNetwork(device=self.device, state_size=state_size, lrpolicy=lrpolicy, n_actions=n_actions, name='actor', checkpoint_dir='tmp/sac')
 
-        self.critic_1 = CriticNetwork(device=device, state_size=state_size, lrvalue=lrvalue, n_actions=n_actions, name='critic_1', checkpoint_dir='tmp/sac')
-        self.critic_target_1 = CriticNetwork(device=device, state_size=state_size, lrvalue=lrvalue, n_actions=n_actions, name='critic_1', checkpoint_dir='tmp/sac')
+        self.critic_1 = CriticNetwork(device=self.device, state_size=state_size, lrvalue=lrvalue, n_actions=n_actions, name='critic_1', checkpoint_dir='tmp/sac')
+        self.critic_target_1 = CriticNetwork(device=self.device, state_size=state_size, lrvalue=lrvalue, n_actions=n_actions, name='critic_1', checkpoint_dir='tmp/sac')
 
-        self.critic_2 = CriticNetwork(device=device, state_size=state_size, lrvalue=lrvalue, n_actions=n_actions, name='critic_1', checkpoint_dir='tmp/sac')
-        self.critic_target_2 = CriticNetwork(device=device, state_size=state_size, lrvalue=lrvalue, n_actions=n_actions, name='critic_1', checkpoint_dir='tmp/sac')
+        self.critic_2 = CriticNetwork(device=self.device, state_size=state_size, lrvalue=lrvalue, n_actions=n_actions, name='critic_1', checkpoint_dir='tmp/sac')
+        self.critic_target_2 = CriticNetwork(device=self.device, state_size=state_size, lrvalue=lrvalue, n_actions=n_actions, name='critic_1', checkpoint_dir='tmp/sac')
         
         self.memory = ReplayBuffer(buffer_size=buffer_size)
 

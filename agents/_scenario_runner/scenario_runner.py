@@ -347,7 +347,7 @@ class ScenarioRunner(object):
 
         return True
 
-    def _load_and_run_scenario(self, config):
+    def _load_and_run_scenario(self, config, rl_model=None):
         """
         Load and run the scenario given by config
         """
@@ -358,9 +358,12 @@ class ScenarioRunner(object):
 
         if self._args.agent:
             agent_class_name = self.module_agent.__name__.title().replace('_', '')
+            
             try:
-                self.agent_instance = getattr(self.module_agent, agent_class_name)(self._args.agentConfig)
+                # NOTE: global arguments are assigned below
+                self.agent_instance = getattr(self.module_agent, agent_class_name)(rl_model)
                 config.agent = self.agent_instance
+            
             except Exception as e:          # pylint: disable=broad-except
                 traceback.print_exc()
                 print("Could not setup required agent due to {}".format(e))
@@ -463,6 +466,7 @@ class ScenarioRunner(object):
             routes = self._args.route[0]
             scenario_file = self._args.route[1]
             single_route = None
+
             if len(self._args.route) > 2:
                 single_route = self._args.route[2]
 
@@ -470,8 +474,14 @@ class ScenarioRunner(object):
         route_configurations = RouteParser.parse_routes_file(routes, scenario_file, single_route)
 
         for config in route_configurations:
-            for _ in range(self._args.repetitions): # TODO: loop running each RL episode
-                result = self._load_and_run_scenario(config)
+
+            # assign all global argument and variables for RL training including network initialization
+            from rl_training.model import RLModel
+            rl_model = RLModel()
+
+            # NOTE: loop running each RL episode
+            for _ in range(self._args.repetitions):            
+                result = self._load_and_run_scenario(config=config, rl_model=rl_model)
 
                 self._cleanup()
         return result
@@ -518,8 +528,7 @@ def main():
     """
     main function
     """
-    description = ("CARLA Scenario Runner: Setup, Run and Evaluate scenarios using CARLA\n"
-                   "Current version: " + VERSION)
+    description = ("CARLA Scenario Runner: Setup, Run and Evaluate scenarios using CARLA\n" "Current version: " + VERSION)
 
     # pylint: disable=line-too-long
     parser = argparse.ArgumentParser(description=description, formatter_class=RawTextHelpFormatter)
