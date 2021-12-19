@@ -7,15 +7,12 @@ import carla
 import torch
 import cv2
 
-from model import RLModel
-
 # to add the parent "agents" folder to sys path and import models
 current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
 sys.path.append(parent)
 
-from networks.brake_network import BrakeNetwork
-
+from model import RLModel
 from utils.pid_controller import PIDController
 from utils.planner import RoutePlanner
 from _scenario_runner.srunner.autoagents.autonomous_agent import AutonomousAgent
@@ -44,7 +41,7 @@ class WaypointAgent(AutonomousAgent):
         # self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') # TODO: open cuda
         self.device = torch.device('cpu')
 
-        self.agent = BrakeNetwork(input_dims=input_dims, device=self.device)
+        self.agent = RLModel(device=self.device)
 
     def init_auto_pilot(self):
         self._turn_controller = PIDController(K_P=1.25, K_I=0.75, K_D=0.3, n=40)
@@ -158,16 +155,21 @@ class WaypointAgent(AutonomousAgent):
         fused_inputs = np.array(fused_inputs, np.float32)
         fused_inputs_torch = torch.from_numpy(fused_inputs.copy()).unsqueeze(0).to(self.device)
         
-        with torch.no_grad():
-            dnn_agent_brake = self.agent(image=dnn_input_image, fused_inputs=fused_inputs_torch)
-        brake = dnn_agent_brake.squeeze(0).cpu().detach().numpy()
+        # get action from actor network
+        dnn_agent_action = np.array(self.agent.select_action(image=dnn_input_image, fused_input=fused_inputs_torch))
 
-        if float(dnn_agent_brake) > 0.5:
-            brake = float(1)
+        # determine whether to accelerate or brake
+        if float(dnn_agent_action[1]) >= 0.0:
+            throttle = dnn_agent_action[1]
+            brake = 0.0
         else:
-            brake = float(0)
+            throttle = 0.0
+            brake = 1.0
 
-        steer, throttle, brake, target_speed = self.get_control(near_node, far_node, data, brake)
+        steer = dnn_agent_action[0]
+
+        # TODO: removed PID controller's actions
+        # steer, throttle, brake, target_speed = self.get_control(near_node, far_node, data, brake)
 
         applied_control = carla.VehicleControl()
         applied_control.throttle = throttle

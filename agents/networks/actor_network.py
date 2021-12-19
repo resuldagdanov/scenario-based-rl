@@ -4,23 +4,18 @@ import torch as T
 import torch.nn as nn
 import torch.optim as optim
 from torch.distributions.normal import Normal
-from resnet_backbone import ResNetBackbone
 
 
 class ActorNetwork(nn.Module):
-    def __init__(self, device, resnet_backbone, state_size, lrpolicy, n_actions, max_action, name, checkpoint_dir):
+    def __init__(self, device, state_size, lrpolicy, n_actions, name, checkpoint_dir):
         super(ActorNetwork, self).__init__()
 
         self.device = device
         
         self.n_actions = n_actions
-        self.max_action = max_action
         self.name = name
         self.checkpoint_dir = checkpoint_dir
         self.checkpoint_file = os.path.join(self.checkpoint_dir, name)
-
-        # load pretrained ResNet
-        self.resnet_backbone = resnet_backbone
         
         # fusion data layer
         self.fused_encoder = nn.Linear(3, 128, bias=True)
@@ -35,26 +30,22 @@ class ActorNetwork(nn.Module):
         self.optimizer = optim.Adam(self.parameters(), lr=lrpolicy)
         self.to(self.device)
 
-    def forward(self, image, fused_inputs):
-        image_features = self.resnet_backbone(image)
-        fused_features = T.relu(self.fused_encoder(fused_inputs))
+    def forward(self, image_features, fused_input, deterministic=False, with_logprob=True):
+        fused_features = T.relu(self.fused_encoder(fused_input))
 
         # image feature size: 1000 and fused location and speed information size: 128
         concatenate_features = T.cat((image_features, fused_features), dim=1)
 
         net_out = T.relu(self.fc1(concatenate_features))
         net_out = T.relu(self.fc2(net_out))
-
+        
         mu = self.mu_layer(net_out)
         log_sigma = self.std_layer(net_out)
 
+        # minimum log standard deviation is choosen as -20
+        # maximum log standard deviation is choosen as +2
         log_sigma = T.clamp(log_sigma, min=-20, max=2)
         std = T.exp(log_sigma)
-
-        return mu, std
-
-    def sample_normal(self, image, fused_inputs, deterministic=False, with_logprob=True):
-        mu, std = self.forward(image, fused_inputs)
 
         # pre-squash distribution and sample
         pi_distribution = Normal(mu, std)

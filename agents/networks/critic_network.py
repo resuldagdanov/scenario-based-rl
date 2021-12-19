@@ -2,41 +2,39 @@ import os
 import torch as T
 import torch.nn as nn
 import torch.optim as optim
-from resnet_backbone import ResNetBackbone
 
 
 class CriticNetwork(nn.Module):
-    def __init__(self, device, resnet_backbone, state_size, lrvalue, n_actions, max_action, name, checkpoint_dir):
+    def __init__(self, device, state_size, lrvalue, n_actions, name, checkpoint_dir):
         super(CriticNetwork, self).__init__()
+
+        fused_size = 128
+        action_size = 2
+        hidden_size = 64
         
         self.device = device
         self.n_actions = n_actions
-        self.max_action = max_action
         self.name = name
         self.checkpoint_dir = checkpoint_dir
         self.checkpoint_file = os.path.join(self.checkpoint_dir, name)
 
-        # load pretrained ResNet
-        self.resnet_backbone = resnet_backbone
-
         # fusion data layer
-        self.fused_encoder = nn.Linear(3, 128, bias=True)
+        self.fused_encoder = nn.Linear(3, fused_size, bias=True)
 
         # mlp layers
-        self.fc1 = nn.Linear(state_size + 128, 64)
-        self.fc2 = nn.Linear(64, 64)
+        self.fc1 = nn.Linear(state_size + fused_size + action_size, hidden_size)
+        self.fc2 = nn.Linear(hidden_size, hidden_size)
 
-        self.q_layer = nn.Linear(64, 1)
+        self.q_layer = nn.Linear(hidden_size, 1)
 
         self.optimizer = optim.Adam(self.parameters(), lr=lrvalue)
         self.to(self.device)
 
-    def forward(self, image, fused_inputs, action):
-        image_features = self.resnet_backbone(image)
-        fused_features = T.relu(self.fused_encoder(fused_inputs))
+    def forward(self, image_features, fused_input, action):
+        fused_features = T.relu(self.fused_encoder(fused_input))
 
-        # image feature size: 1000 and fused location and speed information size: 128
-        concatenate_features = T.cat((image_features, fused_features), dim=1)
+        # image feature size: 1000, and fused location and speed information size: 128, and action values: 2
+        concatenate_features = T.cat((image_features, fused_features, action), dim=1)
 
         net_out = T.relu(self.fc1(concatenate_features))
         net_out = T.relu(self.fc2(net_out))
