@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import os
+import signal
 import sys
 import numpy as np
 import carla
@@ -150,9 +151,12 @@ class WaypointAgent(AutonomousAgent):
         # fused inputs to torch
         fused_inputs = np.array(fused_inputs, np.float32)
         fused_inputs_torch = torch.from_numpy(fused_inputs.copy()).unsqueeze(0).to(self.device)
-        
+
+        # apply freezed pre-trained resnet model onto the image
+        image_features = self.agent.resnet_backbone(dnn_input_image)
+
         # get action from actor network
-        dnn_agent_action = np.array(self.agent.select_action(image=dnn_input_image, fused_input=fused_inputs_torch))
+        dnn_agent_action = np.array(self.agent.select_action(image_features=image_features, fused_input=fused_inputs_torch))
 
         # determine whether to accelerate or brake
         if float(dnn_agent_action[1]) >= 0.0:
@@ -254,4 +258,5 @@ class WaypointAgent(AutonomousAgent):
         return x
 
     def destroy(self):
-        del self.agent
+        # terminate and go to another eposide
+        os.kill(os.getpid(), signal.SIGINT)

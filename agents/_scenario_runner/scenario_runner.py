@@ -480,7 +480,8 @@ class ScenarioRunner(object):
             rl_model = RLModel()
 
             # NOTE: loop running each RL episode
-            for _ in range(self._args.repetitions):            
+            for _ in range(self._args.repetitions):
+                print("\n---next episode---")     
                 result = self._load_and_run_scenario(config=config, rl_model=rl_model)
 
                 self._cleanup()
