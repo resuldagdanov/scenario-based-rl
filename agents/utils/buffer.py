@@ -8,25 +8,28 @@ class ReplayBuffer:
         self.memories = deque(maxlen=buffer_size)
 
     # append experience to the replay memory
-    def push(self, state, action, reward, next_state, done):
-        self.memories.append((state, action, np.array([reward]), next_state, done))
+    def push(self, image_features, fused_inputs, action, reward, next_image_features, next_fused_inputs, done):
+        self.memories.append((image_features, fused_inputs, action, np.array([reward]), next_image_features, next_fused_inputs, done))
 
     # get experience sample of batch size
     def sample(self, batch_size):
-        state_batch, action_batch, reward_batch, next_state_batch, done_batch = [], [], [], [], []
+        image_feature_batch, fused_input_batch, action_batch, reward_batch, next_image_feature_batch, next_fused_input_batch, done_batch = [], [], [], [], []
 
         # get one batch randomly from the replay memory
         batch = random.sample(self.memories, batch_size)
 
         for experience in batch:
-            state, action, reward, next_state, done = experience
-            state_batch.append(state)
+            image_feature, fused_input, action, reward, next_image_feature, next_fused_input, done = experience
+
+            image_feature_batch.append(image_feature)
+            fused_input_batch.append(fused_input)
             action_batch.append(action)
             reward_batch.append(reward)
-            next_state_batch.append(next_state)
+            next_image_feature_batch.append(next_image_feature)
+            next_fused_input_batch.append(next_fused_input)
             done_batch.append(done)
             
-        return state_batch, action_batch, reward_batch, next_state_batch, done_batch
+        return image_feature_batch, fused_input_batch, action_batch, reward_batch, next_image_feature_batch, next_fused_input_batch, done_batch
 
     def __len__(self):
         return len(self.memories)
