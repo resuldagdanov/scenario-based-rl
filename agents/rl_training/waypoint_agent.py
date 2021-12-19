@@ -29,11 +29,9 @@ class WaypointAgent(AutonomousAgent):
 
     def init_dnn_agent(self):
         input_dims = (3, SENSOR_CONFIG['height'], SENSOR_CONFIG['width'])
-        
         n_actions = 2
-        max_action = [1., 1.]
 
-        print(f"input_dims: {input_dims}\nn_actions: {n_actions}\nmax_action: {max_action}")
+        print(f"input_dims: {input_dims}\nn_actions: {n_actions}")
 
         checkpoint_dir = parent + os.path.sep + "models"
         print(f"models will be saved to {checkpoint_dir}")
@@ -166,10 +164,12 @@ class WaypointAgent(AutonomousAgent):
             throttle = 0.0
             brake = 1.0
 
-        steer = dnn_agent_action[0]
+        steer = float(dnn_agent_action[0])
 
         # TODO: removed PID controller's actions
         # steer, throttle, brake, target_speed = self.get_control(near_node, far_node, data, brake)
+
+        print("(throttle, steer, brake) : ", throttle, steer, brake)
 
         applied_control = carla.VehicleControl()
         applied_control.throttle = throttle

@@ -24,7 +24,7 @@ class RLModel():
         state_size = 1000 # output size of resnet
 
         # load pretrained ResNet
-        self.resnet_backbone = ResNetBackbone(device=self.device)
+        self.resnet_backbone = ResNetBackbone(device=device)
 
         self.actor = ActorNetwork(device=device, state_size=state_size, lrpolicy=lrpolicy, n_actions=n_actions, name='actor', checkpoint_dir='tmp/sac')
         self.actor_target = ActorNetwork(device=device, state_size=state_size, lrpolicy=lrpolicy, n_actions=n_actions, name='actor', checkpoint_dir='tmp/sac')
@@ -62,10 +62,10 @@ class RLModel():
         self.actor_optimizer = self.actor.optimizer
         self.critic_optimizer = self.critic_1.optimizer
 
-    def select_action(self, image, fused_inputs, deterministic=True):
+    def select_action(self, image, fused_input, deterministic=True):
         with T.no_grad():
             image_features = self.resnet_backbone(image)
-            actions, _ = self.actor(image_features=image_features, fused_inputs=fused_inputs, deterministic=deterministic, with_logprob=False)
+            actions, _ = self.actor(image_features=image_features, fused_input=fused_input, deterministic=deterministic, with_logprob=False)
 
         return actions.cpu().detach().numpy()[0]
 
