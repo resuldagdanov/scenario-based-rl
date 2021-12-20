@@ -84,6 +84,8 @@ class WaypointAgent(AutonomousAgent):
         self.next_image_features = []
         self.next_fused_inputs = []
 
+        self.count_vehicle_stop = 0
+
         cv2.namedWindow("rgb-front-FOV-60")
 
     def get_position(self, tick_data):
@@ -170,11 +172,11 @@ class WaypointAgent(AutonomousAgent):
         image_features_torch = self.agent.resnet_backbone(dnn_input_image)
         image_features = image_features_torch.cpu().detach().numpy()[0]
 
-        # get action from actor network
+        # get action from actor network [steer (-1,1), acceleration-brake ((-1,0): brake, (0,1: throttle))]
         dnn_agent_action = np.array(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch))
 
         # compute step reward and deside for termination
-        reward, done = self.calculate_reward(ego_speed=speed, ego_gps=gps, goal_point=far_node)
+        reward, done = self.calculate_reward(action=dnn_agent_action, ego_speed=speed, ego_gps=gps, goal_point=far_node)
 
         if self.push_buffer:
             self.agent.memory.push(image_features, fused_inputs, dnn_agent_action, reward, self.next_image_features, self.next_fused_inputs, done)
@@ -216,19 +218,48 @@ class WaypointAgent(AutonomousAgent):
 
         return applied_control
 
-    def calculate_reward(self, ego_speed, ego_gps, goal_point):
-        reward = 0.0
+    def calculate_reward(self, action, ego_speed, ego_gps, goal_point):
         done = 0.0
 
-        distance = np.linalg.norm(goal_point - ego_gps) # meters
+        reward = ego_speed
 
-        reward -= distance
+        # ego vehicle actions
+        steer = action[0]
+        accel_brake = action[1]
 
-        if self.is_collision:
-            reward = -100
-        
+        # distance to each far distance goal points in meters
+        distance = np.linalg.norm(goal_point - ego_gps)
+
+        # if any of the following is not None, then the agent should brake
+        is_light, is_walker, is_vehicle = self.traffic_data()
+
+        # give penalty if ego vehicle is not braking where it should brake
+        if any(is_light, is_walker, is_vehicle) is not None:
+            
+            # accelerating while it should brake
+            if accel_brake > 0.2:
+                reward -= ego_speed * accel_brake
+            
+            # braking as it should be
+            else:
+                reward += 15
+
+        # negative reward for collision or lane invasion
         if self.is_lane_invasion:
-            reward = -50
+            reward -= 50
+        if self.is_collision:
+            reward -= 100
+            done = 1.0
+
+        if ego_speed <= 0.5:
+            self.count_vehicle_stop += 1
+        else:
+            self.count_vehicle_stop = 0
+
+        # terminate if vehicle is not moving for too long steps
+        if self.count_vehicle_stop > 90:
+            reward -= 60
+            done = 1.0
 
         return reward, done
 
