@@ -164,8 +164,8 @@ class WaypointAgent(AutonomousAgent):
         dnn_agent_action = np.array(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch))
 
         # TODO: left here, compute reward and do not save buffer in a ram
-        reward = 0
-        done = 1
+        reward = -1.0
+        done = 1.0
         batch_size = 64
 
         if self.push_buffer:

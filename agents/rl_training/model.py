@@ -17,25 +17,31 @@ from networks.resnet_backbone import ResNetBackbone
 class RLModel():
     def __init__(self):
 
+        # TODO: forward hyperparameters to global input argument
         lrpolicy=0.0001
         lrvalue = 0.0005
         n_actions = 2
         buffer_size=200000
         state_size = 1000 # output size of resnet
 
-        self.device = T.device('cuda' if T.cuda.is_available() else 'cpu')
+        #self.device = T.device('cuda' if T.cuda.is_available() else 'cpu') # TODO: open cuda
+        self.device = T.device('cpu')
+
+        self.tau = 0.001
+        self.alpha = 0.2
+        self.gamma = 0.97
 
         # load pretrained ResNet
         self.resnet_backbone = ResNetBackbone(device=self.device)
 
-        self.actor = ActorNetwork(device=self.device, state_size=state_size, lrpolicy=lrpolicy, n_actions=n_actions, name='actor', checkpoint_dir='tmp/sac')
-        self.actor_target = ActorNetwork(device=self.device, state_size=state_size, lrpolicy=lrpolicy, n_actions=n_actions, name='actor', checkpoint_dir='tmp/sac')
+        self.actor = ActorNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='actor', checkpoint_dir='tmp/sac')
+        self.actor_target = ActorNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='actor', checkpoint_dir='tmp/sac')
 
-        self.critic_1 = CriticNetwork(device=self.device, state_size=state_size, lrvalue=lrvalue, n_actions=n_actions, name='critic_1', checkpoint_dir='tmp/sac')
-        self.critic_target_1 = CriticNetwork(device=self.device, state_size=state_size, lrvalue=lrvalue, n_actions=n_actions, name='critic_1', checkpoint_dir='tmp/sac')
+        self.critic_1 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_1', checkpoint_dir='tmp/sac')
+        self.critic_target_1 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_1', checkpoint_dir='tmp/sac')
 
-        self.critic_2 = CriticNetwork(device=self.device, state_size=state_size, lrvalue=lrvalue, n_actions=n_actions, name='critic_1', checkpoint_dir='tmp/sac')
-        self.critic_target_2 = CriticNetwork(device=self.device, state_size=state_size, lrvalue=lrvalue, n_actions=n_actions, name='critic_1', checkpoint_dir='tmp/sac')
+        self.critic_2 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_1', checkpoint_dir='tmp/sac')
+        self.critic_target_2 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_1', checkpoint_dir='tmp/sac')
         
         self.memory = ReplayBuffer(buffer_size=buffer_size)
 
@@ -61,8 +67,8 @@ class RLModel():
         self.critic_criterion = T.nn.MSELoss()
 
         # define actor and critic network optimizers
-        self.actor_optimizer = self.actor.optimizer
-        self.critic_optimizer = self.critic_1.optimizer
+        self.actor_optimizer = T.optim.Adam(self.actor.parameters(), lr=lrpolicy)
+        self.critic_optimizer = T.optim.Adam(self.q_params, lr=lrvalue)
 
     def select_action(self, image_features, fused_input, deterministic=True):
         with T.no_grad():
@@ -86,8 +92,8 @@ class RLModel():
             backup = rewards + self.gamma * (1 - dones) * (q_pi_target - self.alpha * logp_next_action)
 
         # get average q-loss from both critic networks
-        loss_q_1 = ((q_1 - backup) ** 2).mean()
-        loss_q_2 = ((q_2 - backup) ** 2).mean()
+        loss_q_1 = ((q_1 - backup)**2).mean()
+        loss_q_2 = ((q_2 - backup)**2).mean()
         loss_q = loss_q_1 + loss_q_2
 
         return loss_q
