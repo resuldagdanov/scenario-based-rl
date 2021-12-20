@@ -8,11 +8,14 @@ import carla
 import torch
 import cv2
 
+from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
+
 # to add the parent "agents" folder to sys path and import models
 current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
 sys.path.append(parent)
 
+from utils import base_utils
 from utils.pid_controller import PIDController
 from utils.planner import RoutePlanner
 from _scenario_runner.srunner.autoagents.autonomous_agent import AutonomousAgent
@@ -42,6 +45,10 @@ class WaypointAgent(AutonomousAgent):
         self._turn_controller = PIDController(K_P=1.25, K_I=0.75, K_D=0.3, n=40)
         self._speed_controller = PIDController(K_P=5.0, K_I=0.5, K_D=1.0, n=40)
 
+    def init_privileged_agent(self):
+        self.hero_vehicle = CarlaDataProvider.get_hero_actor()
+        self.world = self.hero_vehicle.get_world()
+
     def setup(self, rl_model):
         self.agent = rl_model
 
@@ -61,8 +68,9 @@ class WaypointAgent(AutonomousAgent):
         self._route_planner.set_route(self._plan_gps_HACK, True)
         self._command_planner.set_route(self._global_plan, True)
 
-        self.init_auto_pilot()
         self.init_dnn_agent()
+        self.init_auto_pilot()
+        self.init_privileged_agent()
 
         self.initialized = True
         self.push_buffer = False
@@ -142,8 +150,8 @@ class WaypointAgent(AutonomousAgent):
         fused_inputs = np.zeros(3, dtype=np.float32)
 
         fused_inputs[0] = speed
-        fused_inputs[1] = near_node[0] - gps[0]
-        fused_inputs[2] = near_node[1] - gps[1]
+        fused_inputs[1] = far_node[0] - gps[0]
+        fused_inputs[2] = far_node[1] - gps[1]
 
         disp_front_image = cv2.UMat(front_cv_image)
         cv2.imshow("rgb-front-FOV-60", disp_front_image)
@@ -163,16 +171,14 @@ class WaypointAgent(AutonomousAgent):
         # get action from actor network
         dnn_agent_action = np.array(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch))
 
-        # TODO: left here, compute reward and do not save buffer in a ram
-        reward = -1.0
-        done = 1.0
-        batch_size = 64
+        # compute step reward and deside for termination
+        reward, done = self.calculate_reward(ego_speed=speed, ego_gps=gps, goal_point=far_node)
 
         if self.push_buffer:
             self.agent.memory.push(image_features, fused_inputs, dnn_agent_action, reward, self.next_image_features, self.next_fused_inputs, done)
 
-            if len(self.agent.memory.memories) > batch_size:
-                self.agent.update(self.agent.memory.sample(batch_size))
+            if len(self.agent.memory.memories) > self.agent.batch_size:
+                self.agent.update(self.agent.memory.sample(self.agent.batch_size))
 
         self.next_image_features = image_features
         self.next_fused_inputs = fused_inputs
@@ -202,7 +208,47 @@ class WaypointAgent(AutonomousAgent):
         
         self.push_buffer = True
 
+        # terminate an episode
+        if done:
+            self.destroy()
+
         return applied_control
+
+    def calculate_reward(self, ego_speed, ego_gps, goal_point):
+        reward = 0.0
+        done = 0.0
+
+        distance = np.linalg.norm(goal_point - ego_gps) # meters
+
+        reward -= distance
+
+        return reward, done
+
+    def privileged_sensors(self):
+        blueprint = self.world.get_blueprint_library()
+
+        # get blueprint of the sensors
+        bp_collision = blueprint.find('sensor.other.collision')
+        bp_lane_invasion = blueprint.find('sensor.other.lane_invasion')
+
+        # attach sensors to the ego vehicle
+        self.collision_sensor = self.world.spawn_actor(bp_collision, carla.Transform(), attach_to=self.hero_vehicle)
+        self.lane_invasion_sensor = self.world.spawn_actor(bp_lane_invasion, carla.Transform(), attach_to=self.hero_vehicle)
+
+    def traffic_data(self):
+        all_actors = self.world.get_actors()
+
+        lights_list = all_actors.filter('*traffic_light*')
+        walkers_list = all_actors.filter('*walker*')
+        vehicle_list = all_actors.filter('*vehicle*')
+
+        traffic_lights = base_utils.get_nearby_lights(self.hero_vehicle, lights_list)
+
+        light = self.is_light_red(traffic_lights)
+        walker = self.is_walker_hazard(walkers_list)
+        vehicle = self.is_vehicle_hazard(vehicle_list)
+
+        return light, walker, vehicle
 
     def get_control(self, target, far_target, tick_data, brake):
         pos = self.get_position(tick_data)
@@ -277,6 +323,63 @@ class WaypointAgent(AutonomousAgent):
         x[:, 1] = (x[:, 1] - 0.456) / 0.224
         x[:, 2] = (x[:, 2] - 0.406) / 0.225
         return x
+
+    def is_light_red(self, traffic_lights):
+        if self.hero_vehicle.get_traffic_light_state() != carla.libcarla.TrafficLightState.Green:
+            affecting = self.hero_vehicle.get_traffic_light()
+            for light in traffic_lights:
+                if light.id == affecting.id:
+                    return affecting
+        return None
+
+    def is_walker_hazard(self, walkers_list):
+        p1 = base_utils._numpy(self.hero_vehicle.get_location())
+        v1 = 13.0 * base_utils._orientation(self.hero_vehicle.get_transform().rotation.yaw)
+        for walker in walkers_list:
+            v2_hat = base_utils._orientation(walker.get_transform().rotation.yaw)
+            s2 = np.linalg.norm(base_utils._numpy(walker.get_velocity()))
+            if s2 < 0.05:
+                v2_hat *= s2
+            p2 = -3.0 * v2_hat + base_utils._numpy(walker.get_location())
+            v2 = 10.0 * v2_hat
+            collides, collision_point = base_utils.get_collision(p1, v1, p2, v2)
+            if collides:
+                return walker
+        return None
+
+    def is_vehicle_hazard(self, vehicle_list):
+        o1 = base_utils._orientation(self.hero_vehicle.get_transform().rotation.yaw)
+        p1 = base_utils._numpy(self.hero_vehicle.get_location())
+        s1 = max(10, 5.0 * np.linalg.norm(base_utils._numpy(self.hero_vehicle.get_velocity()))) # increases the threshold distance
+        s2 = max(20, 5.0 * np.linalg.norm(base_utils._numpy(self.hero_vehicle.get_velocity()))) # increases the threshold distance
+        v1_hat = o1
+        v1 = s1 * v1_hat
+        for target_vehicle in vehicle_list:
+            if target_vehicle.id == self.hero_vehicle.id:
+                continue
+            o2 = base_utils._orientation(target_vehicle.get_transform().rotation.yaw)
+            p2 = base_utils._numpy(target_vehicle.get_location())
+            s2 = max(6.0, 4.0 * np.linalg.norm(base_utils._numpy(target_vehicle.get_velocity())))
+            v2_hat = o2
+            v2 = s2 * v2_hat
+            p2_p1 = p2 - p1
+            distance = np.linalg.norm(p2_p1)
+            p2_p1_hat = p2_p1 / (distance + 1e-4)
+            angle_to_car = np.degrees(np.arccos(v1_hat.dot(p2_p1_hat)))
+            angle_between_heading = np.degrees(np.arccos(o1.dot(o2)))
+            angle_to_car = min(angle_to_car, 360.0 - angle_to_car)
+            angle_between_heading = min(angle_between_heading, 360.0 - angle_between_heading)
+            if angle_between_heading > 60.0 and not (angle_to_car < 15 and distance < s1):
+                continue
+            elif angle_to_car > 30.0:
+                continue
+            elif distance > s1 and distance < s2:
+                self.target_vehicle_speed = target_vehicle.get_velocity()
+                continue
+            elif distance > s1:
+                continue
+            return target_vehicle
+        return None
 
     def destroy(self):
         # terminate and go to another eposide
