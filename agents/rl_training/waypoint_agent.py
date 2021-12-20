@@ -7,6 +7,7 @@ import numpy as np
 import carla
 import torch
 import cv2
+import math
 
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 
@@ -48,6 +49,11 @@ class WaypointAgent(AutonomousAgent):
     def init_privileged_agent(self):
         self.hero_vehicle = CarlaDataProvider.get_hero_actor()
         self.world = self.hero_vehicle.get_world()
+
+        self.is_collision = False
+        self.is_lane_invasion = False
+
+        self.privileged_sensors()
 
     def setup(self, rl_model):
         self.agent = rl_model
@@ -108,26 +114,22 @@ class WaypointAgent(AutonomousAgent):
                     'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0,
                     'sensor_tick': 0.05,
                     'id': 'imu'
-                    },
-                # { 
-                #     'type': 'sensor.speedometer',
-                #     'reading_frequency': 20,
-                #     'id': 'speed'
-                #     }
+                    }
                 ]   
     
     def tick(self, input_data):
         rgb_front = input_data['rgb_front'][1][:, :, :3]
         rgb_front = rgb_front[:, :, ::-1]
         gps = input_data['gps'][1][:2]
-        # speed = input_data['speed'][1]['speed'] # TODO: open speed sensor
-        speed = 20.0
         compass = input_data['imu'][1][-1]
+
+        speed = self.hero_vehicle.get_velocity()
+        speed_kmh = 3.6 * math.sqrt(speed.x**2 + speed.y**2 + speed.z**2) # km/h
 
         return {
                 'rgb_front': rgb_front,
                 'gps': gps,
-                'speed': speed,
+                'speed': speed_kmh,
                 'compass': compass
                 }
 
@@ -149,7 +151,7 @@ class WaypointAgent(AutonomousAgent):
 
         fused_inputs = np.zeros(3, dtype=np.float32)
 
-        fused_inputs[0] = speed
+        fused_inputs[0] = speed / 3.6 # m/s
         fused_inputs[1] = far_node[0] - gps[0]
         fused_inputs[2] = far_node[1] - gps[1]
 
@@ -222,6 +224,12 @@ class WaypointAgent(AutonomousAgent):
 
         reward -= distance
 
+        if self.is_collision:
+            reward = -100
+        
+        if self.is_lane_invasion:
+            reward = -50
+
         return reward, done
 
     def privileged_sensors(self):
@@ -232,8 +240,12 @@ class WaypointAgent(AutonomousAgent):
         bp_lane_invasion = blueprint.find('sensor.other.lane_invasion')
 
         # attach sensors to the ego vehicle
-        self.collision_sensor = self.world.spawn_actor(bp_collision, carla.Transform(), attach_to=self.hero_vehicle)
-        self.lane_invasion_sensor = self.world.spawn_actor(bp_lane_invasion, carla.Transform(), attach_to=self.hero_vehicle)
+        collision_sensor = self.world.spawn_actor(bp_collision, carla.Transform(), attach_to=self.hero_vehicle)
+        lane_invasion_sensor = self.world.spawn_actor(bp_lane_invasion, carla.Transform(), attach_to=self.hero_vehicle)
+
+        # create sensor event callbacks
+        collision_sensor.listen(lambda : self.is_collision == True)
+        lane_invasion_sensor.listen(lambda : self.is_lane_invasion == True)
 
     def traffic_data(self):
         all_actors = self.world.get_actors()
