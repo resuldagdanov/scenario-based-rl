@@ -2,12 +2,11 @@ import os
 import numpy as np
 import torch as T
 import torch.nn as nn
-import torch.optim as optim
 from torch.distributions.normal import Normal
 
 
 class ActorNetwork(nn.Module):
-    def __init__(self, device, state_size, lrpolicy, n_actions, name, checkpoint_dir):
+    def __init__(self, device, state_size, n_actions, name, checkpoint_dir):
         super(ActorNetwork, self).__init__()
 
         self.device = device
@@ -27,7 +26,6 @@ class ActorNetwork(nn.Module):
         self.mu_layer = nn.Linear(64, self.n_actions)
         self.std_layer = nn.Linear(64, self.n_actions)
 
-        self.optimizer = optim.Adam(self.parameters(), lr=lrpolicy)
         self.to(self.device)
 
     def forward(self, image_features, fused_input, deterministic=False, with_logprob=True):

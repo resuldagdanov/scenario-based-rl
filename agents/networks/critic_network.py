@@ -5,7 +5,7 @@ import torch.optim as optim
 
 
 class CriticNetwork(nn.Module):
-    def __init__(self, device, state_size, lrvalue, n_actions, name, checkpoint_dir):
+    def __init__(self, device, state_size, n_actions, name, checkpoint_dir):
         super(CriticNetwork, self).__init__()
 
         fused_size = 128
@@ -27,7 +27,6 @@ class CriticNetwork(nn.Module):
 
         self.q_layer = nn.Linear(hidden_size, 1)
 
-        self.optimizer = optim.Adam(self.parameters(), lr=lrvalue)
         self.to(self.device)
 
     def forward(self, image_features, fused_input, action):

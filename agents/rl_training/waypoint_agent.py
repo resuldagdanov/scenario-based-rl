@@ -193,13 +193,14 @@ class WaypointAgent(AutonomousAgent):
         # TODO: removed PID controller's actions
         # steer, throttle, brake, target_speed = self.get_control(near_node, far_node, data, brake)
 
+        print("(throttle, steer, brake) : ", throttle, steer, brake)
+
         applied_control = carla.VehicleControl()
-        applied_control.throttle = throttle
+        applied_control.throttle = float(throttle)
         applied_control.steer = steer
         applied_control.brake = brake
         
         self.push_buffer = True
-        print("(throttle, steer, brake) : ", throttle, steer, brake)
 
         return applied_control
 
