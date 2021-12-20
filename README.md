@@ -20,7 +20,7 @@ In one terminal,
 
     cd CARLA_0.9.13
 
-    ./CarlaUE4.sh
+    ./CarlaUE4.sh -RenderOffScreen
 
 In another terminal,
 
