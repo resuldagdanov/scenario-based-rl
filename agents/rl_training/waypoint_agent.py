@@ -58,6 +58,7 @@ class WaypointAgent(AutonomousAgent):
     def setup(self, rl_model):
         self.agent = rl_model
 
+        self.debug = self.agent.debug
         self.initialized = False
         self._sensor_data = SENSOR_CONFIG
 
@@ -86,7 +87,8 @@ class WaypointAgent(AutonomousAgent):
 
         self.count_vehicle_stop = 0
 
-        cv2.namedWindow("rgb-front-FOV-60")
+        if self.debug:
+            cv2.namedWindow("rgb-front-FOV-60")
 
     def get_position(self, tick_data):
         gps = tick_data['gps']
@@ -157,9 +159,10 @@ class WaypointAgent(AutonomousAgent):
         fused_inputs[1] = far_node[0] - gps[0]
         fused_inputs[2] = far_node[1] - gps[1]
 
-        disp_front_image = cv2.UMat(front_cv_image)
-        cv2.imshow("rgb-front-FOV-60", disp_front_image)
-        cv2.waitKey(1)
+        if self.debug:
+            disp_front_image = cv2.UMat(front_cv_image)
+            cv2.imshow("rgb-front-FOV-60", disp_front_image)
+            cv2.waitKey(1)
 
         # construct network input image format
         dnn_input_image = self.image_to_dnn_input(image=front_cv_image)
@@ -234,7 +237,7 @@ class WaypointAgent(AutonomousAgent):
         is_light, is_walker, is_vehicle = self.traffic_data()
 
         # give penalty if ego vehicle is not braking where it should brake
-        if any(is_light, is_walker, is_vehicle) is not None:
+        if any([is_light, is_walker, is_vehicle]) is not None:
             
             # accelerating while it should brake
             if accel_brake > 0.2:

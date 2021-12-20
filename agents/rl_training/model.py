@@ -32,6 +32,8 @@ class RLModel():
         self.gamma = 0.97
         self.batch_size = 64
 
+        self.debug = False
+
         # load pretrained ResNet
         self.resnet_backbone = ResNetBackbone(device=self.device)
 
