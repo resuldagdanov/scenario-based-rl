@@ -56,6 +56,9 @@ class RLModel():
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
 
+        print(f"models will be saved to {checkpoint_dir}")
+        print(f"logs will be saved to {log_dir}")
+
         self.episode_number = 0
         self.writer = SummaryWriter(logdir=log_dir, comment="_carla_model")
 
@@ -68,8 +71,8 @@ class RLModel():
         self.critic_1 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_1', checkpoint_dir=checkpoint_dir)
         self.critic_target_1 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_1', checkpoint_dir=checkpoint_dir)
 
-        self.critic_2 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_1', checkpoint_dir=checkpoint_dir)
-        self.critic_target_2 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_1', checkpoint_dir=checkpoint_dir)
+        self.critic_2 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_2', checkpoint_dir=checkpoint_dir)
+        self.critic_target_2 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_2', checkpoint_dir=checkpoint_dir)
         
         self.memory = ReplayBuffer(buffer_size=buffer_size)
 

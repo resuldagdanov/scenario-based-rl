@@ -37,9 +37,6 @@ class WaypointAgent(AutonomousAgent):
 
         print(f"input_dims: {input_dims}\nn_actions: {n_actions}")
 
-        checkpoint_dir = parent + os.path.sep + "models"
-        print(f"models will be saved to {checkpoint_dir}")
-
         self.device = self.agent.device
 
     def init_auto_pilot(self):
@@ -208,8 +205,6 @@ class WaypointAgent(AutonomousAgent):
 
         steer = float(dnn_agent_action[0])
 
-        print("(throttle, steer, brake) : ", throttle, steer, brake)
-
         applied_control = carla.VehicleControl()
         applied_control.throttle = float(throttle)
         applied_control.steer = steer
@@ -221,12 +216,16 @@ class WaypointAgent(AutonomousAgent):
         if reward > self.best_reward:
             self.best_reward = reward
 
+            print("self.best_reward : ", self.best_reward)
             self.agent.save_models()
+
+        print("throttle: %0.2f, steer: %0.2f, brake: %0.2f, reward: %0.2f,".format(throttle, steer, brake, reward))
 
         # terminate an episode
         if done:
             base_utils.tensorboard_writer(self.writer, self.eps, self.episode_total_reward, self.best_reward)
 
+            print("------------ Terminating! ------------")
             self.destroy()
 
         return applied_control
@@ -251,16 +250,20 @@ class WaypointAgent(AutonomousAgent):
             
             # accelerating while it should brake
             if accel_brake > 0.2:
+                print("[Penalty]: not braking !")
                 reward -= ego_speed * accel_brake
             
             # braking as it should be
             else:
+                print("[Reward]: correctly braking !")
                 reward += 15
 
         # negative reward for collision or lane invasion
         if self.is_lane_invasion:
+            print("[Penalty]: lane invasion !")
             reward -= 50
         if self.is_collision:
+            print("[Penalty]: collision !")
             reward -= 100
             done = 1.0
 
@@ -271,6 +274,7 @@ class WaypointAgent(AutonomousAgent):
 
         # terminate if vehicle is not moving for too long steps
         if self.count_vehicle_stop > 90:
+            print("[Penalty]: too long stopping !")
             reward -= 60
             done = 1.0
 
