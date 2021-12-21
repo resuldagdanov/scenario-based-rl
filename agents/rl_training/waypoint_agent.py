@@ -223,7 +223,10 @@ class WaypointAgent(AutonomousAgent):
 
         self.episode_total_reward += reward
 
-        print("[Action]: throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}".format(throttle, steer, brake, speed, reward, self.step_number))
+        if policy_loss is not None or value_loss is not None:
+            print("[Action]: throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, pi-loss: {:.2f}, q-loss: {:.2f}, reward: {:.2f}, step: #{:d}".format(throttle, steer, brake, speed, policy_loss, value_loss, reward, self.step_number))
+        else:
+            print("[Action]: throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}".format(throttle, steer, brake, speed, reward, self.step_number))
 
         # terminate an episode
         if done:
