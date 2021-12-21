@@ -186,6 +186,8 @@ class RLModel():
             for target_param, param in zip(self.critic_target_2.parameters(), self.critic_2.parameters()):
                 target_param.data.copy_(param.data * self.tau + target_param.data * (1.0 - self.tau))
 
+        return loss_pi.data.numpy(), loss_q.data.numpy()
+
     def _totorch(self, container, dtype):
         if isinstance(container[0], T.Tensor):
             tensor = T.stack(container)

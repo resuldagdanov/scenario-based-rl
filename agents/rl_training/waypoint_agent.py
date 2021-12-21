@@ -187,7 +187,7 @@ class WaypointAgent(AutonomousAgent):
             self.agent.memory.push(image_features, fused_inputs, dnn_agent_action, reward, self.next_image_features, self.next_fused_inputs, done)
 
             if len(self.agent.memory.memories) > self.agent.batch_size:
-                self.agent.update(self.agent.memory.sample(self.agent.batch_size))
+                policy_loss, value_loss = self.agent.update(self.agent.memory.sample(self.agent.batch_size))
 
         self.next_image_features = image_features
         self.next_fused_inputs = fused_inputs
