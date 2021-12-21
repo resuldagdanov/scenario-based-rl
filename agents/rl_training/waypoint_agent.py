@@ -293,12 +293,12 @@ class WaypointAgent(AutonomousAgent):
         bp_lane_invasion = blueprint.find('sensor.other.lane_invasion')
 
         # attach sensors to the ego vehicle
-        collision_sensor = self.world.spawn_actor(bp_collision, carla.Transform(), attach_to=self.hero_vehicle)
-        lane_invasion_sensor = self.world.spawn_actor(bp_lane_invasion, carla.Transform(), attach_to=self.hero_vehicle)
+        self.collision_sensor = self.world.spawn_actor(bp_collision, carla.Transform(), attach_to=self.hero_vehicle)
+        self.lane_invasion_sensor = self.world.spawn_actor(bp_lane_invasion, carla.Transform(), attach_to=self.hero_vehicle)
 
         # create sensor event callbacks
-        collision_sensor.listen(lambda : self.is_collision == True)
-        lane_invasion_sensor.listen(lambda : self.is_lane_invasion == True)
+        self.collision_sensor.listen(lambda : self.is_collision == True)
+        self.lane_invasion_sensor.listen(lambda : self.is_lane_invasion == True)
 
     def traffic_data(self):
         all_actors = self.world.get_actors()
@@ -447,5 +447,14 @@ class WaypointAgent(AutonomousAgent):
         return None
 
     def destroy(self):
+        self.collision_sensor.stop()
+        self.lane_invasion_sensor.stop()
+
+        self.collision_sensor.destroy()
+        self.lane_invasion_sensor.destroy()
+
+        if self.world is not None:
+            self.world.destroy()
+
         # terminate and go to another eposide
         os.kill(os.getpid(), signal.SIGINT)
