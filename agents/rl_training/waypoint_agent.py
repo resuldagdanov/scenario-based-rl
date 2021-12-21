@@ -59,6 +59,9 @@ class WaypointAgent(AutonomousAgent):
         self.agent = rl_model
 
         self.debug = self.agent.debug
+        self.writer = self.agent.writer
+        self.eps = self.agent.episode_number
+
         self.initialized = False
         self._sensor_data = SENSOR_CONFIG
 
@@ -85,6 +88,8 @@ class WaypointAgent(AutonomousAgent):
         self.next_image_features = []
         self.next_fused_inputs = []
 
+        self.episode_total_reward = 0.0
+        self.best_reward = 0.0
         self.count_vehicle_stop = 0
 
         if self.debug:
@@ -203,9 +208,6 @@ class WaypointAgent(AutonomousAgent):
 
         steer = float(dnn_agent_action[0])
 
-        # TODO: removed PID controller's actions
-        # steer, throttle, brake, target_speed = self.get_control(near_node, far_node, data, brake)
-
         print("(throttle, steer, brake) : ", throttle, steer, brake)
 
         applied_control = carla.VehicleControl()
@@ -215,8 +217,16 @@ class WaypointAgent(AutonomousAgent):
         
         self.push_buffer = True
 
+        self.episode_total_reward += reward
+        if reward > self.best_reward:
+            self.best_reward = reward
+
+            self.agent.save_models()
+
         # terminate an episode
         if done:
+            base_utils.tensorboard_writer(self.writer, self.eps, self.episode_total_reward, self.best_reward)
+
             self.destroy()
 
         return applied_control

@@ -3,6 +3,9 @@ import sys
 import itertools
 import torch as T
 
+from tensorboardX import SummaryWriter
+from datetime import datetime
+
 # to add the parent "agents" folder to sys path and import models
 current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
@@ -12,6 +15,8 @@ from utils.buffer import ReplayBuffer
 from networks.actor_network import ActorNetwork
 from networks.critic_network import CriticNetwork
 from networks.resnet_backbone import ResNetBackbone
+
+CHECKPOINT_PATH = os.environ.get('CHECKPOINT_PATH', None)
 
 
 class RLModel():
@@ -34,17 +39,37 @@ class RLModel():
 
         self.debug = False
 
+        today = datetime.today() # month - date - year
+        now = datetime.now() # hours - minutes - seconds
+
+        current_date = str(today.strftime("%b_%d_%Y"))
+        current_time = str(now.strftime("%H_%M_%S"))
+
+        # month_date_year-hour_minute_second
+        time_info = current_date + "-" + current_time
+
+        checkpoint_dir = CHECKPOINT_PATH + 'models/' + time_info + "/"
+        log_dir = CHECKPOINT_PATH + 'logs/' + time_info + "/"
+        
+        if not os.path.exists(checkpoint_dir):
+            os.makedirs(checkpoint_dir)
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+
+        self.episode_number = 0
+        self.writer = SummaryWriter(logdir=log_dir, comment="_carla_model")
+
         # load pretrained ResNet
         self.resnet_backbone = ResNetBackbone(device=self.device)
 
-        self.actor = ActorNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='actor', checkpoint_dir='tmp/sac')
-        self.actor_target = ActorNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='actor', checkpoint_dir='tmp/sac')
+        self.actor = ActorNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='actor', checkpoint_dir=checkpoint_dir)
+        self.actor_target = ActorNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='actor', checkpoint_dir=checkpoint_dir)
 
-        self.critic_1 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_1', checkpoint_dir='tmp/sac')
-        self.critic_target_1 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_1', checkpoint_dir='tmp/sac')
+        self.critic_1 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_1', checkpoint_dir=checkpoint_dir)
+        self.critic_target_1 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_1', checkpoint_dir=checkpoint_dir)
 
-        self.critic_2 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_1', checkpoint_dir='tmp/sac')
-        self.critic_target_2 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_1', checkpoint_dir='tmp/sac')
+        self.critic_2 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_1', checkpoint_dir=checkpoint_dir)
+        self.critic_target_2 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_1', checkpoint_dir=checkpoint_dir)
         
         self.memory = ReplayBuffer(buffer_size=buffer_size)
 

@@ -85,3 +85,8 @@ def get_nearby_lights(vehicle, lights, pixels_per_meter=5.5, size=512, radius=5)
         result.append(light)
 
     return result
+
+
+def tensorboard_writer(writer, eps, episode_total_reward, best_reward):
+    writer.add_scalar("episode total reward - episode", episode_total_reward, eps)
+    writer.add_scalar("best reward - episode", best_reward, eps)
