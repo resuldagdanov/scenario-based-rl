@@ -89,6 +89,9 @@ class WaypointAgent(AutonomousAgent):
         self.step_number = 1
         self.episode_total_reward = 0.0
         self.count_vehicle_stop = 0
+        self.n_updates == 0
+        self.total_loss_pi == 0.0
+        self.total_loss_q == 0.0
 
         if self.debug:
             cv2.namedWindow("rgb-front-FOV-60")
@@ -189,6 +192,10 @@ class WaypointAgent(AutonomousAgent):
 
             if len(self.agent.memory.memories) > self.agent.batch_size:
                 policy_loss, value_loss = self.agent.update(self.agent.memory.sample(self.agent.batch_size))
+                
+                self.n_updates += 1
+                self.total_loss_pi += policy_loss
+                self.total_loss_q += value_loss
 
         self.next_image_features = image_features
         self.next_fused_inputs = fused_inputs
@@ -219,7 +226,7 @@ class WaypointAgent(AutonomousAgent):
 
         # terminate an episode
         if done:
-            base_utils.tensorboard_writer(self.writer, self.eps, self.episode_total_reward, self.agent.best_reward)
+            base_utils.tensorboard_writer(self.writer, self.eps, self.episode_total_reward, self.agent.best_reward, self.total_loss_pi, self.total_loss_q, self.n_updates)
 
             if self.episode_total_reward > self.agent.best_reward:
                 self.agent.best_reward = reward
