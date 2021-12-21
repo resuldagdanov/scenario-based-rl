@@ -234,9 +234,10 @@ class WaypointAgent(AutonomousAgent):
         return applied_control
 
     def calculate_reward(self, action, ego_speed, ego_gps, goal_point):
+        reward = -0.1
         done = 0.0
 
-        reward = ego_speed
+        reward += ego_speed
 
         # ego vehicle actions
         steer = action[0]
@@ -277,9 +278,9 @@ class WaypointAgent(AutonomousAgent):
             self.count_vehicle_stop = 0
 
         # terminate if vehicle is not moving for too long steps
-        if self.count_vehicle_stop > 90:
+        if self.count_vehicle_stop > 100:
             print("[Penalty]: too long stopping !")
-            reward -= 60
+            reward -= 20
             done = 1.0
 
         return reward, done
