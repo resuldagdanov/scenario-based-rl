@@ -8,6 +8,7 @@ import carla
 import torch
 import cv2
 import math
+import weakref
 
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 
@@ -229,7 +230,7 @@ class WaypointAgent(AutonomousAgent):
             base_utils.tensorboard_writer(self.writer, self.eps, self.episode_total_reward, self.agent.best_reward, self.total_loss_pi, self.total_loss_q, self.n_updates)
 
             if self.episode_total_reward > self.agent.best_reward:
-                self.agent.best_reward = reward
+                self.agent.best_reward = self.episode_total_reward
 
                 print("Best Episode Reward: ", self.agent.best_reward)
                 self.agent.save_models(episode_number=self.eps)
@@ -305,8 +306,8 @@ class WaypointAgent(AutonomousAgent):
         self.lane_invasion_sensor = self.world.spawn_actor(bp_lane_invasion, carla.Transform(), attach_to=self.hero_vehicle)
 
         # create sensor event callbacks
-        self.collision_sensor.listen(lambda event: WaypointAgent._on_collision(event))
-        self.lane_invasion_sensor.listen(lambda event: WaypointAgent._on_lane_invasion(event))
+        self.collision_sensor.listen(lambda event: WaypointAgent._on_collision(weakref.ref(self), event))
+        self.lane_invasion_sensor.listen(lambda event: WaypointAgent._on_lane_invasion(weakref.ref(self), event))
 
     def traffic_data(self):
         all_actors = self.world.get_actors()
@@ -454,13 +455,23 @@ class WaypointAgent(AutonomousAgent):
             return target_vehicle
         return None
 
-    def _on_collision(self, event):
+    @staticmethod
+    def _on_collision(weak_self, event):
+        self = weak_self()
+        if not self:
+            return
+
         self.is_collision == True
 
         impulse = event.normal_impulse
         self.collision_intensity = math.sqrt(impulse.x ** 2 + impulse.y ** 2 + impulse.z ** 2)
 
-    def _on_lane_invasion(self, event):
+    @staticmethod
+    def _on_lane_invasion(weak_self, event):
+        self = weak_self()
+        if not self:
+            return
+
         self.is_lane_invasion == True  
 
     def destroy(self):
