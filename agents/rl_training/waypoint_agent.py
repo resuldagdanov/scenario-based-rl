@@ -450,11 +450,5 @@ class WaypointAgent(AutonomousAgent):
         self.collision_sensor.stop()
         self.lane_invasion_sensor.stop()
 
-        self.collision_sensor.destroy()
-        self.lane_invasion_sensor.destroy()
-
-        if self.world is not None:
-            self.world.destroy()
-
         # terminate and go to another eposide
         os.kill(os.getpid(), signal.SIGINT)
