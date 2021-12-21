@@ -47,6 +47,7 @@ class WaypointAgent(AutonomousAgent):
         self.hero_vehicle = CarlaDataProvider.get_hero_actor()
         self.world = self.hero_vehicle.get_world()
 
+        self.collision_intensity = 0.0
         self.is_collision = False
         self.is_lane_invasion = False
 
@@ -269,7 +270,7 @@ class WaypointAgent(AutonomousAgent):
             reward -= 50
         if self.is_collision:
             print("[Penalty]: collision !")
-            reward -= 100
+            reward -= 100 * self.collision_intensity
             done = 1.0
 
         if ego_speed <= 0.5:
@@ -297,8 +298,8 @@ class WaypointAgent(AutonomousAgent):
         self.lane_invasion_sensor = self.world.spawn_actor(bp_lane_invasion, carla.Transform(), attach_to=self.hero_vehicle)
 
         # create sensor event callbacks
-        self.collision_sensor.listen(lambda : self.is_collision == True)
-        self.lane_invasion_sensor.listen(lambda : self.is_lane_invasion == True)
+        self.collision_sensor.listen(lambda event: WaypointAgent._on_collision(event))
+        self.lane_invasion_sensor.listen(lambda event: WaypointAgent._on_lane_invasion(event))
 
     def traffic_data(self):
         all_actors = self.world.get_actors()
@@ -446,9 +447,20 @@ class WaypointAgent(AutonomousAgent):
             return target_vehicle
         return None
 
+    def _on_collision(self, event):
+        self.is_collision == True
+
+        impulse = event.normal_impulse
+        self.collision_intensity = math.sqrt(impulse.x ** 2 + impulse.y ** 2 + impulse.z ** 2)
+
+    def _on_lane_invasion(self, event):
+        self.is_lane_invasion == True  
+
     def destroy(self):
-        self.collision_sensor.stop()
-        self.lane_invasion_sensor.stop()
+        if self.collision_sensor is not None:
+            self.collision_sensor.stop()
+        if self.lane_invasion_sensor is not None:
+            self.lane_invasion_sensor.stop()
 
         # terminate and go to another eposide
         os.kill(os.getpid(), signal.SIGINT)
