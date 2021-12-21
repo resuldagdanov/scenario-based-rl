@@ -219,7 +219,7 @@ class WaypointAgent(AutonomousAgent):
             print("self.best_reward : ", self.best_reward)
             self.agent.save_models()
 
-        print("throttle: %0.2f, steer: %0.2f, brake: %0.2f, reward: %0.2f,".format(throttle, steer, brake, reward))
+        print("[Action]: throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}".format(throttle, steer, brake, speed, reward))
 
         # terminate an episode
         if done:
@@ -246,7 +246,8 @@ class WaypointAgent(AutonomousAgent):
         is_light, is_walker, is_vehicle = self.traffic_data()
 
         # give penalty if ego vehicle is not braking where it should brake
-        if any([is_light, is_walker, is_vehicle]) is not None:
+        if any(x is not None for x in [is_light, is_walker, is_vehicle]):
+            print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle)
             
             # accelerating while it should brake
             if accel_brake > 0.2:

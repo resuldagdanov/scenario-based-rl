@@ -481,7 +481,7 @@ class ScenarioRunner(object):
 
             # NOTE: loop running each RL episode
             for eps in range(self._args.repetitions):
-                print("\n---next episode---  #:", eps)
+                print("\n--- next episode ---  #:", eps)
                 rl_model.episode_number = eps
 
                 result = self._load_and_run_scenario(config=config, rl_model=rl_model)
