@@ -85,8 +85,8 @@ class WaypointAgent(AutonomousAgent):
         self.next_image_features = []
         self.next_fused_inputs = []
 
+        self.step_number = 1
         self.episode_total_reward = 0.0
-        self.best_reward = 0.0
         self.count_vehicle_stop = 0
 
         if self.debug:
@@ -213,21 +213,24 @@ class WaypointAgent(AutonomousAgent):
         self.push_buffer = True
 
         self.episode_total_reward += reward
-        if reward > self.best_reward:
-            self.best_reward = reward
 
-            print("self.best_reward : ", self.best_reward)
-            self.agent.save_models()
-
-        print("[Action]: throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}".format(throttle, steer, brake, speed, reward))
+        print("[Action]: throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}".format(throttle, steer, brake, speed, reward, self.step_number))
 
         # terminate an episode
         if done:
-            base_utils.tensorboard_writer(self.writer, self.eps, self.episode_total_reward, self.best_reward)
+            base_utils.tensorboard_writer(self.writer, self.eps, self.episode_total_reward, self.agent.best_reward)
+
+            if self.episode_total_reward > self.agent.best_reward:
+                self.agent.best_reward = reward
+
+                print("Best Episode Reward: ", self.agent.best_reward)
+                self.agent.save_models(episode_number=self.eps)
 
             print("------------ Terminating! ------------")
+            print("Episode Total Reward: ", round(self.episode_total_reward, 3))
             self.destroy()
 
+        self.step_number += 1
         return applied_control
 
     def calculate_reward(self, action, ego_speed, ego_gps, goal_point):

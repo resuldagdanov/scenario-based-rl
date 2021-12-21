@@ -59,6 +59,7 @@ class RLModel():
         print(f"models will be saved to {checkpoint_dir}")
         print(f"logs will be saved to {log_dir}")
 
+        self.best_reward = 0.0
         self.episode_number = 0
         self.writer = SummaryWriter(logdir=log_dir, comment="_carla_model")
 
@@ -192,14 +193,15 @@ class RLModel():
             tensor = T.tensor(container, dtype=dtype)
         return tensor
 
-    def save_models(self):
+    def save_models(self, episode_number):
         print('.... saving models ....')
-        self.actor.save_checkpoint()
-        self.critic_1.save_checkpoint()
-        self.critic_2.save_checkpoint()
+        self.actor.save_checkpoint(episode_number)
+        self.critic_1.save_checkpoint(episode_number)
+        self.critic_2.save_checkpoint(episode_number)
 
-    def load_models(self):
+    def load_models(self, episode_number):
         print('.... loading models ....')
-        self.actor.load_checkpoint()
-        self.critic_1.load_checkpoint()
-        self.critic_2.load_checkpoint()
+        self.actor.load_checkpoint(episode_number)
+        self.critic_1.load_checkpoint(episode_number)
+        self.critic_2.load_checkpoint(episode_number)
+        

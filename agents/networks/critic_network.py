@@ -16,7 +16,6 @@ class CriticNetwork(nn.Module):
         self.n_actions = n_actions
         self.name = name
         self.checkpoint_dir = checkpoint_dir
-        self.checkpoint_file = os.path.join(self.checkpoint_dir, name)
 
         # fusion data layer
         self.fused_encoder = nn.Linear(3, fused_size, bias=True)
@@ -42,8 +41,10 @@ class CriticNetwork(nn.Module):
 
         return q_value
 
-    def save_checkpoint(self):
-        T.save(self.state_dict(), self.checkpoint_file)
+    def save_checkpoint(self, episode_number):
+        checkpoint_file = os.path.join(self.checkpoint_dir, self.name + "-ep_" + str(episode_number))
+        T.save(self.state_dict(), checkpoint_file)
 
-    def load_checkpoint(self):
-        self.load_state_dict(T.load(self.checkpoint_file))
+    def load_checkpoint(self, episode_number):
+        checkpoint_file = os.path.join(self.checkpoint_dir, self.name + "-ep_" + str(episode_number))
+        self.load_state_dict(T.load(checkpoint_file))
