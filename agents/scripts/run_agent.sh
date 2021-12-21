@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# close open python ports
+pkill -9 python
+
 export CARLA_SERVER=${CARLA_ROOT}/CarlaUE4.sh
 export PYTHONPATH=$PYTHONPATH:${CARLA_ROOT}/PythonAPI
 export PYTHONPATH=$PYTHONPATH:${CARLA_ROOT}/PythonAPI/carla

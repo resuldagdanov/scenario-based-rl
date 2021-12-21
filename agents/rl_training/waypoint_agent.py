@@ -89,9 +89,9 @@ class WaypointAgent(AutonomousAgent):
         self.step_number = 1
         self.episode_total_reward = 0.0
         self.count_vehicle_stop = 0
-        self.n_updates == 0
-        self.total_loss_pi == 0.0
-        self.total_loss_q == 0.0
+        self.n_updates = 0
+        self.total_loss_pi = 0.0
+        self.total_loss_q = 0.0
 
         if self.debug:
             cv2.namedWindow("rgb-front-FOV-60")
