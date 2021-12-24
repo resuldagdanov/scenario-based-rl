@@ -191,7 +191,7 @@ class WaypointAgent(AutonomousAgent):
         if self.push_buffer:
             self.agent.memory.push(image_features, fused_inputs, dnn_agent_action, reward, self.next_image_features, self.next_fused_inputs, done)
 
-            if len(self.agent.memory.memories) > self.agent.batch_size:
+            if self.agent.memory.filled_size > self.agent.batch_size:
                 policy_loss, value_loss = self.agent.update(self.agent.memory.sample(self.agent.batch_size))
                 
                 self.n_updates += 1
@@ -221,9 +221,9 @@ class WaypointAgent(AutonomousAgent):
         
         self.push_buffer = True
 
-        self.episode_total_reward += reward
+        self.episode_total_reward += reward[0]
 
-        print("[Action]: throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}".format(throttle, steer, brake, speed, reward, self.step_number))
+        print("[Action]: throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}".format(throttle, steer, brake, speed, reward[0], self.step_number))
 
         # terminate an episode
         if done:
@@ -291,6 +291,12 @@ class WaypointAgent(AutonomousAgent):
             print("[Penalty]: too long stopping !")
             reward -= 20
             done = 1.0
+
+        reward = np.array(reward)
+        reward = reward.reshape((1,))
+
+        done = np.array(done)
+        done = done.reshape((1,))
 
         return reward, done
 

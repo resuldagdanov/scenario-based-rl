@@ -23,14 +23,20 @@ class RLModel():
     def __init__(self):
 
         # TODO: forward hyperparameters to global input argument
-        lrpolicy=0.0001
+        lrpolicy = 0.0001
         lrvalue = 0.0005
         n_actions = 2
-        buffer_size=200000
+        buffer_size= 200_000
         state_size = 1000 # output size of resnet
+        is_cpu = True #False
 
-        #self.device = T.device('cuda' if T.cuda.is_available() else 'cpu') # TODO: open cuda
-        self.device = T.device('cpu')
+
+        if is_cpu:
+            self.device = 'cpu'
+        else:
+            self.device = 'cuda' if T.cuda.is_available() else 'cpu'
+
+        print("device: ", self.device)
 
         self.tau = 0.001
         self.alpha = 0.2
@@ -122,7 +128,6 @@ class RLModel():
 
             # apply q-function
             backup = rewards + self.gamma * (1 - dones) * (q_pi_target - self.alpha * logp_next_action)
-
         # get average q-loss from both critic networks
         loss_q_1 = ((q_1 - backup)**2).mean()
         loss_q_2 = ((q_2 - backup)**2).mean()
@@ -144,7 +149,7 @@ class RLModel():
 
     # update actor and critic networks
     def update(self, experience):
-        image_features, fused_inputs, actions, rewards, next_image_features, next_fused_inputs, dones = experience
+        image_features, fused_inputs, actions, rewards, next_image_features, next_fused_inputs, dones = experience #return type is np.array
 
         # convert experience vectors to tensor
         image_features = T.FloatTensor(image_features)
@@ -153,7 +158,8 @@ class RLModel():
         rewards = T.FloatTensor(rewards)
         next_image_features = T.FloatTensor(next_image_features)
         next_fused_inputs = T.FloatTensor(next_fused_inputs)
-        dones = T.tensor(dones, dtype=T.uint8)
+        dones = T.FloatTensor(dones)
+        dones = T.squeeze(dones) #convert (batch_size, 1) to (batch_size)
 
         # compute and backward q-loss for critic network
         self.critic_optimizer.zero_grad()
@@ -207,3 +213,5 @@ class RLModel():
         self.critic_1.load_checkpoint(episode_number)
         self.critic_2.load_checkpoint(episode_number)
         
+    def close(self):
+        self.memory.close()

@@ -14,6 +14,7 @@ leaderboard ?
 
 pygame 2.0.1
 
+<!--TODO: Explain how you setup postgresql--->
 
 ## how to run
 In one terminal,

@@ -1,0 +1,102 @@
+import psycopg2 as psy #pip install psycopg2-binary
+import pickle
+import numpy as np
+
+class DB:
+    def __init__(self): #TODO: add exceptions for the cases DB not found or not connected
+        db_connect_kwargs = {
+            'dbname': 'BUFFER_DB',
+            'user': 'postgres',
+            'password': 'postgres',
+            'host': "127.0.0.1", #localhost
+            'port': "5432" #default port
+        }
+
+        self.connection = psy.connect(**db_connect_kwargs)
+        self.connection.set_session(autocommit=True) #each individual SQL statement is treated as a transaction and is automatically committed right after it is executed.
+        self.cursor = self.connection.cursor()
+        print("DB connection is successfully opened!")
+        self.create_table()
+
+    def create_table(self):
+        #create DB table
+        self.cursor.execute('''
+            DROP TABLE IF EXISTS BUFFER_TABLE;
+            CREATE TABLE BUFFER_TABLE (
+                id INTEGER PRIMARY KEY,
+                image_features BYTEA,
+                fused_inputs BYTEA,
+                action BYTEA,
+                reward BYTEA,
+                next_image_features BYTEA,
+                next_fused_inputs BYTEA,
+                done BYTEA
+                );
+            CREATE INDEX ON BUFFER_TABLE (id);
+            ''')
+
+    def insert_data(self, id, image_features, fused_inputs, action, reward, next_image_features, next_fused_inputs, done):
+        insert_command = """
+            INSERT INTO BUFFER_TABLE (id, image_features, fused_inputs, action, reward, next_image_features, next_fused_inputs, done)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (id) DO UPDATE SET 
+                (image_features, fused_inputs, action, reward, next_image_features, next_fused_inputs, done) 
+                = (EXCLUDED.image_features, EXCLUDED.fused_inputs, EXCLUDED.action, EXCLUDED.reward, EXCLUDED.next_image_features, EXCLUDED.next_fused_inputs, EXCLUDED.done);
+            """
+
+        #data with 'id' is inserted to DB
+        self.cursor.execute(insert_command, 
+            (id, 
+            pickle.dumps(image_features), 
+            pickle.dumps(fused_inputs),
+            pickle.dumps(action),
+            pickle.dumps(reward),
+            pickle.dumps(next_image_features),
+            pickle.dumps(next_fused_inputs),
+            pickle.dumps(done)
+            ))
+
+    def read_batch_data(self, sample_indexes_tuple, batch_size):
+        self.cursor.execute( #TODO: reading from DB performance can be enhanced by adding new table
+            """
+            SELECT 
+                image_features, 
+                fused_inputs,
+                action,
+                reward,
+                next_image_features,
+                next_fused_inputs,
+                done
+            FROM BUFFER_TABLE
+            WHERE id in %s;
+            """,
+            (sample_indexes_tuple,)
+        )
+        raw_data_list = self.cursor.fetchall() #sample_indexes_tuple is read from database
+
+        image_feature_batch, fused_input_batch, action_batch, reward_batch, next_image_feature_batch, next_fused_input_batch, done_batch = np.zeros((batch_size, 1000)), np.zeros((batch_size, 3)), np.zeros((batch_size, 2)), np.zeros((batch_size, 1)), np.zeros((batch_size, 1000)), np.zeros((batch_size, 3)), np.zeros((batch_size, 1)) #TODO: make these values hyperparams
+
+        for i in range(batch_size):
+            raw_data = raw_data_list[i]
+            image_features = pickle.loads(raw_data[0])
+            fused_inputs = pickle.loads(raw_data[1])
+            action = pickle.loads(raw_data[2])
+            reward = pickle.loads(raw_data[3])
+            next_image_features = pickle.loads(raw_data[4])
+            next_fused_inputs = pickle.loads(raw_data[5])
+            done = pickle.loads(raw_data[6])
+
+            image_feature_batch[i] = image_features
+            fused_input_batch[i] = fused_inputs
+            action_batch[i] = action
+            reward_batch[i] = reward
+            next_image_feature_batch[i] = next_image_features
+            next_fused_input_batch[i] = next_fused_inputs
+            done_batch[i] = done
+        
+        return image_feature_batch, fused_input_batch, action_batch, reward_batch, next_image_feature_batch, next_fused_input_batch, done_batch
+
+    def close(self):
+        self.cursor.close()
+        self.connection.close()
+        print("DB connection is successfully closed!")
