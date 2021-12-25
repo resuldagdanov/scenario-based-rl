@@ -59,7 +59,7 @@ class DB:
     def read_batch_data(self, sample_indexes_tuple, batch_size):
         self.cursor.execute( #TODO: reading from DB performance can be enhanced by adding new table
             """
-            SELECT 
+            SELECT
                 image_features, 
                 fused_inputs,
                 action,
@@ -78,21 +78,13 @@ class DB:
 
         for i in range(batch_size):
             raw_data = raw_data_list[i]
-            image_features = pickle.loads(raw_data[0])
-            fused_inputs = pickle.loads(raw_data[1])
-            action = pickle.loads(raw_data[2])
-            reward = pickle.loads(raw_data[3])
-            next_image_features = pickle.loads(raw_data[4])
-            next_fused_inputs = pickle.loads(raw_data[5])
-            done = pickle.loads(raw_data[6])
-
-            image_feature_batch[i] = image_features
-            fused_input_batch[i] = fused_inputs
-            action_batch[i] = action
-            reward_batch[i] = reward
-            next_image_feature_batch[i] = next_image_features
-            next_fused_input_batch[i] = next_fused_inputs
-            done_batch[i] = done
+            image_feature_batch[i] = pickle.loads(raw_data[0])
+            fused_input_batch[i] = pickle.loads(raw_data[1])
+            action_batch[i] = pickle.loads(raw_data[2])
+            reward_batch[i] = pickle.loads(raw_data[3])
+            next_image_feature_batch[i] = pickle.loads(raw_data[4])
+            next_fused_input_batch[i] = pickle.loads(raw_data[5])
+            done_batch[i] = pickle.loads(raw_data[6])
         
         return image_feature_batch, fused_input_batch, action_batch, reward_batch, next_image_feature_batch, next_fused_input_batch, done_batch
 

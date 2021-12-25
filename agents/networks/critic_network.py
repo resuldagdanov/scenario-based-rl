@@ -12,7 +12,6 @@ class CriticNetwork(nn.Module):
         action_size = 2
         hidden_size = 64
         
-        self.device = device
         self.n_actions = n_actions
         self.name = name
         self.checkpoint_dir = checkpoint_dir
@@ -26,7 +25,7 @@ class CriticNetwork(nn.Module):
 
         self.q_layer = nn.Linear(hidden_size, 1)
 
-        self.to(self.device)
+        self.to(device)
 
     def forward(self, image_features, fused_input, action):
         fused_features = T.relu(self.fused_encoder(fused_input))

@@ -562,7 +562,7 @@ def main():
     parser.add_argument('--reloadWorld', action="store_true", help='Reload the CARLA world before starting a scenario (default=True)')
     parser.add_argument('--record', type=str, default='', help='Path were the files will be saved, relative to SCENARIO_RUNNER_ROOT.\nActivates the CARLA recording feature and saves to file all the criteria information.')
     parser.add_argument('--randomize', action="store_true", help='Scenario parameters are randomized')
-    parser.add_argument('--repetitions', default=1, type=int, help='Number of scenario executions') #5000
+    parser.add_argument('--repetitions', default=50, type=int, help='Number of scenario executions') #5000
     parser.add_argument('--waitForEgo', action="store_true", help='Connect the scenario to an existing ego vehicle')
     arguments = parser.parse_args()
     # pylint: enable=line-too-long

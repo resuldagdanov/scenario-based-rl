@@ -8,8 +8,6 @@ from torch.distributions.normal import Normal
 class ActorNetwork(nn.Module):
     def __init__(self, device, state_size, n_actions, name, checkpoint_dir):
         super(ActorNetwork, self).__init__()
-
-        self.device = device
         
         self.n_actions = n_actions
         self.name = name
@@ -25,7 +23,7 @@ class ActorNetwork(nn.Module):
         self.mu_layer = nn.Linear(64, self.n_actions)
         self.std_layer = nn.Linear(64, self.n_actions)
 
-        self.to(self.device)
+        self.to(device)
 
     def forward(self, image_features, fused_input, deterministic=False, with_logprob=True):
         fused_features = T.relu(self.fused_encoder(fused_input))
