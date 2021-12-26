@@ -23,14 +23,19 @@ class RLModel():
     def __init__(self):
 
         # TODO: forward hyperparameters to global input argument
-        lrpolicy=0.0001
+        lrpolicy = 0.0001
         lrvalue = 0.0005
         n_actions = 2
-        buffer_size=200000
+        buffer_size= 200_000
         state_size = 1000 # output size of resnet
+        is_cpu = False
 
-        #self.device = T.device('cuda' if T.cuda.is_available() else 'cpu') # TODO: open cuda
-        self.device = T.device('cpu')
+        if is_cpu:
+            self.device = T.device('cpu')
+        else:
+            self.device = T.device('cuda' if T.cuda.is_available() else 'cpu')
+
+        print("device: ", self.device)
 
         self.tau = 0.001
         self.alpha = 0.2
@@ -121,7 +126,7 @@ class RLModel():
             q_pi_target = T.min(q_1_pi_target, q_2_pi_target)
 
             # apply q-function
-            backup = rewards + self.gamma * (1 - dones) * (q_pi_target - self.alpha * logp_next_action)
+            backup = rewards + self.gamma * (1 - dones) * (q_pi_target - self.alpha * logp_next_action) #TODO: check the correctness
 
         # get average q-loss from both critic networks
         loss_q_1 = ((q_1 - backup)**2).mean()
@@ -143,17 +148,18 @@ class RLModel():
         return loss_pi
 
     # update actor and critic networks
-    def update(self, experience):
-        image_features, fused_inputs, actions, rewards, next_image_features, next_fused_inputs, dones = experience
+    def update(self, sample_batch):
+        image_features, fused_inputs, actions, rewards, next_image_features, next_fused_inputs, dones = sample_batch
 
         # convert experience vectors to tensor
-        image_features = T.FloatTensor(image_features)
-        fused_inputs = T.FloatTensor(fused_inputs)
-        actions = T.FloatTensor(actions)
-        rewards = T.FloatTensor(rewards)
-        next_image_features = T.FloatTensor(next_image_features)
-        next_fused_inputs = T.FloatTensor(next_fused_inputs)
-        dones = T.tensor(dones, dtype=T.uint8)
+        image_features = T.FloatTensor(image_features).to(self.device)
+        fused_inputs = T.FloatTensor(fused_inputs).to(self.device)
+        actions = T.FloatTensor(actions).to(self.device)
+        rewards = T.FloatTensor(rewards).to(self.device)
+        next_image_features = T.FloatTensor(next_image_features).to(self.device)
+        next_fused_inputs = T.FloatTensor(next_fused_inputs).to(self.device)
+        dones = T.FloatTensor(dones)
+        dones = T.squeeze(dones).to(self.device) #convert (batch_size, 1) to (batch_size)
 
         # compute and backward q-loss for critic network
         self.critic_optimizer.zero_grad()
@@ -186,14 +192,7 @@ class RLModel():
             for target_param, param in zip(self.critic_target_2.parameters(), self.critic_2.parameters()):
                 target_param.data.copy_(param.data * self.tau + target_param.data * (1.0 - self.tau))
 
-        return loss_pi.data.numpy(), loss_q.data.numpy()
-
-    def _totorch(self, container, dtype):
-        if isinstance(container[0], T.Tensor):
-            tensor = T.stack(container)
-        else:
-            tensor = T.tensor(container, dtype=dtype)
-        return tensor
+        return loss_pi.data.cpu().detach().numpy(), loss_q.data.cpu().detach().numpy()
 
     def save_models(self, episode_number):
         print('.... saving models ....')
@@ -207,3 +206,5 @@ class RLModel():
         self.critic_1.load_checkpoint(episode_number)
         self.critic_2.load_checkpoint(episode_number)
         
+    def close(self):
+        self.memory.close()

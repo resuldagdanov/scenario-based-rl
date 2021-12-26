@@ -8,7 +8,6 @@ class BrakeNetwork(nn.Module):
     def __init__(self, device, input_dims, name='resnet34', checkpoint_dir='tmp/sac'):
         super(BrakeNetwork, self).__init__()
 
-        self.device = device
         self.name = name
         self.checkpoint_dir = checkpoint_dir
         self.checkpoint_file = os.path.join(self.checkpoint_dir, name)
@@ -29,6 +28,8 @@ class BrakeNetwork(nn.Module):
             nn.Linear(64, 1),
             nn.Sigmoid()
         )
+
+        self.to(device)
 
     def forward(self, image, fused_inputs):
         out_image_features = T.relu(self.resnet34_backbone(image))
