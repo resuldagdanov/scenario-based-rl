@@ -22,7 +22,6 @@ from utils.pid_controller import PIDController
 from utils.planner import RoutePlanner
 from _scenario_runner.srunner.autoagents.autonomous_agent import AutonomousAgent
 
-
 SENSOR_CONFIG = {
             'width': 400,
             'height': 300,

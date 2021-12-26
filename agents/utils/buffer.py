@@ -1,8 +1,11 @@
-import random #TODO: add seed for this one
+import random
 from utils.db import DB
 
+
 class ReplayBuffer:
-    def __init__(self, buffer_size):
+    def __init__(self, buffer_size, seed):
+        random.seed(seed)
+
         self.db = DB()
         self.buffer_size = buffer_size
         self.id = 0
@@ -11,7 +14,8 @@ class ReplayBuffer:
     # append experience to the replay memory
     def push(self, image_features, fused_inputs, action, reward, next_image_features, next_fused_inputs, done):
         if self.id == self.buffer_size:
-            self.id = 0 #unique db id
+            # unique db id
+            self.id = 0
 
         self.db.insert_data(self.id, image_features, fused_inputs, action, reward, next_image_features, next_fused_inputs, done)
         self.id += 1
@@ -21,7 +25,8 @@ class ReplayBuffer:
     def sample(self, batch_size):
         high = self.filled_size if self.filled_size < self.buffer_size else self.buffer_size
 
-        sample_indexes = random.sample(range(0, high), batch_size) #low inclusive, high exclusive
+        # low inclusive, high exclusive
+        sample_indexes = random.sample(range(0, high), batch_size)
         
         sample_batch = self.db.read_batch_data(tuple(sample_indexes), batch_size)
         

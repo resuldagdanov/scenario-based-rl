@@ -28,6 +28,7 @@ class RLModel():
         n_actions = 2
         buffer_size= 200_000
         state_size = 1000 # output size of resnet
+        random_seed = 100
         is_cpu = False
 
         if is_cpu:
@@ -80,7 +81,7 @@ class RLModel():
         self.critic_2 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_2', checkpoint_dir=checkpoint_dir)
         self.critic_target_2 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_2', checkpoint_dir=checkpoint_dir)
         
-        self.memory = ReplayBuffer(buffer_size=buffer_size)
+        self.memory = ReplayBuffer(buffer_size=buffer_size, seed=random_seed)
 
         for target_param, param in zip(self.actor_target.parameters(), self.actor.parameters()):
             target_param.data.copy_(param.data)
