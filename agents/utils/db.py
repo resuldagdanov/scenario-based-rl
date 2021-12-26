@@ -27,10 +27,10 @@ class DB:
                 image_features BYTEA,
                 fused_inputs BYTEA,
                 action BYTEA,
-                reward BYTEA,
+                reward FLOAT8,
                 next_image_features BYTEA,
                 next_fused_inputs BYTEA,
-                done BYTEA
+                done INTEGER
                 );
             CREATE INDEX ON BUFFER_TABLE (id);
             ''')
@@ -50,10 +50,10 @@ class DB:
             pickle.dumps(image_features), 
             pickle.dumps(fused_inputs),
             pickle.dumps(action),
-            pickle.dumps(reward),
+            reward,
             pickle.dumps(next_image_features),
             pickle.dumps(next_fused_inputs),
-            pickle.dumps(done)
+            done
             ))
 
     def read_batch_data(self, sample_indexes_tuple, batch_size):
@@ -74,17 +74,24 @@ class DB:
         )
         raw_data_list = self.cursor.fetchall() #sample_indexes_tuple is read from database
 
-        image_feature_batch, fused_input_batch, action_batch, reward_batch, next_image_feature_batch, next_fused_input_batch, done_batch = np.zeros((batch_size, 1000)), np.zeros((batch_size, 3)), np.zeros((batch_size, 2)), np.zeros((batch_size, 1)), np.zeros((batch_size, 1000)), np.zeros((batch_size, 3)), np.zeros((batch_size, 1)) #TODO: make these values hyperparams
+        #TODO: make these values hyperparams
+        image_feature_batch = np.empty((batch_size, 1000))
+        fused_input_batch = np.empty((batch_size, 3))
+        action_batch = np.empty((batch_size, 2))
+        reward_batch = np.empty((batch_size))
+        next_image_feature_batch = np.empty((batch_size, 1000))
+        next_fused_input_batch = np.empty((batch_size, 3))
+        done_batch = np.empty((batch_size), dtype=np.int8)
 
         for i in range(batch_size):
             raw_data = raw_data_list[i]
             image_feature_batch[i] = pickle.loads(raw_data[0])
             fused_input_batch[i] = pickle.loads(raw_data[1])
             action_batch[i] = pickle.loads(raw_data[2])
-            reward_batch[i] = pickle.loads(raw_data[3])
+            reward_batch[i] = raw_data[3]
             next_image_feature_batch[i] = pickle.loads(raw_data[4])
             next_fused_input_batch[i] = pickle.loads(raw_data[5])
-            done_batch[i] = pickle.loads(raw_data[6])
+            done_batch[i] = raw_data[6]
         
         return image_feature_batch, fused_input_batch, action_batch, reward_batch, next_image_feature_batch, next_fused_input_batch, done_batch
 

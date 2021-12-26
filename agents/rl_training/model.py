@@ -43,6 +43,8 @@ class RLModel():
         self.gamma = 0.97
         self.batch_size = 64
 
+        self.total_step_num = 1
+
         self.debug = False
 
         today = datetime.today() # month - date - year
@@ -108,6 +110,9 @@ class RLModel():
         self.actor_optimizer = T.optim.Adam(self.actor.parameters(), lr=lrpolicy)
         self.critic_optimizer = T.optim.Adam(self.q_params, lr=lrvalue)
 
+    def increment_total_step_num(self):
+        self.total_step_num += 1
+
     def select_action(self, image_features, fused_input, deterministic=True):
         with T.no_grad():
             actions, _ = self.actor(image_features=image_features, fused_input=fused_input, deterministic=deterministic, with_logprob=False)
@@ -127,7 +132,7 @@ class RLModel():
             q_pi_target = T.min(q_1_pi_target, q_2_pi_target)
 
             # apply q-function
-            backup = rewards + self.gamma * (1 - dones) * (q_pi_target - self.alpha * logp_next_action) #TODO: check the correctness
+            backup = rewards + self.gamma * (1 - dones) * (q_pi_target - self.alpha * logp_next_action)
 
         # get average q-loss from both critic networks
         loss_q_1 = ((q_1 - backup)**2).mean()
@@ -152,15 +157,14 @@ class RLModel():
     def update(self, sample_batch):
         image_features, fused_inputs, actions, rewards, next_image_features, next_fused_inputs, dones = sample_batch
 
-        # convert experience vectors to tensor
-        image_features = T.FloatTensor(image_features).to(self.device)
-        fused_inputs = T.FloatTensor(fused_inputs).to(self.device)
-        actions = T.FloatTensor(actions).to(self.device)
-        rewards = T.FloatTensor(rewards).to(self.device)
-        next_image_features = T.FloatTensor(next_image_features).to(self.device)
-        next_fused_inputs = T.FloatTensor(next_fused_inputs).to(self.device)
-        dones = T.FloatTensor(dones)
-        dones = T.squeeze(dones).to(self.device) #convert (batch_size, 1) to (batch_size)
+        # convert sample_batch vectors to tensor
+        image_features = T.tensor(image_features, dtype=T.float32).to(self.device)
+        fused_inputs = T.tensor(fused_inputs, dtype=T.float32).to(self.device)
+        actions = T.tensor(actions, dtype=T.float32).to(self.device)
+        rewards = T.unsqueeze(T.tensor(rewards, dtype=T.float32), dim=1).to(self.device)
+        next_image_features = T.tensor(next_image_features, dtype=T.float32).to(self.device)
+        next_fused_inputs = T.tensor(next_fused_inputs, dtype=T.float32).to(self.device)
+        dones = T.tensor(dones, dtype=T.uint8).to(self.device)
 
         # compute and backward q-loss for critic network
         self.critic_optimizer.zero_grad()

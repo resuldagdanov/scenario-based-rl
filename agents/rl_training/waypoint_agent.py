@@ -187,6 +187,8 @@ class WaypointAgent(AutonomousAgent):
         # compute step reward and deside for termination
         reward, done = self.calculate_reward(action=dnn_agent_action, ego_speed=speed, ego_gps=gps, goal_point=far_node)
 
+        policy_loss = None
+        value_loss = None
         if self.push_buffer:
             self.agent.memory.push(image_features, fused_inputs, dnn_agent_action, reward, self.next_image_features, self.next_fused_inputs, done)
 
@@ -196,7 +198,7 @@ class WaypointAgent(AutonomousAgent):
                 
                 self.n_updates += 1
                 self.total_loss_pi += policy_loss
-                self.total_loss_q += value_loss
+                self.total_loss_q += value_loss                
 
         self.next_image_features = image_features
         self.next_fused_inputs = fused_inputs
@@ -221,12 +223,12 @@ class WaypointAgent(AutonomousAgent):
         
         self.push_buffer = True
 
-        self.episode_total_reward += reward[0]
+        self.episode_total_reward += reward
 
         if policy_loss is not None or value_loss is not None:
-            print("[Action]: throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, pi-loss: {:.2f}, q-loss: {:.2f}, reward: {:.2f}, step: #{:d}".format(throttle, steer, brake, speed, policy_loss, value_loss, reward, self.step_number))
+            print("[Action]: throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, pi-loss: {:.2f}, q-loss: {:.2f}, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(throttle, steer, brake, speed, policy_loss, value_loss, reward, self.step_number, self.agent.total_step_num))
         else:
-            print("[Action]: throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}".format(throttle, steer, brake, speed, reward, self.step_number))
+            print("[Action]: throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(throttle, steer, brake, speed, reward, self.step_number, self.agent.total_step_num))
 
         # terminate an episode
         if done:
@@ -243,11 +245,13 @@ class WaypointAgent(AutonomousAgent):
             self.destroy()
 
         self.step_number += 1
+        self.agent.increment_total_step_num()
+
         return applied_control
 
     def calculate_reward(self, action, ego_speed, ego_gps, goal_point):
         reward = -0.1
-        done = 0.0
+        done = 0
 
         reward += ego_speed
 
@@ -282,7 +286,7 @@ class WaypointAgent(AutonomousAgent):
         if self.is_collision:
             print("[Penalty]: collision !")
             reward -= 100 * self.collision_intensity
-            done = 1.0
+            done = 1
 
         if ego_speed <= 0.5:
             self.count_vehicle_stop += 1
@@ -293,13 +297,7 @@ class WaypointAgent(AutonomousAgent):
         if self.count_vehicle_stop > 100:
             print("[Penalty]: too long stopping !")
             reward -= 20
-            done = 1.0
-
-        reward = np.array(reward)
-        reward = reward.reshape((1,))
-
-        done = np.array(done)
-        done = done.reshape((1,))
+            done = 1
 
         return reward, done
 
