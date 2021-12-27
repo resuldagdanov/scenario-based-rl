@@ -18,9 +18,9 @@ from networks.resnet_backbone import ResNetBackbone
 
 CHECKPOINT_PATH = os.environ.get('CHECKPOINT_PATH', None)
 
-
 class RLModel():
-    def __init__(self):
+    def __init__(self, db, model_name):
+        self.db = db
 
         # TODO: forward hyperparameters to global input argument
         lrpolicy = 0.0001
@@ -43,21 +43,12 @@ class RLModel():
         self.gamma = 0.97
         self.batch_size = 64
 
-        self.total_step_num = 1
-
         self.debug = False
 
-        today = datetime.today() # month - date - year
-        now = datetime.now() # hours - minutes - seconds
+        self.model_name = model_name
 
-        current_date = str(today.strftime("%b_%d_%Y"))
-        current_time = str(now.strftime("%H_%M_%S"))
-
-        # month_date_year-hour_minute_second
-        time_info = current_date + "-" + current_time
-
-        checkpoint_dir = CHECKPOINT_PATH + 'models/' + time_info + "/"
-        log_dir = CHECKPOINT_PATH + 'logs/' + time_info + "/"
+        checkpoint_dir = CHECKPOINT_PATH + 'models/' + self.model_name + "/"
+        log_dir = CHECKPOINT_PATH + 'logs/' + self.model_name + "/"
         
         if not os.path.exists(checkpoint_dir):
             os.makedirs(checkpoint_dir)
@@ -67,8 +58,6 @@ class RLModel():
         print(f"models will be saved to {checkpoint_dir}")
         print(f"logs will be saved to {log_dir}")
 
-        self.best_reward = 0.0
-        self.episode_number = 0
         self.writer = SummaryWriter(logdir=log_dir, comment="_carla_model")
 
         # load pretrained ResNet
@@ -83,7 +72,7 @@ class RLModel():
         self.critic_2 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_2', checkpoint_dir=checkpoint_dir)
         self.critic_target_2 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_2', checkpoint_dir=checkpoint_dir)
         
-        self.memory = ReplayBuffer(buffer_size=buffer_size, seed=random_seed)
+        self.memory = ReplayBuffer(self.db, buffer_size=buffer_size, seed=random_seed)
 
         for target_param, param in zip(self.actor_target.parameters(), self.actor.parameters()):
             target_param.data.copy_(param.data)
@@ -110,8 +99,8 @@ class RLModel():
         self.actor_optimizer = T.optim.Adam(self.actor.parameters(), lr=lrpolicy)
         self.critic_optimizer = T.optim.Adam(self.q_params, lr=lrvalue)
 
-    def increment_total_step_num(self):
-        self.total_step_num += 1
+        if self.db.get_global_episode_number() != 0:
+            self.load_models()
 
     def select_action(self, image_features, fused_input, deterministic=True):
         with T.no_grad():
@@ -199,17 +188,16 @@ class RLModel():
 
         return loss_pi.data.cpu().detach().numpy(), loss_q.data.cpu().detach().numpy()
 
-    def save_models(self, episode_number):
-        print('.... saving models ....')
+    def save_models(self):
+        episode_number = self.db.get_global_episode_number()
+        print(f'.... saving models episode_number {episode_number} ....')
         self.actor.save_checkpoint(episode_number)
         self.critic_1.save_checkpoint(episode_number)
         self.critic_2.save_checkpoint(episode_number)
 
-    def load_models(self, episode_number):
-        print('.... loading models ....')
+    def load_models(self):
+        episode_number = self.db.get_global_episode_number()
+        print(f'.... loading models episode_number {episode_number} ....')
         self.actor.load_checkpoint(episode_number)
         self.critic_1.load_checkpoint(episode_number)
         self.critic_2.load_checkpoint(episode_number)
-        
-    def close(self):
-        self.memory.close()

@@ -12,16 +12,16 @@ train () {
     printf "training is starting\n"
     ./run_agent.sh &
     export pid_training=$!
-
     wait $pid_training
     printf "training is completed\n"
 
-    echo $pid_carla
     kill -9 $pid_carla
     printf "carla server is killed\n"
 }
 
-for i in $(seq 1 1 10)
+python3 init_training_parameters.py
+
+for i in $(seq 1 1 2)
 do
     printf "\n\nTraining batch $i started\n"
     train

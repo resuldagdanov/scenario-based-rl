@@ -474,21 +474,26 @@ class ScenarioRunner(object):
         route_configurations = RouteParser.parse_routes_file(routes, scenario_file, single_route)
 
         for config in route_configurations:
+            from utils.db import DB
+            db = DB()
+            model_name = db.get_model_name()
 
-            # assign all global argument and variables for RL training including network initialization
             from rl_training.model import RLModel
-            rl_model = RLModel()
+            rl_model = RLModel(db, model_name)
 
             # NOTE: loop running each RL episode
             for eps in range(self._args.repetitions):
-                print("\n--- next episode ---  #:", eps)
-                rl_model.episode_number = eps
+                print("\n--- next episode ---  #:", db.get_global_episode_number())
 
                 result = self._load_and_run_scenario(config=config, rl_model=rl_model)
 
                 self._cleanup()
+                db.increment_and_update_global_episode_number()
+                print("\n")
 
-            rl_model.close() #close DB connection after training is over
+            rl_model.save_models()
+
+            db.close() #close DB connection after training is over
         return result
 
     def _run_openscenario(self):
@@ -527,8 +532,7 @@ class ScenarioRunner(object):
 
         print("No more scenarios .... Exiting")
         return result
-
-
+        
 def main():
     """
     main function

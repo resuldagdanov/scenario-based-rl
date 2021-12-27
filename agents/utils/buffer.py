@@ -3,13 +3,13 @@ from utils.db import DB
 
 
 class ReplayBuffer:
-    def __init__(self, buffer_size, seed):
+    def __init__(self, db, buffer_size, seed):
         random.seed(seed)
 
-        self.db = DB()
+        self.db = db
         self.buffer_size = buffer_size
-        self.id = 0
-        self.filled_size = 0
+        self.id = db.get_latest_sample_id()
+        self.filled_size = db.get_buffer_sample_count()
 
     # append experience to the replay memory
     def push(self, image_features, fused_inputs, action, reward, next_image_features, next_fused_inputs, done):
@@ -17,7 +17,7 @@ class ReplayBuffer:
             # unique db id
             self.id = 0
 
-        self.db.insert_data(self.id, image_features, fused_inputs, action, reward, next_image_features, next_fused_inputs, done)
+        self.db.insert_data_to_buffer_table(self.id, image_features, fused_inputs, action, reward, next_image_features, next_fused_inputs, done)
         self.id += 1
         self.filled_size += 1
 
@@ -31,6 +31,3 @@ class ReplayBuffer:
         sample_batch = self.db.read_batch_data(tuple(sample_indexes), batch_size)
         
         return sample_batch
-
-    def close(self):
-        self.db.close()
