@@ -14,9 +14,16 @@ leaderboard ?
 
 pygame 2.0.1
 
-<!--TODO: Explain how you setup postgresql--->
+## how to download and run posgtresql
+Follow instructions https://www.postgresql.org/download/linux/ubuntu/
+pip install psycopg2-binary
+
+sudo service postgresql start #start postgresql server
+systemctl status postgresql #see whether postgresql server is active
+sudo service postgresql stop #stop postgresql server
 
 ## how to run
+<!-- This will change with the use of main.sh-->
 In one terminal,
 
     cd CARLA_0.9.13

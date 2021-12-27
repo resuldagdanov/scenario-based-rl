@@ -1,4 +1,4 @@
-import psycopg2 as psy #pip install psycopg2-binary
+import psycopg2 as psy
 import pickle
 import numpy as np
 

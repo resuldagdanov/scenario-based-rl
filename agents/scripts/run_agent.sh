@@ -15,7 +15,8 @@ export ROUTES=${BASE_CODE_PATH}/data/routes/routes_town01_short.xml
 export SCENARIOS=${BASE_CODE_PATH}/data/scenarios/all_towns_traffic_scenarios_autopilot.json
 export TEAM_AGENT=${BASE_CODE_PATH}/agents/rl_training/waypoint_agent.py
 export CHECKPOINT_PATH=${BASE_CODE_PATH}/checkpoint/
+export REPETITIONS=20
 
 export PYTHONPATH=$PYTHONPATH:${BASE_CODE_PATH}
 
-python3 ${BASE_CODE_PATH}/agents/_scenario_runner/scenario_runner.py --agent ${TEAM_AGENT} --route ${ROUTES} ${SCENARIOS} 0
+python3 ${BASE_CODE_PATH}/agents/_scenario_runner/scenario_runner.py --agent ${TEAM_AGENT} --route ${ROUTES} ${SCENARIOS} 0 --repetitions ${REPETITIONS}
