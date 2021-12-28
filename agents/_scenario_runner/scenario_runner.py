@@ -491,8 +491,6 @@ class ScenarioRunner(object):
                 db.increment_and_update_global_episode_number()
                 print("\n")
 
-            rl_model.save_models()
-
             db.close() #close DB connection after training is over
         return result
 

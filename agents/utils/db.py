@@ -31,12 +31,12 @@ class DB:
 
         return time_info
 
-    def insert_data_to_training_table(self, model_name, total_step_num=1, global_episode_number=0, best_reward=0.0, latest_sample_id=0):
+    def insert_data_to_training_table(self, model_name, total_step_num=1, global_episode_number=0, best_reward=0.0, latest_sample_id=0, latest_model_episode_number=0):
         insert_command = """
-            INSERT INTO TRAINING_TABLE (model_name, total_step_num, global_episode_number, best_reward, latest_sample_id)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO TRAINING_TABLE (model_name, total_step_num, global_episode_number, best_reward, latest_sample_id, latest_model_episode_number)
+            VALUES (%s, %s, %s, %s, %s, %s)
             """
-        self.cursor.execute(insert_command, (model_name, total_step_num, global_episode_number, best_reward, latest_sample_id))
+        self.cursor.execute(insert_command, (model_name, total_step_num, global_episode_number, best_reward, latest_sample_id, latest_model_episode_number))
 
     def create_training_table(self):
         self.cursor.execute('''
@@ -46,7 +46,8 @@ class DB:
                 total_step_num INTEGER,
                 global_episode_number INTEGER,
                 best_reward FLOAT8,
-                latest_sample_id INTEGER
+                latest_sample_id INTEGER,
+                latest_model_episode_number INTEGER
                 );
             ''')
 
@@ -66,14 +67,18 @@ class DB:
             CREATE INDEX ON BUFFER_TABLE (id);
             ''')
 
-    def initialize_tables(self):
+    def initialize_tables(self, model_name=None):
         #create new model_name and insert it to db
         self.create_training_table()
-        model_name = self.get_time_info()
+        if model_name is None:
+            model_name = self.get_time_info()
+            print(f"Train will start with {model_name}")
+        else:
+            print(f"Evaluate will start with {model_name}")
         self.insert_data_to_training_table(model_name)
 
         self.create_buffer_table()
-        print(f"Tables are initialized for training {model_name}!")
+        print(f"Tables are initialized for {model_name}!")
 
     def get_model_name(self):
         self.cursor.execute( #TODO: reading from DB performance can be enhanced by adding new table
@@ -135,6 +140,18 @@ class DB:
 
         return latest_sample_id[0]
 
+    def get_latest_model_episode_number(self):
+        self.cursor.execute( #TODO: reading from DB performance can be enhanced by adding new table
+            """
+            SELECT
+                latest_model_episode_number
+            FROM TRAINING_TABLE
+            """
+        )
+        latest_model_episode_number = self.cursor.fetchone()
+
+        return latest_model_episode_number[0]
+
     def increment_and_update_global_episode_number(self):
         global_episode_number = self.get_global_episode_number()
         
@@ -164,6 +181,13 @@ class DB:
                 SET latest_sample_id = %s
         """
         self.cursor.execute(update_command, (latest_sample_id,))
+
+    def update_latest_model_episode_number(self, latest_model_episode_number):
+        update_command = """
+                UPDATE TRAINING_TABLE
+                SET latest_model_episode_number = %s
+        """
+        self.cursor.execute(update_command, (latest_model_episode_number,))
 
     def get_buffer_sample_count(self):
         count_command = """

@@ -43,13 +43,17 @@ class RLModel():
         self.gamma = 0.97
         self.batch_size = 64
 
-        self.debug = False
+        self.debug = True
+        self.evaluate = True #TODO: get this parameter from scenario_runner.py
 
         self.model_name = model_name
 
         checkpoint_dir = CHECKPOINT_PATH + 'models/' + self.model_name + "/"
-        log_dir = CHECKPOINT_PATH + 'logs/' + self.model_name + "/"
-        
+        if self.evaluate:
+            log_dir = CHECKPOINT_PATH + 'logs/' + self.model_name + "_E" + "/"
+        else:
+            log_dir = CHECKPOINT_PATH + 'logs/' + self.model_name + "_T" + "/"
+
         if not os.path.exists(checkpoint_dir):
             os.makedirs(checkpoint_dir)
         if not os.path.exists(log_dir):
@@ -99,8 +103,13 @@ class RLModel():
         self.actor_optimizer = T.optim.Adam(self.actor.parameters(), lr=lrpolicy)
         self.critic_optimizer = T.optim.Adam(self.q_params, lr=lrvalue)
 
-        if self.db.get_global_episode_number() != 0:
-            self.load_models() #TODO: check whether weights are loaded or not
+        if self.evaluate:
+            episode_number = 109 #TODO: get this parameter from scenario_runner.py
+            self.load_models(episode_number)
+        else:
+            if self.db.get_global_episode_number() != 0 and self.db.get_global_episode_number() >= self.db.latest_model_episode_number(): #load previous models
+                episode_number = self.db.latest_model_episode_number()
+                self.load_models(episode_number) #TODO: check whether weights are correctly loaded or not
 
     def select_action(self, image_features, fused_input, deterministic=True):
         with T.no_grad():
@@ -188,15 +197,14 @@ class RLModel():
 
         return loss_pi.data.cpu().detach().numpy(), loss_q.data.cpu().detach().numpy()
 
-    def save_models(self):
-        episode_number = self.db.get_global_episode_number()
+    def save_models(self, episode_number):
+        self.db.update_latest_model_episode_number(episode_number)
         print(f'.... saving models episode_number {episode_number} ....')
         self.actor.save_checkpoint(episode_number)
         self.critic_1.save_checkpoint(episode_number)
         self.critic_2.save_checkpoint(episode_number)
 
-    def load_models(self):
-        episode_number = self.db.get_global_episode_number()
+    def load_models(self, episode_number):
         print(f'.... loading models episode_number {episode_number} ....')
         self.actor.load_checkpoint(episode_number)
         self.critic_1.load_checkpoint(episode_number)

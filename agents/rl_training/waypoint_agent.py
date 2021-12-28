@@ -62,7 +62,7 @@ class WaypointAgent(AutonomousAgent):
         self.episode_number = self.agent.db.get_global_episode_number()
         self.total_step_num = self.agent.db.get_total_step_num()
 
-        print(f"model_name {self.agent.model_name}  best_reward {self.best_reward}  episode_number {self.episode_number}  total_step_num {self.total_step_num}  latest_sample_id {self.agent.db.get_latest_sample_id()}")
+        print(f"model_name {self.agent.model_name}  best_reward {self.best_reward}  episode_number {self.episode_number}  total_step_num {self.total_step_num}  latest_sample_id {self.agent.db.get_latest_sample_id()} latest_model_episode_number {self.agent.db.get_latest_model_episode_number()}")
 
         self.initialized = False
         self._sensor_data = SENSOR_CONFIG
@@ -193,13 +193,14 @@ class WaypointAgent(AutonomousAgent):
 
         policy_loss = None
         value_loss = None
-        if self.push_buffer:
+        if self.push_buffer and not self.agent.evaluate:
             self.agent.memory.push(image_features, fused_inputs, dnn_agent_action, reward, self.next_image_features, self.next_fused_inputs, done)
 
             if self.agent.memory.filled_size > self.agent.batch_size:
                 sample_batch = self.agent.memory.sample(self.agent.batch_size)
+
                 policy_loss, value_loss = self.agent.update(sample_batch)
-                
+            
                 self.n_updates += 1 #number of updates in one episode
                 self.total_loss_pi += policy_loss #episodic loss
                 self.total_loss_q += value_loss #episodic loss
@@ -229,13 +230,11 @@ class WaypointAgent(AutonomousAgent):
 
         self.episode_total_reward += reward
 
-        """
         if policy_loss is not None or value_loss is not None:
             print("[Action]: throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, pi-loss: {:.2f}, q-loss: {:.2f}, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(throttle, steer, brake, speed, policy_loss, value_loss, reward, self.step_number, self.total_step_num))
         else:
             print("[Action]: throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(throttle, steer, brake, speed, reward, self.step_number, self.total_step_num))
-        """
-        
+
         # terminate an episode
         if done:
             self.agent.db.update_latest_sample_id(self.agent.memory.id)
@@ -246,7 +245,9 @@ class WaypointAgent(AutonomousAgent):
                 self.agent.db.update_best_reward(self.best_reward)
 
                 print("Best Episode Reward: ", self.best_reward)
-                self.agent.save_models()
+
+                if not self.agent.evaluate:
+                    self.agent.save_models(self.agent.db.get_global_episode_number())
 
             base_utils.tensorboard_writer(self.writer, self.episode_number, self.episode_total_reward, self.best_reward, self.total_loss_pi, self.total_loss_q, self.n_updates)
 

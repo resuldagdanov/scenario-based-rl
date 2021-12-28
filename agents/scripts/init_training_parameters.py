@@ -8,5 +8,6 @@ sys.path.append(parent)
 
 from utils.db import DB
 db = DB()
-db.initialize_tables()
+model_name = "Dec_28_2021-02_15_28" #evaluate this model
+db.initialize_tables(model_name)
 db.close()
