@@ -1,5 +1,6 @@
 #!/bin/bash
 
+#TODO: add time difference to see the training time 
 train () {
     working_dir=$(pwd)
 
@@ -21,7 +22,7 @@ train () {
 
 python3 init_training_parameters.py
 
-for i in $(seq 1 1 2)
+for i in $(seq 0 1 100)
 do
     printf "\n\nTraining batch $i started\n"
     train

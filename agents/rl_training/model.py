@@ -100,7 +100,7 @@ class RLModel():
         self.critic_optimizer = T.optim.Adam(self.q_params, lr=lrvalue)
 
         if self.db.get_global_episode_number() != 0:
-            self.load_models()
+            self.load_models() #TODO: check whether weights are loaded or not
 
     def select_action(self, image_features, fused_input, deterministic=True):
         with T.no_grad():
