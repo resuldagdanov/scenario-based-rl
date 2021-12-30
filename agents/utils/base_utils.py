@@ -1,6 +1,18 @@
 import carla
 import numpy as np
+from datetime import datetime
 
+def get_time_info():
+    today = datetime.today() # month - date - year
+    now = datetime.now() # hours - minutes - seconds
+
+    current_date = str(today.strftime("%b_%d_%Y"))
+    current_time = str(now.strftime("%H_%M_%S"))
+
+    # month_date_year-hour_minute_second
+    time_info = current_date + "-" + current_time
+
+    return time_info
 
 def _numpy(carla_vector, normalize=False):
     result = np.float32([carla_vector.x, carla_vector.y])
@@ -94,3 +106,7 @@ def tensorboard_writer(writer, eps, episode_total_reward, best_reward, policy_lo
     if n_updates != 0:
         writer.add_scalar("policy loss - episode", policy_loss / n_updates, eps)
         writer.add_scalar("value loss - episode", value_loss / n_updates, eps)
+
+
+def tensorboard_writer_evaluation(writer, eps, episode_total_reward):
+    writer.add_scalar("episode total reward - episode", episode_total_reward, eps)

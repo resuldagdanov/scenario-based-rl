@@ -22,19 +22,19 @@ from utils.pid_controller import PIDController
 from utils.planner import RoutePlanner
 from _scenario_runner.srunner.autoagents.autonomous_agent import AutonomousAgent
 
+ #TODO: SENSOR configs can be put to DB
+
 SENSOR_CONFIG = {
             'width': 400,
             'height': 300,
             'fov': 60
         }
 
-
 class WaypointAgent(AutonomousAgent):
 
     def init_dnn_agent(self):
         input_dims = (3, SENSOR_CONFIG['height'], SENSOR_CONFIG['width'])
-        n_actions = 2
-        #print(f"input_dims: {input_dims}\nn_actions: {n_actions}")
+        #print(f"input_dims: {input_dims}")
 
         self.device = self.agent.device
 
@@ -58,11 +58,14 @@ class WaypointAgent(AutonomousAgent):
         self.debug = self.agent.debug
         self.writer = self.agent.writer
 
-        self.best_reward = self.agent.db.get_best_reward()
-        self.episode_number = self.agent.db.get_global_episode_number()
-        self.total_step_num = self.agent.db.get_total_step_num()
-
-        print(f"model_name {self.agent.model_name}  best_reward {self.best_reward}  episode_number {self.episode_number}  total_step_num {self.total_step_num}  latest_sample_id {self.agent.db.get_latest_sample_id()} latest_model_episode_number {self.agent.db.get_latest_model_episode_number()}")
+        if not self.agent.evaluate:
+            self.best_reward = self.agent.db.get_best_reward(self.agent.training_id)
+            self.total_step_num = self.agent.db.get_total_step_num(self.agent.training_id)
+            print(f"training model_name {self.agent.model_name}   episode_number {self.agent.db.get_global_episode_number(self.agent.training_id)}   total_step_num {self.total_step_num}   latest_sample_id {self.agent.db.get_latest_sample_id(self.agent.training_id)}   best_reward {self.best_reward}   best_reward_episode_number {self.agent.db.get_best_reward_episode_number(self.agent.training_id)}")
+        else:
+            self.best_reward = 0.0
+            self.total_step_num = self.agent.db.get_evaluation_total_step_num(self.agent.evaluation_id)
+            print(f"evaluation model_name {self.agent.model_name}   model_episode_number {self.agent.db.get_evaluation_model_episode_number(self.agent.evaluation_id)}   episode_number {self.agent.db.get_evaluation_global_episode_number(self.agent.evaluation_id)}   total_step_num {self.total_step_num}   average_evaluation_score {self.agent.db.get_evaluation_average_evaluation_score(self.agent.evaluation_id)}")
 
         self.initialized = False
         self._sensor_data = SENSOR_CONFIG
@@ -230,26 +233,36 @@ class WaypointAgent(AutonomousAgent):
 
         self.episode_total_reward += reward
 
-        if policy_loss is not None or value_loss is not None:
-            print("[Action]: throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, pi-loss: {:.2f}, q-loss: {:.2f}, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(throttle, steer, brake, speed, policy_loss, value_loss, reward, self.step_number, self.total_step_num))
-        else:
+        """
+        if not self.agent.evaluate: #training
+            if policy_loss is not None or value_loss is not None:
+                print("[Action]: throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, pi-loss: {:.2f}, q-loss: {:.2f}, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(throttle, steer, brake, speed, policy_loss, value_loss, reward, self.step_number, self.total_step_num))
+            else:
+                print("[Action]: throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(throttle, steer, brake, speed, reward, self.step_number, self.total_step_num))
+        else: #evaluation
             print("[Action]: throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(throttle, steer, brake, speed, reward, self.step_number, self.total_step_num))
+        """
 
         # terminate an episode
         if done:
-            self.agent.db.update_latest_sample_id(self.agent.memory.id)
-            self.agent.db.update_total_step_num(self.total_step_num)
+            if not self.agent.evaluate: #training
+                self.agent.db.update_latest_sample_id(self.agent.memory.id, self.agent.training_id)
+                self.agent.db.update_total_step_num(self.total_step_num, self.agent.training_id)
 
-            if self.episode_total_reward > self.best_reward:
-                self.best_reward = self.episode_total_reward
-                self.agent.db.update_best_reward(self.best_reward)
+                if self.episode_total_reward > self.best_reward:
+                    self.best_reward = self.episode_total_reward
+                    self.agent.db.update_best_reward(self.best_reward, self.agent.training_id)
+                    self.agent.db.update_best_reward_episode_number(self.agent.db.get_global_episode_number(self.agent.training_id), self.agent.training_id)
 
-                print("Best Episode Reward: ", self.best_reward)
+                    print("Best Episode Reward: ", self.best_reward)
 
-                if not self.agent.evaluate:
-                    self.agent.save_models(self.agent.db.get_global_episode_number())
+                    self.agent.save_models(self.agent.db.get_global_episode_number(self.agent.training_id))
 
-            base_utils.tensorboard_writer(self.writer, self.episode_number, self.episode_total_reward, self.best_reward, self.total_loss_pi, self.total_loss_q, self.n_updates)
+                base_utils.tensorboard_writer(self.writer, self.agent.db.get_global_episode_number(self.agent.training_id), self.episode_total_reward, self.best_reward, self.total_loss_pi, self.total_loss_q, self.n_updates)
+            else: #evaluation
+                self.agent.db.update_evaluation_total_step_num(self.total_step_num, self.agent.evaluation_id)
+                self.agent.db.update_evaluation_average_evaluation_score(self.episode_total_reward, self.agent.evaluation_id)
+                base_utils.tensorboard_writer_evaluation(self.writer, self.agent.db.get_evaluation_global_episode_number(self.agent.evaluation_id), self.episode_total_reward)
 
             print("------------ Terminating! ------------")
             print("Episode Total Reward: ", round(self.episode_total_reward, 3))
@@ -260,6 +273,7 @@ class WaypointAgent(AutonomousAgent):
 
         return applied_control
 
+    #TODO: if you change the reward, save the snippet and save the id of it to DB
     def calculate_reward(self, action, ego_speed, ego_gps, goal_point):
         reward = -0.1
         done = 0

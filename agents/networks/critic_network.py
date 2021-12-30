@@ -42,10 +42,8 @@ class CriticNetwork(nn.Module):
 
     def save_checkpoint(self, episode_number):
         checkpoint_file = os.path.join(self.checkpoint_dir, self.name + "-ep_" + str(episode_number))
-        print(f"save checkpoint_file {checkpoint_file}")
         T.save(self.state_dict(), checkpoint_file)
 
     def load_checkpoint(self, episode_number):
         checkpoint_file = os.path.join(self.checkpoint_dir, self.name + "-ep_" + str(episode_number))
-        print(f"load checkpoint_file {checkpoint_file}")
         self.load_state_dict(T.load(checkpoint_file))

@@ -263,8 +263,8 @@ class ScenarioRunner(object):
             print("All scenario tests were passed successfully!")
         else:
             print("Not all scenario tests were successful")
-            if not (self._args.output or filename or junit_filename):
-                print("Please run with --output for further information")
+            #if not (self._args.output or filename or junit_filename):
+                #print("Please run with --output for further information")
 
     def _record_criteria(self, criteria, name):
         """
@@ -476,21 +476,30 @@ class ScenarioRunner(object):
         for config in route_configurations:
             from utils.db import DB
             db = DB()
-            model_name = db.get_model_name()
 
             from rl_training.model import RLModel
-            rl_model = RLModel(db, model_name)
+            rl_model = RLModel(db, self._args.evaluate)
 
             # NOTE: loop running each RL episode
             for eps in range(self._args.repetitions):
-                print("\n--- next episode ---  #:", db.get_global_episode_number())
+                if self._args.evaluate: #evaluation
+                    print("\n--- next episode ---  #:", db.get_evaluation_global_episode_number(rl_model.evaluation_id))
+                else: #training
+                    print("\n--- next episode ---  #:", db.get_global_episode_number(rl_model.training_id))
 
                 result = self._load_and_run_scenario(config=config, rl_model=rl_model)
 
                 self._cleanup()
-                db.increment_and_update_global_episode_number()
+
+                if self._args.evaluate: #evaluation
+                    db.increment_and_update_evaluation_global_episode_number(rl_model.evaluation_id)
+                else: #training
+                    db.increment_and_update_global_episode_number(rl_model.training_id)
+                    
                 print("\n")
 
+            if not self._args.evaluate: #training
+                rl_model.save_models(db.get_global_episode_number(rl_model.training_id)) #save after training is completed for batch of episodes
             db.close() #close DB connection after training is over
         return result
 
@@ -566,6 +575,7 @@ def main():
     parser.add_argument('--randomize', action="store_true", help='Scenario parameters are randomized')
     parser.add_argument('--repetitions', default=50, type=int, help='Number of scenario executions')
     parser.add_argument('--waitForEgo', action="store_true", help='Connect the scenario to an existing ego vehicle')
+    parser.add_argument('--evaluate', action="store_true", help='RL Model Evaluate(True) Train(False)')
     arguments = parser.parse_args()
     # pylint: enable=line-too-long
 

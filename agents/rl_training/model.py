@@ -19,17 +19,41 @@ from networks.resnet_backbone import ResNetBackbone
 CHECKPOINT_PATH = os.environ.get('CHECKPOINT_PATH', None)
 
 class RLModel():
-    def __init__(self, db, model_name):
+    def __init__(self, db, evaluate=False):
         self.db = db
+        self.evaluate = evaluate
 
-        # TODO: forward hyperparameters to global input argument
-        lrpolicy = 0.0001
-        lrvalue = 0.0005
-        n_actions = 2
-        buffer_size= 200_000
-        state_size = 1000 # output size of resnet
-        random_seed = 100
-        is_cpu = False
+        if self.evaluate: #evaluate
+            self.evaluation_id = self.db.get_evaluation_id()
+
+            is_cpu = db.get_evaluation_is_cpu(self.evaluation_id)
+            state_size = db.get_evaluation_state_size(self.evaluation_id)
+            n_actions = db.get_evaluation_n_actions(self.evaluation_id)
+            self.debug = db.get_evaluation_debug(self.evaluation_id)
+
+            load_episode_number = self.db.get_evaluation_model_episode_number(self.evaluation_id)
+            self.model_name = self.db.get_evaluation_model_name(self.evaluation_id)
+            checkpoint_dir = CHECKPOINT_PATH + 'models/' + self.model_name + "/"
+            log_dir = CHECKPOINT_PATH + 'logs/' + self.model_name + "_model_ep_num_" + str(load_episode_number) + "_id_" + str(self.evaluation_id) + "/"
+        else: #train
+            self.training_id = self.db.get_training_id()
+
+            is_cpu = db.get_is_cpu(self.training_id)
+            state_size = db.get_state_size(self.training_id)
+            n_actions = db.get_n_actions(self.training_id)
+            self.debug = db.get_debug(self.training_id)
+
+            self.model_name = self.db.get_model_name(self.training_id)
+            checkpoint_dir = CHECKPOINT_PATH + 'models/' + self.model_name + "/"
+            log_dir = CHECKPOINT_PATH + 'logs/' + self.model_name + "/"
+
+        if not os.path.exists(checkpoint_dir):
+            os.makedirs(checkpoint_dir)
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+
+        print(f"models will be in {checkpoint_dir}")
+        print(f"logs will be saved to {log_dir}")
 
         if is_cpu:
             self.device = T.device('cpu')
@@ -38,29 +62,6 @@ class RLModel():
 
         print("device: ", self.device)
 
-        self.tau = 0.001
-        self.alpha = 0.2
-        self.gamma = 0.97
-        self.batch_size = 64
-
-        self.debug = True
-        self.evaluate = True #TODO: get this parameter from scenario_runner.py
-
-        self.model_name = model_name
-
-        checkpoint_dir = CHECKPOINT_PATH + 'models/' + self.model_name + "/"
-        if self.evaluate:
-            log_dir = CHECKPOINT_PATH + 'logs/' + self.model_name + "_E" + "/"
-        else:
-            log_dir = CHECKPOINT_PATH + 'logs/' + self.model_name + "_T" + "/"
-
-        if not os.path.exists(checkpoint_dir):
-            os.makedirs(checkpoint_dir)
-        if not os.path.exists(log_dir):
-            os.makedirs(log_dir)
-
-        print(f"models will be saved to {checkpoint_dir}")
-        print(f"logs will be saved to {log_dir}")
 
         self.writer = SummaryWriter(logdir=log_dir, comment="_carla_model")
 
@@ -68,48 +69,59 @@ class RLModel():
         self.resnet_backbone = ResNetBackbone(device=self.device)
 
         self.actor = ActorNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='actor', checkpoint_dir=checkpoint_dir)
-        self.actor_target = ActorNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='actor', checkpoint_dir=checkpoint_dir)
+        self.actor_target = ActorNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='actor_target', checkpoint_dir=checkpoint_dir)
 
         self.critic_1 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_1', checkpoint_dir=checkpoint_dir)
-        self.critic_target_1 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_1', checkpoint_dir=checkpoint_dir)
+        self.critic_target_1 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_target_1', checkpoint_dir=checkpoint_dir)
 
         self.critic_2 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_2', checkpoint_dir=checkpoint_dir)
-        self.critic_target_2 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_2', checkpoint_dir=checkpoint_dir)
-        
-        self.memory = ReplayBuffer(self.db, buffer_size=buffer_size, seed=random_seed)
+        self.critic_target_2 = CriticNetwork(device=self.device, state_size=state_size, n_actions=n_actions, name='critic_target_2', checkpoint_dir=checkpoint_dir)
+    
+        if not self.evaluate:
+            self.alpha = db.get_alpha(self.training_id)
+            self.gamma = db.get_gamma(self.training_id)
+            self.tau = db.get_tau(self.training_id)
 
-        for target_param, param in zip(self.actor_target.parameters(), self.actor.parameters()):
-            target_param.data.copy_(param.data)
+            self.batch_size = db.get_batch_size(self.training_id)
 
-        for target_param, param in zip(self.critic_target_1.parameters(), self.critic_1.parameters()):
-            target_param.data.copy_(param.data)
+            buffer_size = db.get_buffer_size(self.training_id)
+            random_seed = db.get_random_seed(self.training_id)
+            lrpolicy = db.get_lrpolicy(self.training_id)
+            lrvalue = db.get_lrvalue(self.training_id)
 
-        for target_param, param in zip(self.critic_target_2.parameters(), self.critic_2.parameters()):
-            target_param.data.copy_(param.data)
+            self.memory = ReplayBuffer(self.db, buffer_size=buffer_size, seed=random_seed)
 
-        for p in self.actor_target.parameters():
-            p.requires_grad = False
-        for p in self.critic_target_1.parameters():
-            p.requires_grad = False
-        for p in self.critic_target_2.parameters():
-            p.requires_grad = False
-        
-        self.q_params = itertools.chain(self.critic_1.parameters(), self.critic_2.parameters())
+            for target_param, param in zip(self.actor_target.parameters(), self.actor.parameters()):
+                target_param.data.copy_(param.data)
 
-        # mse loss algoritm is applied
-        self.critic_criterion = T.nn.MSELoss()
+            for target_param, param in zip(self.critic_target_1.parameters(), self.critic_1.parameters()):
+                target_param.data.copy_(param.data)
 
-        # define actor and critic network optimizers
-        self.actor_optimizer = T.optim.Adam(self.actor.parameters(), lr=lrpolicy)
-        self.critic_optimizer = T.optim.Adam(self.q_params, lr=lrvalue)
+            for target_param, param in zip(self.critic_target_2.parameters(), self.critic_2.parameters()):
+                target_param.data.copy_(param.data)
 
-        if self.evaluate:
-            episode_number = 109 #TODO: get this parameter from scenario_runner.py
-            self.load_models(episode_number)
-        else:
-            if self.db.get_global_episode_number() != 0 and self.db.get_global_episode_number() >= self.db.latest_model_episode_number(): #load previous models
-                episode_number = self.db.latest_model_episode_number()
-                self.load_models(episode_number) #TODO: check whether weights are correctly loaded or not
+            for p in self.actor_target.parameters():
+                p.requires_grad = False
+            for p in self.critic_target_1.parameters():
+                p.requires_grad = False
+            for p in self.critic_target_2.parameters():
+                p.requires_grad = False
+            
+            self.q_params = itertools.chain(self.critic_1.parameters(), self.critic_2.parameters())
+
+            # mse loss algoritm is applied
+            self.critic_criterion = T.nn.MSELoss()
+
+            # define actor and critic network optimizers
+            self.actor_optimizer = T.optim.Adam(self.actor.parameters(), lr=lrpolicy)
+            self.critic_optimizer = T.optim.Adam(self.q_params, lr=lrvalue)
+
+        if self.evaluate: #evaluate
+            self.load_models(load_episode_number)
+        else: #train
+            episode_num = self.db.get_global_episode_number(self.training_id)
+            if episode_num != 0 : #load previous models if it is not first episode of training
+                self.load_models(episode_num) #TODO: check whether weights are correctly loaded or not
 
     def select_action(self, image_features, fused_input, deterministic=True):
         with T.no_grad():
@@ -198,14 +210,19 @@ class RLModel():
         return loss_pi.data.cpu().detach().numpy(), loss_q.data.cpu().detach().numpy()
 
     def save_models(self, episode_number):
-        self.db.update_latest_model_episode_number(episode_number)
         print(f'.... saving models episode_number {episode_number} ....')
         self.actor.save_checkpoint(episode_number)
+        self.actor_target.save_checkpoint(episode_number)
         self.critic_1.save_checkpoint(episode_number)
+        self.critic_target_1.save_checkpoint(episode_number)
         self.critic_2.save_checkpoint(episode_number)
+        self.critic_target_2.save_checkpoint(episode_number)
 
     def load_models(self, episode_number):
         print(f'.... loading models episode_number {episode_number} ....')
         self.actor.load_checkpoint(episode_number)
+        self.actor_target.load_checkpoint(episode_number)
         self.critic_1.load_checkpoint(episode_number)
+        self.critic_target_1.load_checkpoint(episode_number)
         self.critic_2.load_checkpoint(episode_number)
+        self.critic_target_2.load_checkpoint(episode_number)
