@@ -480,27 +480,32 @@ class ScenarioRunner(object):
             from rl_training.model import RLModel
             rl_model = RLModel(db, self._args.evaluate)
 
+            # TODO: uncomment following when offset model is used
+            # from rl_training.sac import SAC
+            # rl_model = SAC(db, self._args.evaluate)
+
             # NOTE: loop running each RL episode
             for eps in range(self._args.repetitions):
-                if self._args.evaluate: #evaluation
+                if self._args.evaluate: # evaluation
                     print("\n--- next episode ---  #:", db.get_evaluation_global_episode_number(rl_model.evaluation_id))
-                else: #training
+                else: # training
                     print("\n--- next episode ---  #:", db.get_global_episode_number(rl_model.training_id))
 
                 result = self._load_and_run_scenario(config=config, rl_model=rl_model)
 
                 self._cleanup()
 
-                if self._args.evaluate: #evaluation
+                if self._args.evaluate: # evaluation
                     db.increment_and_update_evaluation_global_episode_number(rl_model.evaluation_id)
-                else: #training
+                else: # training
                     db.increment_and_update_global_episode_number(rl_model.training_id)
                     
                 print("\n")
 
-            if not self._args.evaluate: #training
-                rl_model.save_models(db.get_global_episode_number(rl_model.training_id)) #save after training is completed for batch of episodes
-            db.close() #close DB connection after training is over
+            if not self._args.evaluate: # training
+                rl_model.save_models(db.get_global_episode_number(rl_model.training_id)) # save after training is completed for batch of episodes
+            db.close() # close DB connection after training is over
+        
         return result
 
     def _run_openscenario(self):
