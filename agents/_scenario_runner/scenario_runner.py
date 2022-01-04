@@ -481,8 +481,8 @@ class ScenarioRunner(object):
             rl_model = RLModel(db, self._args.evaluate)
 
             # TODO: uncomment following when offset model is used
-            # from rl_training.sac import SAC
-            # rl_model = SAC(db, self._args.evaluate)
+            # from rl_training.ddpg import DDPG
+            # rl_model = DDPG(db, self._args.evaluate)
 
             # NOTE: loop running each RL episode
             for eps in range(self._args.repetitions):
