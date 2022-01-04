@@ -148,9 +148,9 @@ class SAC():
 
         return state_space.cpu().detach().numpy()[0]
 
-    def select_action(self, state_space):
+    def select_action(self, network, state_space):
         with torch.no_grad():
-            actions = self.actor.compute_action(state_space=state_space)
+            actions = network.compute_action(state_space=state_space)
 
         # brake and offset amount
         return actions.cpu().detach().numpy()[0]
@@ -161,7 +161,7 @@ class SAC():
         q_2 = self.critic_2(state_space=state_space, action=actions)
 
         with torch.no_grad():
-            next_action = self.select_action(state_space=state_space)
+            next_action = self.select_action(network=self.actor, state_space=state_space)
 
             q_1_pi_target = self.critic_target_1(state_space=next_state_space, action=next_action)
             q_2_pi_target = self.critic_target_2(state_space=next_state_space, action=next_action)
@@ -179,7 +179,7 @@ class SAC():
 
     # compute pi-loss
     def calculate_loss_pi(self, state_space):
-        pi_action = self.select_action(state_space=state_space)
+        pi_action = self.select_action(network=self.actor, state_space=state_space)
 
         q_1_pi = self.critic_1(state_space=state_space, action=pi_action)
         q_2_pi = self.critic_2(state_space=state_space, action=pi_action)

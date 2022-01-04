@@ -186,7 +186,7 @@ class OffsetAgent(AutonomousAgent):
         state = self.agent(fronts=dnn_input_image, fused_input=fused_inputs_torch)
         state = state.cpu().detach().numpy()[0]
 
-        dnn_brake, offset = self.agent.compute_action(state_space=state)
+        dnn_brake, offset = self.agent.compute_action(network=self.agent.policy, state_space=state)
         agent_action = np.array([dnn_brake, offset])
 
         # left: -, right: +
