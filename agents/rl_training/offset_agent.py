@@ -27,7 +27,7 @@ from _scenario_runner.srunner.autoagents.autonomous_agent import AutonomousAgent
 SENSOR_CONFIG = {
             'width': 400,
             'height': 300,
-            'fov': 60
+            'fov': 100
         }
 
 class OffsetAgent(AutonomousAgent):
@@ -98,7 +98,7 @@ class OffsetAgent(AutonomousAgent):
         self.total_loss_q = 0.0
 
         if self.debug:
-            cv2.namedWindow("rgb-front-FOV-60")
+            cv2.namedWindow("rgb-front")
 
     def get_position(self, tick_data):
         gps = tick_data['gps']
@@ -171,7 +171,7 @@ class OffsetAgent(AutonomousAgent):
 
         if self.debug:
             disp_front_image = cv2.UMat(front_cv_image)
-            cv2.imshow("rgb-front-FOV-60", disp_front_image)
+            cv2.imshow("rgb-front", disp_front_image)
             cv2.waitKey(1)
 
         # construct network input image format
@@ -188,16 +188,8 @@ class OffsetAgent(AutonomousAgent):
         dnn_brake, offset = self.agent.compute_action(state_space=state)
         agent_action = np.array([dnn_brake, offset])
 
-        # TODO: calculations should be checked
-        distance_2_near = np.array([near_node[0] - gps[0], near_node[1] - gps[1]])
-        distance_2_near = np.linalg.norm(distance_2_near)
-
         # left: -, right: +
-        angle_rad = np.arctan2(offset, distance_2_near)
-
-        # assign new location for near node
-        new_near_node = [near_node[0] * np.sin(angle_rad) - near_node[1] * np.cos(angle_rad),
-                         near_node[0] * np.cos(angle_rad) + near_node[1] * np.sin(angle_rad)]
+        new_near_node = self.shift_point(ego_compass=compass, ego_gps=gps, near_node=near_node, offset_amount=offset)
 
         # get auto-pilot actions
         steer, throttle, brake, target_speed = self.get_control(new_near_node, far_node, data)
@@ -318,6 +310,30 @@ class OffsetAgent(AutonomousAgent):
             done = 1
 
         return reward, done
+
+    def shift_point(self, ego_compass, ego_gps, near_node, offset_amount):
+        # rotation matrix
+        R = np.array([
+            [np.cos(np.pi / 2 + ego_compass), -np.sin(np.pi / 2 + ego_compass)],
+            [np.sin(np.pi / 2 + ego_compass), np.cos(np.pi / 2 + ego_compass)]
+        ])
+
+        # transpose of rotation matrix
+        trans_R = R.T
+
+        local_command_point = np.array([near_node[0] - ego_gps[0], near_node[1] - ego_gps[1]])
+        local_command_point = trans_R.dot(local_command_point)
+
+        # positive offset shifts near node to right; negative offset shifts near node to left
+        local_command_point[0] += offset_amount
+        local_command_point[1] += 0
+
+        new_near_node = np.linalg.inv(trans_R).dot(local_command_point)
+
+        new_near_node[0] += ego_gps[0]
+        new_near_node[1] += ego_gps[1]
+
+        return new_near_node
 
     def privileged_sensors(self):
         blueprint = self.world.get_blueprint_library()
