@@ -6,10 +6,14 @@ class ValueNetwork(nn.Module):
     def __init__(self, device):
         super(ValueNetwork, self).__init__()
 
-        self.fc1 = nn.Linear(64 + 2, 64)
-        self.fc2 = nn.Linear(64, 64)
+        state_size = 64
+        action_size = 2
+        hidden_size = 64
 
-        self.q_layer = nn.Linear(64, 1)
+        self.fc1 = nn.Linear(state_size + action_size, hidden_size)
+        self.fc2 = nn.Linear(hidden_size, hidden_size)
+
+        self.q_layer = nn.Linear(hidden_size, 1)
 
         self.to(device)
 

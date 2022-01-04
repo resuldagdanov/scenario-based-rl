@@ -30,6 +30,7 @@ SENSOR_CONFIG = {
             'fov': 100
         }
 
+
 class OffsetAgent(AutonomousAgent):
 
     def init_dnn_agent(self):
