@@ -27,7 +27,7 @@ from _scenario_runner.srunner.autoagents.autonomous_agent import AutonomousAgent
 SENSOR_CONFIG = {
             'width': 400,
             'height': 300,
-            'fov': 60
+            'fov': 100
         }
 
 class WaypointAgent(AutonomousAgent):
@@ -101,7 +101,7 @@ class WaypointAgent(AutonomousAgent):
         self.total_loss_q = 0.0
 
         if self.debug:
-            cv2.namedWindow("rgb-front-FOV-60")
+            cv2.namedWindow("rgb-front")
 
     def get_position(self, tick_data):
         gps = tick_data['gps']
@@ -174,7 +174,7 @@ class WaypointAgent(AutonomousAgent):
 
         if self.debug:
             disp_front_image = cv2.UMat(front_cv_image)
-            cv2.imshow("rgb-front-FOV-60", disp_front_image)
+            cv2.imshow("rgb-front", disp_front_image)
             cv2.waitKey(1)
 
         # construct network input image format

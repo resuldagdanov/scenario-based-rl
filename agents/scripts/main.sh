@@ -2,14 +2,14 @@
 
 #TODO: this can be given from command prompt as well
 #global variables
-export evaluate=false #true
-export model_name="Dec_30_2021-05_21_45" #only used if evaluate true, make sure it exists
-export load_episode_number=3 #only used if evaluate true, make sure it exists
+export evaluate=true #true
+export model_name="Dec_30_2021-06_06_18" #only used if evaluate true, make sure it exists
+export load_episode_number=283 #only used if evaluate true, make sure it exists
 
-export repetitions=20
+export repetitions=2
 export max_episode_batch_num=2
-export xml_file="routes_town01_one_route.xml" #"routes_town01_short.xml"
-export json_file="no_scenarios.json" #"all_towns_traffic_scenarios_autopilot.json"
+export xml_file="failed_town01_short_redlight_1.xml" #"routes_town01_one_route.xml" #"routes_town01_short.xml"
+export json_file="all_towns_traffic_scenarios_WOR.json" #"all_towns_traffic_scenarios_autopilot.json"
 
 max_episode_num=`expr $repetitions \* $max_episode_batch_num`
 
