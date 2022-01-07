@@ -487,27 +487,35 @@ class ScenarioRunner(object):
             # from rl_training.ddpg import DDPG
             # rl_model = DDPG(db, self._args.evaluate)
 
+            # TODO: if rl model is none, then evaluate imitation learning model
+            rl_model = None
+
             # NOTE: loop running each RL episode
             for eps in range(self._args.repetitions):
-                if self._args.evaluate: # evaluation
-                    print("\n--- next episode ---  #:", db.get_evaluation_global_episode_number(rl_model.evaluation_id))
-                else: # training
-                    print("\n--- next episode ---  #:", db.get_global_episode_number(rl_model.training_id))
+
+                # run database structure only when rl model is defined, not during imitation learning model evaluation
+                if rl_model is not None:
+                    if self._args.evaluate: # evaluation
+                        print("\n--- next episode ---  #:", db.get_evaluation_global_episode_number(rl_model.evaluation_id))
+                    else: # training
+                        print("\n--- next episode ---  #:", db.get_global_episode_number(rl_model.training_id))
 
                 result = self._load_and_run_scenario(config=config, rl_model=rl_model)
 
                 self._cleanup()
 
-                if self._args.evaluate: # evaluation
-                    db.increment_and_update_evaluation_global_episode_number(rl_model.evaluation_id)
-                else: # training
-                    db.increment_and_update_global_episode_number(rl_model.training_id)
+                if rl_model is not None:
+                    if self._args.evaluate: # evaluation
+                        db.increment_and_update_evaluation_global_episode_number(rl_model.evaluation_id)
+                    else: # training
+                        db.increment_and_update_global_episode_number(rl_model.training_id)
                     
                 print("\n")
 
-            if not self._args.evaluate: # training
-                rl_model.save_models(db.get_global_episode_number(rl_model.training_id)) # save after training is completed for batch of episodes
-            db.close() # close DB connection after training is over
+            if rl_model is not None:
+                if not self._args.evaluate: # training
+                    rl_model.save_models(db.get_global_episode_number(rl_model.training_id)) # save after training is completed for batch of episodes
+                db.close() # close DB connection after training is over
         
         return result
 

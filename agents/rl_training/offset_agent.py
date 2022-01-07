@@ -21,6 +21,7 @@ from utils import base_utils
 from utils.pid_controller import PIDController
 from utils.planner import RoutePlanner
 from _scenario_runner.srunner.autoagents.autonomous_agent import AutonomousAgent
+from networks.offset_network import OffsetNetwork
 
  # TODO: SENSOR configs can be put to DB
 
@@ -35,7 +36,24 @@ class OffsetAgent(AutonomousAgent):
 
     def init_dnn_agent(self):
         input_dims = (3, SENSOR_CONFIG['height'], SENSOR_CONFIG['width'])
-        self.device = self.agent.device
+
+        # initialize imitation learning model only
+        if self.run_imitation_agent:
+            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            print("device: ", self.device)
+
+            # load pretrained policy network
+            self.policy = OffsetNetwork()
+            self.policy.to(self.device)
+
+            # TODO: IMPORTANT! make a global input parameter
+            model_name = "offset_model_epoch_45.pth"
+            trained_policy_path = os.path.join(os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/models/"), model_name)
+
+            self.policy.load_state_dict(torch.load(trained_policy_path))
+            self.policy.eval()
+        else:
+            self.device = self.agent.device
 
     def init_auto_pilot(self):
         self._turn_controller = PIDController(K_P=1.25, K_I=0.75, K_D=0.3, n=40)
@@ -52,19 +70,24 @@ class OffsetAgent(AutonomousAgent):
         self.privileged_sensors()
 
     def setup(self, rl_model):
-        self.agent = rl_model
-
-        self.debug = self.agent.debug
-        self.writer = self.agent.writer
-
-        if not self.agent.evaluate:
-            self.best_reward = self.agent.db.get_best_reward(self.agent.training_id)
-            self.total_step_num = self.agent.db.get_total_step_num(self.agent.training_id)
-            print(f"training model_name {self.agent.model_name}   episode_number {self.agent.db.get_global_episode_number(self.agent.training_id)}   total_step_num {self.total_step_num}   latest_sample_id {self.agent.db.get_latest_sample_id(self.agent.training_id)}   best_reward {self.best_reward}   best_reward_episode_number {self.agent.db.get_best_reward_episode_number(self.agent.training_id)}")
+        if rl_model is None:
+            self.run_imitation_agent = True
         else:
-            self.best_reward = 0.0
-            self.total_step_num = self.agent.db.get_evaluation_total_step_num(self.agent.evaluation_id)
-            print(f"evaluation model_name {self.agent.model_name}   model_episode_number {self.agent.db.get_evaluation_model_episode_number(self.agent.evaluation_id)}   episode_number {self.agent.db.get_evaluation_global_episode_number(self.agent.evaluation_id)}   total_step_num {self.total_step_num}   average_evaluation_score {self.agent.db.get_evaluation_average_evaluation_score(self.agent.evaluation_id)}")
+            self.run_imitation_agent = False
+
+            self.agent = rl_model
+            self.debug = self.agent.debug
+            self.writer = self.agent.writer
+
+        if not self.run_imitation_agent:
+            if not self.agent.evaluate:
+                self.best_reward = self.agent.db.get_best_reward(self.agent.training_id)
+                self.total_step_num = self.agent.db.get_total_step_num(self.agent.training_id)
+                print(f"training model_name {self.agent.model_name}   episode_number {self.agent.db.get_global_episode_number(self.agent.training_id)}   total_step_num {self.total_step_num}   latest_sample_id {self.agent.db.get_latest_sample_id(self.agent.training_id)}   best_reward {self.best_reward}   best_reward_episode_number {self.agent.db.get_best_reward_episode_number(self.agent.training_id)}")
+            else:
+                self.best_reward = 0.0
+                self.total_step_num = self.agent.db.get_evaluation_total_step_num(self.agent.evaluation_id)
+                print(f"evaluation model_name {self.agent.model_name}   model_episode_number {self.agent.db.get_evaluation_model_episode_number(self.agent.evaluation_id)}   episode_number {self.agent.db.get_evaluation_global_episode_number(self.agent.evaluation_id)}   total_step_num {self.total_step_num}   average_evaluation_score {self.agent.db.get_evaluation_average_evaluation_score(self.agent.evaluation_id)}")
 
         self.initialized = False
         self._sensor_data = SENSOR_CONFIG
@@ -87,16 +110,17 @@ class OffsetAgent(AutonomousAgent):
         self.init_privileged_agent()
 
         self.initialized = True
-        self.push_buffer = False
 
-        self.next_state = []
-
-        self.step_number = 1
-        self.episode_total_reward = 0.0
-        self.count_vehicle_stop = 0
-        self.n_updates = 0
-        self.total_loss_pi = 0.0
-        self.total_loss_q = 0.0
+        # do not initialize if only imitation agent is evaluated
+        if not self.run_imitation_agent:
+            self.push_buffer = False
+            self.next_state = []
+            self.step_number = 1
+            self.episode_total_reward = 0.0
+            self.count_vehicle_stop = 0
+            self.n_updates = 0
+            self.total_loss_pi = 0.0
+            self.total_loss_q = 0.0
 
         if self.debug:
             cv2.namedWindow("rgb-front")
@@ -182,11 +206,20 @@ class OffsetAgent(AutonomousAgent):
         fused_inputs = np.array(fused_inputs, np.float32)
         fused_inputs_torch = torch.from_numpy(fused_inputs.copy()).unsqueeze(0).to(self.device)
 
-        # apply freezed pre-trained model onto the image and get state space
-        state = self.agent(fronts=dnn_input_image, fused_input=fused_inputs_torch)
-        state = state.cpu().detach().numpy()[0]
+        if self.run_imitation_agent:
+            with torch.no_grad():
+                state_space = self.policy(fronts=dnn_input_image, fused_input=fused_inputs_torch)
+            state_space = state_space.cpu().detach().numpy()[0]
 
-        dnn_brake, offset = self.agent.compute_action(network=self.agent.policy, state_space=state)
+            with torch.no_grad():
+                actions = self.policy.compute_action(state_space=state_space)
+            dnn_brake, offset = actions.cpu().detach().numpy()[0]
+
+        else:
+            # apply freezed pre-trained model onto the image and get state space
+            state = self.agent.get_state_space(fronts=dnn_input_image, fused_input=fused_inputs_torch)
+            dnn_brake, offset = self.agent.select_action(network=self.agent.policy, state_space=state)
+
         agent_action = np.array([dnn_brake, offset])
 
         # left: -, right: +
@@ -203,11 +236,18 @@ class OffsetAgent(AutonomousAgent):
             throttle = throttle
             brake = 0.0
 
+        if not self.run_imitation_agent:
+            # maintains RL structure
+            self.rl_computation(state=state, agent_action=agent_action, dnn_brake=dnn_brake, throttle=throttle, speed=speed, gps=gps, far_node=far_node)
+
         applied_control = carla.VehicleControl()
         applied_control.throttle = float(throttle)
         applied_control.steer = float(steer)
         applied_control.brake = float(brake)
 
+        return applied_control
+
+    def rl_computation(self, state, agent_action, dnn_brake, throttle, speed, gps, far_node):
         # compute step reward and deside for termination
         reward, done = self.calculate_reward(dnn_brake=dnn_brake, throttle=throttle, ego_speed=speed, ego_gps=gps, goal_point=far_node)
 
@@ -260,8 +300,6 @@ class OffsetAgent(AutonomousAgent):
 
         self.step_number += 1
         self.total_step_num += 1
-
-        return applied_control
 
     # TODO: if you change the reward, save the snippet and save the id of it to DB
     def calculate_reward(self, dnn_brake, throttle, ego_speed, ego_gps, goal_point):

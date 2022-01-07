@@ -29,8 +29,10 @@ class DDPG():
         self.polyak = 0.995 
 
         # TODO: IMPORTANT! load specific models correctly without defining as None
-        trained_policy_path = None
         trained_qvalue_path = None
+
+        model_name = "offset_model_epoch_45.pth"
+        trained_policy_path = os.path.join(os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/models/"), model_name)
 
         if self.evaluate: # evaluate
             is_value_pretrained = True
@@ -83,6 +85,7 @@ class DDPG():
         self.policy.to(self.device)
 
         self.policy.load_state_dict(torch.load(trained_policy_path))
+        self.policy.eval()
 
         # freeze weights until brake network and offset network including mlp network
         for param in self.policy.front_rgb_backbone.parameters():
