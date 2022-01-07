@@ -3,10 +3,10 @@
 #TODO: this can be given from command prompt as well
 #global variables
 export evaluate=true #true
-export model_name="Jan_07_2022-19_21_35" #only used if evaluate true, make sure it exists
-export load_episode_number=4 #only used if evaluate true, make sure it exists
+export model_name="Jan_07_2022-22_02_03" #only used if evaluate true, make sure it exists
+export load_episode_number=2 #only used if evaluate true, make sure it exists
 
-export repetitions=2
+export repetitions=5
 export max_episode_batch_num=2
 export xml_file="failed_town01_short_redlight_1.xml" #"routes_town01_one_route.xml" #"routes_town01_short.xml"
 export json_file="all_towns_traffic_scenarios_WOR.json" #"all_towns_traffic_scenarios_autopilot.json"

@@ -183,12 +183,13 @@ class DqnAgent(AutonomousAgent):
 
         if high_level_action == 0 or high_level_action == 3: # steer left
             offset = -3.5
+            new_near_node = self.shift_point(ego_compass=compass, ego_gps=gps, near_node=near_node, offset_amount=offset)
         elif high_level_action == 2 or high_level_action == 5: # steer right
             offset = 3.5
+            new_near_node = self.shift_point(ego_compass=compass, ego_gps=gps, near_node=near_node, offset_amount=offset)
         else: # no steer - keep lane
             offset = 0.0
-        
-        new_near_node = self.shift_point(ego_compass=compass, ego_gps=gps, near_node=near_node, offset_amount=offset)
+            new_near_node = near_node
 
         # get auto-pilot actions
         steer, throttle, target_speed = self.get_control(new_near_node, far_node, data)
@@ -246,8 +247,14 @@ class DqnAgent(AutonomousAgent):
         else: # training
             dnn_agent_action = np.array(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch)) # 1 dimensional for DQN
 
+        throttle, steer, brake = self.calculate_high_level_action(dnn_agent_action, compass, gps, near_node, far_node, data)
+        applied_control = carla.VehicleControl()
+        applied_control.throttle = throttle
+        applied_control.steer = steer
+        applied_control.brake = brake
+
         # compute step reward and deside for termination
-        reward, done = self.calculate_reward(action=dnn_agent_action, ego_speed=speed, ego_gps=gps, goal_point=far_node)
+        reward, done = self.calculate_reward(throttle=throttle, ego_speed=speed, ego_gps=gps, goal_point=far_node)
 
         loss = None
         if self.push_buffer and not self.agent.evaluate:
@@ -263,12 +270,6 @@ class DqnAgent(AutonomousAgent):
 
         self.next_image_features = image_features
         self.next_fused_inputs = fused_inputs
-
-        throttle, steer, brake = self.calculate_high_level_action(dnn_agent_action, compass, gps, near_node, far_node, data)
-        applied_control = carla.VehicleControl()
-        applied_control.throttle = throttle
-        applied_control.steer = steer
-        applied_control.brake = brake
         
         self.push_buffer = True
 
@@ -283,7 +284,7 @@ class DqnAgent(AutonomousAgent):
             print("[Action]: high_level_action: {:d}, throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(dnn_agent_action, throttle, steer, brake, speed, reward, self.step_number, self.total_step_num))
 
         # terminate an episode
-        if done:
+        if done or self.step_number > 500:
             if not self.agent.evaluate: #training
                 self.agent.target_update() # at the end of the episode update target network # TODO: this can be done at each x step
 
@@ -315,16 +316,11 @@ class DqnAgent(AutonomousAgent):
         return applied_control
 
     #TODO: if you change the reward, save the snippet and save the id of it to DB
-    def calculate_reward(self, action, ego_speed, ego_gps, goal_point):
+    def calculate_reward(self, throttle, ego_speed, ego_gps, goal_point):
         reward = -0.1
         done = 0
 
         reward += ego_speed
-
-        # TODO: change this part
-        # ego vehicle actions
-        #steer = action[0]
-        #accel_brake = action[1]
 
         # distance to each far distance goal points in meters
         distance = np.linalg.norm(goal_point - ego_gps)
@@ -332,22 +328,21 @@ class DqnAgent(AutonomousAgent):
         # if any of the following is not None, then the agent should brake
         is_light, is_walker, is_vehicle = self.traffic_data()
 
+        # TODO: make sure is_light is True at the beginning of red light cases
         # give penalty if ego vehicle is not braking where it should brake
+        print(f"is_light {is_light}")
         if any(x is not None for x in [is_light, is_walker, is_vehicle]):
             print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle)
             
-            """
             # accelerating while it should brake
-            if accel_brake > 0.2:
+            if throttle > 0.2: #throttle
                 print("[Penalty]: not braking !")
-                reward -= ego_speed * accel_brake
-            
+                reward -= ego_speed * throttle
 
             # braking as it should be
             else:
                 print("[Reward]: correctly braking !")
                 reward += 15
-            """
                 
         # terminate if vehicle is not moving for too long steps
         else:
@@ -384,8 +379,8 @@ class DqnAgent(AutonomousAgent):
         self.lane_invasion_sensor = self.world.spawn_actor(bp_lane_invasion, carla.Transform(), attach_to=self.hero_vehicle)
 
         # create sensor event callbacks
-        self.collision_sensor.listen(lambda event: self._on_collision(weakref.ref(self), event))
-        self.lane_invasion_sensor.listen(lambda event: self._on_lane_invasion(weakref.ref(self), event))
+        self.collision_sensor.listen(lambda event: DqnAgent._on_collision(weakref.ref(self), event))
+        self.lane_invasion_sensor.listen(lambda event: DqnAgent._on_lane_invasion(weakref.ref(self), event))
 
     def traffic_data(self):
         all_actors = self.world.get_actors()
@@ -393,8 +388,10 @@ class DqnAgent(AutonomousAgent):
         lights_list = all_actors.filter('*traffic_light*')
         walkers_list = all_actors.filter('*walker*')
         vehicle_list = all_actors.filter('*vehicle*')
+        print(f"lights_list {lights_list}")
 
         traffic_lights = base_utils.get_nearby_lights(self.hero_vehicle, lights_list)
+        print(f"traffic_lights {traffic_lights}")
 
         light = self.is_light_red(traffic_lights)
         walker = self.is_walker_hazard(walkers_list)
@@ -470,9 +467,11 @@ class DqnAgent(AutonomousAgent):
         return x
 
     def is_light_red(self, traffic_lights):
+        print(f"self.hero_vehicle.get_traffic_light_state() {self.hero_vehicle.get_traffic_light_state()}")
         if self.hero_vehicle.get_traffic_light_state() != carla.libcarla.TrafficLightState.Green:
             affecting = self.hero_vehicle.get_traffic_light()
             for light in traffic_lights:
+                print(f"is_light_red {light}")
                 if light.id == affecting.id:
                     return affecting
         return None
