@@ -121,7 +121,7 @@ class RLModel():
         else: #train
             episode_num = self.db.get_global_episode_number(self.training_id)
             if episode_num != 0 : #load previous models if it is not first episode of training
-                self.load_models(episode_num) #TODO: check whether weights are correctly loaded or not
+                self.load_models(episode_num)
 
     def select_action(self, image_features, fused_input, deterministic=True):
         with T.no_grad():

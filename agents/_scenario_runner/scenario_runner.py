@@ -477,8 +477,11 @@ class ScenarioRunner(object):
             from utils.db import DB
             db = DB()
 
-            from rl_training.model import RLModel
-            rl_model = RLModel(db, self._args.evaluate)
+            from rl_training.dqn import DQNModel
+            rl_model = DQNModel(db, self._args.evaluate)
+
+            #from rl_training.model import RLModel
+            #rl_model = RLModel(db, self._args.evaluate)
 
             # TODO: uncomment following when offset model is used
             # from rl_training.ddpg import DDPG

@@ -17,7 +17,7 @@ parser.add_argument('--model_name', type=str, default=None, help='model_name')
 parser.add_argument('--load_episode_number', type=int, default=None, help='episode number of the model to be loaded for evaluation')
 parser.add_argument('--is_cpu', type=bool, default=False, help='CPU(True) GPU(False) (Default is False)')
 parser.add_argument('--debug', type=bool, default=False, help='debug(True) no_debug(False) (Default is False)')
-parser.add_argument('--n_actions', type=int, default=2, help='number of actions')
+parser.add_argument('--n_actions', type=int, default=2, help='number of actions') #For DQN Agent this is 6, for SAC and DDPG it is 2
 parser.add_argument('--state_size', type=int, default=1000, help='resnet output size (state_size))')
 parser.add_argument('--random_seed', type=int, default=100, help='random package seed')
 parser.add_argument('--buffer_size', type=int, default=200_000, help='buffer size')
@@ -34,6 +34,7 @@ args = parser.parse_args()
 
 #args.debug = True
 #args.is_cpu = True
+args.n_actions = 6
 
 for arg in vars(args):
     print(f"{arg} : {getattr(args, arg)}")

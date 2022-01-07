@@ -625,7 +625,7 @@ class DB:
         #TODO: make these values hyperparams
         image_feature_batch = np.empty((batch_size, 1000))
         fused_input_batch = np.empty((batch_size, 3))
-        action_batch = np.empty((batch_size, 2))
+        action_batch = np.empty((batch_size, 1)) #this is 2 for SAC and DDPG and 1 for DQN
         reward_batch = np.empty((batch_size))
         next_image_feature_batch = np.empty((batch_size, 1000))
         next_fused_input_batch = np.empty((batch_size, 3))
