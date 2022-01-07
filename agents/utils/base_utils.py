@@ -106,7 +106,13 @@ def tensorboard_writer(writer, eps, episode_total_reward, best_reward, policy_lo
     if n_updates != 0:
         writer.add_scalar("policy loss - episode", policy_loss / n_updates, eps)
         writer.add_scalar("value loss - episode", value_loss / n_updates, eps)
+        
+def tensorboard_writer_with_one_loss(writer, eps, episode_total_reward, best_reward, value_loss, n_updates):
+    writer.add_scalar("episode total reward - episode", episode_total_reward, eps)
+    writer.add_scalar("best reward - episode", best_reward, eps)
 
+    if n_updates != 0:
+        writer.add_scalar("value loss - episode", value_loss / n_updates, eps)
 
 def tensorboard_writer_evaluation(writer, eps, episode_total_reward):
     writer.add_scalar("episode total reward - episode", episode_total_reward, eps)

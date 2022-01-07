@@ -3,8 +3,8 @@
 #TODO: this can be given from command prompt as well
 #global variables
 export evaluate=true #true
-export model_name="Dec_30_2021-06_06_18" #only used if evaluate true, make sure it exists
-export load_episode_number=283 #only used if evaluate true, make sure it exists
+export model_name="Jan_07_2022-19_21_35" #only used if evaluate true, make sure it exists
+export load_episode_number=4 #only used if evaluate true, make sure it exists
 
 export repetitions=2
 export max_episode_batch_num=2

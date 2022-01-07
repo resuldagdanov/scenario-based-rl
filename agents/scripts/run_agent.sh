@@ -22,7 +22,7 @@ export PYTHONPATH=$PYTHONPATH:scenario_runner
 export BASE_CODE_PATH="$(dirname $(dirname "$(pwd)"))" # automatically find scenario-based-rl folder
 export ROUTES=${BASE_CODE_PATH}/data/routes/${xml_file}
 export SCENARIOS=${BASE_CODE_PATH}/data/scenarios/${json_file}
-export TEAM_AGENT=${BASE_CODE_PATH}/agents/rl_training/waypoint_agent.py # offset_agent.py # TODO:
+export TEAM_AGENT=${BASE_CODE_PATH}/agents/rl_training/dqn_agent.py #waypoint_agent.py # offset_agent.py # TODO:
 export CHECKPOINT_PATH=${BASE_CODE_PATH}/checkpoint/
 
 export PYTHONPATH=$PYTHONPATH:${BASE_CODE_PATH}

@@ -30,7 +30,7 @@ SENSOR_CONFIG = {
             'fov': 100
         }
 
-class WaypointAgent(AutonomousAgent):
+class DqnAgent(AutonomousAgent):
 
     def init_dnn_agent(self):
         input_dims = (3, SENSOR_CONFIG['height'], SENSOR_CONFIG['width'])
@@ -97,8 +97,7 @@ class WaypointAgent(AutonomousAgent):
         self.episode_total_reward = 0.0
         self.count_vehicle_stop = 0
         self.n_updates = 0
-        self.total_loss_pi = 0.0
-        self.total_loss_q = 0.0
+        self.total_loss = 0.0
 
         if self.debug:
             cv2.namedWindow("rgb-front")
@@ -150,6 +149,59 @@ class WaypointAgent(AutonomousAgent):
                 'compass': compass
                 }
 
+    def shift_point(self, ego_compass, ego_gps, near_node, offset_amount):
+        # rotation matrix
+        R = np.array([
+            [np.cos(np.pi / 2 + ego_compass), -np.sin(np.pi / 2 + ego_compass)],
+            [np.sin(np.pi / 2 + ego_compass), np.cos(np.pi / 2 + ego_compass)]
+        ])
+
+        # transpose of rotation matrix
+        trans_R = R.T
+
+        local_command_point = np.array([near_node[0] - ego_gps[0], near_node[1] - ego_gps[1]])
+        local_command_point = trans_R.dot(local_command_point)
+
+        # positive offset shifts near node to right; negative offset shifts near node to left
+        local_command_point[0] += offset_amount
+        local_command_point[1] += 0
+
+        new_near_node = np.linalg.inv(trans_R).dot(local_command_point)
+
+        new_near_node[0] += ego_gps[0]
+        new_near_node[1] += ego_gps[1]
+
+        return new_near_node
+
+    def calculate_high_level_action(self, high_level_action, compass, gps, near_node, far_node, data):
+        #0 brake - steer left
+        #1 brake - no steer
+        #2 brake - steer right
+        #3 no brake - steer left
+        #4 no brake - no steer
+        #5 no brake - steer right
+
+        if high_level_action == 0 or high_level_action == 3: # steer left
+            offset = -3.5
+        elif high_level_action == 2 or high_level_action == 5: # steer right
+            offset = 3.5
+        else: # no steer - keep lane
+            offset = 0.0
+        
+        new_near_node = self.shift_point(ego_compass=compass, ego_gps=gps, near_node=near_node, offset_amount=offset)
+
+        # get auto-pilot actions
+        steer, throttle, target_speed = self.get_control(new_near_node, far_node, data)
+
+        if high_level_action == 0 or high_level_action == 1 or high_level_action == 2: # brake
+            throttle = 0.0
+            brake = 1.0
+        else: # no brake
+            throttle = throttle
+            brake = 0.0
+
+        return throttle, steer, brake
+
     def run_step(self, input_data, timestamp):
         if not self.initialized:
             self._init()
@@ -188,44 +240,33 @@ class WaypointAgent(AutonomousAgent):
         image_features_torch = self.agent.resnet_backbone(dnn_input_image)
         image_features = image_features_torch.cpu().detach().numpy()[0]
 
-        # get action from actor network [steer (-1,1), acceleration-brake ((-1,0): brake, (0,1: throttle))]
-        dnn_agent_action = np.array(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch))
+        # get action from value network
+        if self.agent.evaluate: # evaluation
+            dnn_agent_action = np.array(self.agent.select_max_action(image_features=image_features_torch, fused_input=fused_inputs_torch)[0]) # 1 dimensional for DQN            
+        else: # training
+            dnn_agent_action = np.array(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch)) # 1 dimensional for DQN
 
         # compute step reward and deside for termination
         reward, done = self.calculate_reward(action=dnn_agent_action, ego_speed=speed, ego_gps=gps, goal_point=far_node)
 
-        policy_loss = None
-        value_loss = None
+        loss = None
         if self.push_buffer and not self.agent.evaluate:
             self.agent.memory.push(image_features, fused_inputs, dnn_agent_action, reward, self.next_image_features, self.next_fused_inputs, done)
 
             if self.agent.memory.filled_size > self.agent.batch_size:
                 sample_batch = self.agent.memory.sample(self.agent.batch_size)
 
-                policy_loss, value_loss = self.agent.update(sample_batch)
+                loss = self.agent.update(sample_batch)
             
                 self.n_updates += 1 #number of updates in one episode
-                self.total_loss_pi += policy_loss #episodic loss
-                self.total_loss_q += value_loss #episodic loss
+                self.total_loss += loss #episodic loss
 
         self.next_image_features = image_features
         self.next_fused_inputs = fused_inputs
 
-        # determine whether to accelerate or brake
-        if float(dnn_agent_action[1]) >= 0.0:
-            brake = 0.0
-            throttle = dnn_agent_action[1]
-            
-            if throttle >= 0.75:
-                throttle = 0.75
-        else:
-            brake = 1.0
-            throttle = 0.0
-
-        steer = float(dnn_agent_action[0])
-
+        throttle, steer, brake = self.calculate_high_level_action(dnn_agent_action, compass, gps, near_node, far_node, data)
         applied_control = carla.VehicleControl()
-        applied_control.throttle = float(throttle)
+        applied_control.throttle = throttle
         applied_control.steer = steer
         applied_control.brake = brake
         
@@ -233,19 +274,19 @@ class WaypointAgent(AutonomousAgent):
 
         self.episode_total_reward += reward
 
-        """
         if not self.agent.evaluate: #training
-            if policy_loss is not None or value_loss is not None:
-                print("[Action]: throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, pi-loss: {:.2f}, q-loss: {:.2f}, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(throttle, steer, brake, speed, policy_loss, value_loss, reward, self.step_number, self.total_step_num))
+            if loss is not None:
+                print("[Action]: high_level_action: {:d}, throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, loss: {:.2f}, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(dnn_agent_action, throttle, steer, brake, speed, loss, reward, self.step_number, self.total_step_num))
             else:
-                print("[Action]: throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(throttle, steer, brake, speed, reward, self.step_number, self.total_step_num))
+                print("[Action]: high_level_action: {:d}, throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(dnn_agent_action, throttle, steer, brake, speed, reward, self.step_number, self.total_step_num))
         else: #evaluation
-            print("[Action]: throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(throttle, steer, brake, speed, reward, self.step_number, self.total_step_num))
-        """
+            print("[Action]: high_level_action: {:d}, throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(dnn_agent_action, throttle, steer, brake, speed, reward, self.step_number, self.total_step_num))
 
         # terminate an episode
         if done:
             if not self.agent.evaluate: #training
+                self.agent.target_update() # at the end of the episode update target network # TODO: this can be done at each x step
+
                 self.agent.db.update_latest_sample_id(self.agent.memory.id, self.agent.training_id)
                 self.agent.db.update_total_step_num(self.total_step_num, self.agent.training_id)
 
@@ -258,7 +299,7 @@ class WaypointAgent(AutonomousAgent):
 
                     self.agent.save_models(self.agent.db.get_global_episode_number(self.agent.training_id))
 
-                base_utils.tensorboard_writer(self.writer, self.agent.db.get_global_episode_number(self.agent.training_id), self.episode_total_reward, self.best_reward, self.total_loss_pi, self.total_loss_q, self.n_updates)
+                base_utils.tensorboard_writer_with_one_loss(self.writer, self.agent.db.get_global_episode_number(self.agent.training_id), self.episode_total_reward, self.best_reward, self.total_loss, self.n_updates)
             else: #evaluation
                 self.agent.db.update_evaluation_total_step_num(self.total_step_num, self.agent.evaluation_id)
                 self.agent.db.update_evaluation_average_evaluation_score(self.episode_total_reward, self.agent.evaluation_id)
@@ -280,9 +321,10 @@ class WaypointAgent(AutonomousAgent):
 
         reward += ego_speed
 
+        # TODO: change this part
         # ego vehicle actions
-        steer = action[0]
-        accel_brake = action[1]
+        #steer = action[0]
+        #accel_brake = action[1]
 
         # distance to each far distance goal points in meters
         distance = np.linalg.norm(goal_point - ego_gps)
@@ -294,15 +336,18 @@ class WaypointAgent(AutonomousAgent):
         if any(x is not None for x in [is_light, is_walker, is_vehicle]):
             print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle)
             
+            """
             # accelerating while it should brake
             if accel_brake > 0.2:
                 print("[Penalty]: not braking !")
                 reward -= ego_speed * accel_brake
             
+
             # braking as it should be
             else:
                 print("[Reward]: correctly braking !")
                 reward += 15
+            """
                 
         # terminate if vehicle is not moving for too long steps
         else:
@@ -339,8 +384,8 @@ class WaypointAgent(AutonomousAgent):
         self.lane_invasion_sensor = self.world.spawn_actor(bp_lane_invasion, carla.Transform(), attach_to=self.hero_vehicle)
 
         # create sensor event callbacks
-        self.collision_sensor.listen(lambda event: WaypointAgent._on_collision(weakref.ref(self), event))
-        self.lane_invasion_sensor.listen(lambda event: WaypointAgent._on_lane_invasion(weakref.ref(self), event))
+        self.collision_sensor.listen(lambda event: self._on_collision(weakref.ref(self), event))
+        self.lane_invasion_sensor.listen(lambda event: self._on_lane_invasion(weakref.ref(self), event))
 
     def traffic_data(self):
         all_actors = self.world.get_actors()
@@ -357,7 +402,7 @@ class WaypointAgent(AutonomousAgent):
 
         return light, walker, vehicle
 
-    def get_control(self, target, far_target, tick_data, brake):
+    def get_control(self, target, far_target, tick_data):
         pos = self.get_position(tick_data)
         theta = tick_data['compass']
         speed = tick_data['speed']
@@ -375,11 +420,7 @@ class WaypointAgent(AutonomousAgent):
         should_slow = abs(angle_far_unnorm) > 45.0 or abs(angle_unnorm) > 5.0
         target_speed = 4.0 if should_slow else 7.0
         
-        if brake > 0.5:
-            target_speed = 0.0
-        
         self.should_slow = int(should_slow)
-        self.should_brake = int(brake)
         self.angle = angle
         self.angle_unnorm = angle_unnorm
         self.angle_far_unnorm = angle_far_unnorm
@@ -388,11 +429,8 @@ class WaypointAgent(AutonomousAgent):
         throttle = self._speed_controller.step(delta)
         throttle = np.clip(throttle, 0.0, 0.75)
 
-        if brake > 0.5:
-            steer *= 0.5
-            throttle = 0.0
 
-        return steer, throttle, brake, target_speed
+        return steer, throttle, target_speed
 
     def get_angle_to(self, pos, theta, target):
         R = np.array([
