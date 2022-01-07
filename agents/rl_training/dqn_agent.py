@@ -240,8 +240,11 @@ class DqnAgent(AutonomousAgent):
         image_features_torch = self.agent.resnet_backbone(dnn_input_image)
         image_features = image_features_torch.cpu().detach().numpy()[0]
 
-        # get action from actor network [steer (-1,1), acceleration-brake ((-1,0): brake, (0,1: throttle))]
-        dnn_agent_action = np.array(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch)) # 1 dimensional for DQN
+        # get action from value network
+        if self.agent.evaluate: # evaluation
+            dnn_agent_action = np.array(self.agent.select_max_action(image_features=image_features_torch, fused_input=fused_inputs_torch)[0]) # 1 dimensional for DQN            
+        else: # training
+            dnn_agent_action = np.array(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch)) # 1 dimensional for DQN
 
         # compute step reward and deside for termination
         reward, done = self.calculate_reward(action=dnn_agent_action, ego_speed=speed, ego_gps=gps, goal_point=far_node)
@@ -282,7 +285,7 @@ class DqnAgent(AutonomousAgent):
         # terminate an episode
         if done:
             if not self.agent.evaluate: #training
-                self.agent.target_update() # at the end of the episode update target network
+                self.agent.target_update() # at the end of the episode update target network # TODO: this can be done at each x step
 
                 self.agent.db.update_latest_sample_id(self.agent.memory.id, self.agent.training_id)
                 self.agent.db.update_total_step_num(self.total_step_num, self.agent.training_id)
