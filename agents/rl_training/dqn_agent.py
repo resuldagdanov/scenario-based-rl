@@ -282,6 +282,8 @@ class DqnAgent(AutonomousAgent):
         # terminate an episode
         if done:
             if not self.agent.evaluate: #training
+                self.agent.target_update() # at the end of the episode update target network
+
                 self.agent.db.update_latest_sample_id(self.agent.memory.id, self.agent.training_id)
                 self.agent.db.update_total_step_num(self.total_step_num, self.agent.training_id)
 

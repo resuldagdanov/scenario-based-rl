@@ -49,7 +49,10 @@ class DB:
                 gamma FLOAT8,
                 batch_size INTEGER,
                 xml_file VARCHAR(100),
-                json_file VARCHAR(100)
+                json_file VARCHAR(100),
+                epsilon FLOAT8,
+                epsilon_decay FLOAT8,
+                epsilon_min FLOAT8
                 );
             ''')
 
@@ -90,10 +93,10 @@ class DB:
 
     def insert_data_to_training_table(self, args, total_step_num=1, global_episode_number=0, best_reward=0.0, latest_sample_id=0, best_reward_episode_number=0):
         insert_command = """
-            INSERT INTO TRAINING_TABLE (model_name, is_cpu, debug, n_actions, state_size, random_seed, buffer_size, lrpolicy, lrvalue, tau, alpha, gamma, batch_size, xml_file, json_file, total_step_num, global_episode_number, best_reward, latest_sample_id, best_reward_episode_number)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO TRAINING_TABLE (model_name, is_cpu, debug, n_actions, state_size, random_seed, buffer_size, lrpolicy, lrvalue, tau, alpha, gamma, batch_size, xml_file, json_file, epsilon, epsilon_decay, epsilon_min, total_step_num, global_episode_number, best_reward, latest_sample_id, best_reward_episode_number)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
-        self.cursor.execute(insert_command, (args.model_name, args.is_cpu, args.debug, args.n_actions, args.state_size, args.random_seed, args.buffer_size, args.lrpolicy, args.lrvalue, args.tau, args.alpha, args.gamma, args.batch_size, args.xml_file, args.json_file, total_step_num, global_episode_number, best_reward, latest_sample_id, best_reward_episode_number))
+        self.cursor.execute(insert_command, (args.model_name, args.is_cpu, args.debug, args.n_actions, args.state_size, args.random_seed, args.buffer_size, args.lrpolicy, args.lrvalue, args.tau, args.alpha, args.gamma, args.batch_size, args.xml_file, args.json_file, args.epsilon, args.epsilon_decay, args.epsilon_min, total_step_num, global_episode_number, best_reward, latest_sample_id, best_reward_episode_number))
 
     def insert_data_to_evaluation_table(self, args, total_step_num=1, global_episode_number=0, average_evaluation_score=0.0):
         insert_command = """
@@ -353,6 +356,49 @@ class DB:
         batch_size = self.cursor.fetchone()
 
         return batch_size[0]
+
+    def get_epsilon(self, id):
+        self.cursor.execute(
+            """
+            SELECT
+                epsilon
+            FROM TRAINING_TABLE
+            WHERE id=%s;
+            """,
+            (id,)
+        )
+        epsilon = self.cursor.fetchone()
+
+        return epsilon[0]
+
+    def get_epsilon_decay(self, id):
+        self.cursor.execute(
+            """
+            SELECT
+                epsilon_decay
+            FROM TRAINING_TABLE
+            WHERE id=%s;
+            """,
+            (id,)
+        )
+        epsilon_decay = self.cursor.fetchone()
+
+        return epsilon_decay[0]
+
+    def get_epsilon_min(self, id):
+        self.cursor.execute(
+            """
+            SELECT
+                epsilon_min
+            FROM TRAINING_TABLE
+            WHERE id=%s;
+            """,
+            (id,)
+        )
+        epsilon_min = self.cursor.fetchone()
+
+        return epsilon_min[0]
+
 
     def get_training_id(self):
         self.cursor.execute(

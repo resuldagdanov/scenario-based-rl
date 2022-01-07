@@ -45,6 +45,10 @@ class DQNModel():
             checkpoint_dir = CHECKPOINT_PATH + 'models/' + self.model_name + "/"
             log_dir = CHECKPOINT_PATH + 'logs/' + self.model_name + "/"
 
+            self.epsilon = self.db.get_epsilon(self.training_id) # 1.0
+            self.epsilon_decay = self.db.get_epsilon_decay(self.training_id) # 0.99
+            self.epsilon_min = self.db.get_epsilon_min(self.training_id) # 0.02
+
         if not os.path.exists(checkpoint_dir):
             os.makedirs(checkpoint_dir)
         if not os.path.exists(log_dir):
@@ -62,10 +66,6 @@ class DQNModel():
 
         self.writer = SummaryWriter(logdir=log_dir, comment="_carla_model")
 
-        self.epsilon = 1.0 #1.0 #TODO: get this from db
-        self.epsilon_decay = 0.99 #TODO: get this from db
-        self.epsilon_min = 0.02 #TODO: get this from db
-
         seed = 0 #TODO: get this from DB
         random.seed(seed)
 
@@ -73,7 +73,8 @@ class DQNModel():
         self.resnet_backbone = ResNetBackbone(device=self.device)
 
         self.dqn_network = DQNNetwork(device=self.device, state_size=self.state_size, n_actions=self.n_actions, name='dqn', checkpoint_dir=checkpoint_dir)
-        
+        self.target_dqn_network = DQNNetwork(device=self.device, state_size=self.state_size, n_actions=self.n_actions, name='dqn_target', checkpoint_dir=checkpoint_dir)
+
         if not self.evaluate:
             self.alpha = db.get_alpha(self.training_id)
             self.gamma = db.get_gamma(self.training_id)
@@ -86,6 +87,8 @@ class DQNModel():
             learning_rate = db.get_lrvalue(self.training_id)
 
             self.memory = ReplayBuffer(self.db, buffer_size=buffer_size, seed=random_seed)
+
+            self.target_dqn_network.load_state_dict(self.dqn_network.state_dict())
 
             self.optimizer = T.optim.Adam(self.dqn_network.parameters(), lr=learning_rate)
             self.l1 = nn.SmoothL1Loss().to(self.device) #Huber Loss
@@ -125,7 +128,7 @@ class DQNModel():
         self.optimizer.zero_grad()
 
         # Q-Learning target is Q*(S, A) <- r + γ max_a Q(S', a) 
-        max_next_state_action_value = self.dqn_network(next_image_features, next_fused_inputs).max(1).values.unsqueeze(1)
+        max_next_state_action_value = self.target_dqn_network(next_image_features, next_fused_inputs).max(1).values.unsqueeze(1)
         max_next_state_action_value[dones_mask] = 0.0 # TODO: check the correctness
         target = rewards + self.gamma * max_next_state_action_value
         current = self.dqn_network(image_features, fused_inputs).gather(1, actions) #TODO: check the correctness
@@ -139,10 +142,15 @@ class DQNModel():
 
         return loss.data.cpu().detach().numpy()
 
+    def target_update(self):
+        self.target_dqn_network.load_state_dict(self.dqn_network.state_dict())
+
     def save_models(self, episode_number):
         print(f'.... saving models episode_number {episode_number} ....')
         self.dqn_network.save_checkpoint(episode_number)
+        self.target_dqn_network.save_checkpoint(episode_number)
 
     def load_models(self, episode_number):
         print(f'.... loading models episode_number {episode_number} ....')
         self.dqn_network.load_checkpoint(episode_number)
+        self.target_dqn_network.load_checkpoint(episode_number)
