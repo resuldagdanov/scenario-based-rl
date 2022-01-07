@@ -33,6 +33,7 @@ parser.add_argument('--json_file', type=str, help='json_file contains scenarios'
 args = parser.parse_args()
 
 #args.debug = True
+#args.is_cpu = True
 
 for arg in vars(args):
     print(f"{arg} : {getattr(args, arg)}")

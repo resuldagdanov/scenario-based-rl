@@ -303,6 +303,18 @@ class WaypointAgent(AutonomousAgent):
             else:
                 print("[Reward]: correctly braking !")
                 reward += 15
+                
+        # terminate if vehicle is not moving for too long steps
+        else:
+            if ego_speed <= 0.5:
+                self.count_vehicle_stop += 1
+            else:
+                self.count_vehicle_stop = 0
+
+            if self.count_vehicle_stop > 100:
+                print("[Penalty]: too long stopping !")
+                reward -= 20
+                done = 1
 
         # negative reward for collision or lane invasion
         if self.is_lane_invasion:
@@ -311,17 +323,6 @@ class WaypointAgent(AutonomousAgent):
         if self.is_collision:
             print("[Penalty]: collision !")
             reward -= 100 * self.collision_intensity
-            done = 1
-
-        if ego_speed <= 0.5:
-            self.count_vehicle_stop += 1
-        else:
-            self.count_vehicle_stop = 0
-
-        # terminate if vehicle is not moving for too long steps
-        if self.count_vehicle_stop > 100:
-            print("[Penalty]: too long stopping !")
-            reward -= 20
             done = 1
 
         return reward, done
