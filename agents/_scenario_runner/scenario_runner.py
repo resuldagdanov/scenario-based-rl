@@ -473,24 +473,28 @@ class ScenarioRunner(object):
         # retrieve routes
         route_configurations = RouteParser.parse_routes_file(routes, scenario_file, single_route)
 
+        # NOTE: true: evaluate imitation learning agent without using database
+        evaluate_imitation = True
+
         for config in route_configurations:
-            from utils.db import DB
-            db = DB()
+            if evaluate_imitation:
+                # rl model is none, then evaluate imitation learning model
+                rl_model = None
+            else:
+                from utils.db import DB
+                db = DB()
 
-            from rl_training.dqn import DQNModel
-            rl_model = DQNModel(db, self._args.evaluate)
+                from rl_training.dqn import DQNModel
+                rl_model = DQNModel(db, self._args.evaluate)
 
-            #from rl_training.model import RLModel
-            #rl_model = RLModel(db, self._args.evaluate)
+                #from rl_training.model import RLModel
+                #rl_model = RLModel(db, self._args.evaluate)
 
-            # TODO: uncomment following when offset model is used
-            # from rl_training.ddpg import DDPG
-            # rl_model = DDPG(db, self._args.evaluate)
+                # TODO: uncomment following when offset model is used
+                # from rl_training.ddpg import DDPG
+                # rl_model = DDPG(db, self._args.evaluate)
 
-            # TODO: if rl model is none, then evaluate imitation learning model
-            #rl_model = None
-
-            # NOTE: loop running each RL episode
+            # loop running each RL episode
             for eps in range(self._args.repetitions):
 
                 # run database structure only when rl model is defined, not during imitation learning model evaluation
