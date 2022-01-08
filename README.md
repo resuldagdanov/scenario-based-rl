@@ -23,19 +23,19 @@ Follow instructions https://www.postgresql.org/download/linux/ubuntu/
 
     pip install psycopg2-binary
 
-    sudo service postgresql start #start postgresql server
+    sudo service postgresql start                   # start postgresql server
 
-    systemctl status postgresql #see whether postgresql server is active
+    systemctl status postgresql                     # see whether postgresql server is active
     
-    sudo service postgresql stop #stop postgresql server
+    sudo service postgresql stop                    # stop postgresql server
 
     sudo -u postgres psql
 
     postgres=# \password                            # enter postgres as password
-    
+
     postgres=# CREATE DATABASE "BUFFER_DB";;        # check it typing \l
 
-## PGADMIN4 (GUI for POSTGRESQL DATABASE)
+## PGADMIN4 (gui for postgresql database)
 https://www.pgadmin.org/download/pgadmin-4-apt/
 
 ## how to run
