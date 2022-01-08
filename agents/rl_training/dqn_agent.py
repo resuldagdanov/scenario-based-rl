@@ -288,12 +288,12 @@ class DqnAgent(AutonomousAgent):
             print("[Action]: high_level_action: {:d}, throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(dnn_agent_action, throttle, steer, brake, speed, reward, self.step_number, self.total_step_num))
 
         if not self.agent.evaluate:
-            if self.total_step_num % 10 == 0:
+            if self.total_step_num % 20 == 0:  # TODO: Make this hyperparam
                 self.epsilon *= self.agent.epsilon_decay
                 self.epsilon = max(self.epsilon, self.agent.epsilon_min)
                 self.agent.db.update_epsilon(self.epsilon, self.agent.training_id)
 
-            if self.total_step_num % 100 == 0:
+            if self.total_step_num % 100 == 0: # TODO: Make this hyperparam
                 self.agent.target_update()
 
         # terminate an episode

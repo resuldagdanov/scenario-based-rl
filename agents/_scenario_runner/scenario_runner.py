@@ -474,7 +474,7 @@ class ScenarioRunner(object):
         route_configurations = RouteParser.parse_routes_file(routes, scenario_file, single_route)
 
         # NOTE: true: evaluate imitation learning agent without using database
-        evaluate_imitation = True
+        evaluate_imitation = False #True
 
         for config in route_configurations:
             if evaluate_imitation:

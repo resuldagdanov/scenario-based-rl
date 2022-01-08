@@ -19,6 +19,8 @@ pygame 2.0.1
 ## how to download and run posgtresql
 Follow instructions https://www.postgresql.org/download/linux/ubuntu/
 
+    sudo apt install postgresql postgresql-contrib
+
     pip install psycopg2-binary
 
     sudo service postgresql start #start postgresql server
@@ -26,6 +28,15 @@ Follow instructions https://www.postgresql.org/download/linux/ubuntu/
     systemctl status postgresql #see whether postgresql server is active
     
     sudo service postgresql stop #stop postgresql server
+
+    sudo -u postgres psql
+
+    postgres=# \password                            # enter postgres as password
+    
+    postgres=# CREATE DATABASE "BUFFER_DB";;        # check it typing \l
+
+## PGADMIN4 (GUI for POSTGRESQL DATABASE)
+https://www.pgadmin.org/download/pgadmin-4-apt/
 
 ## how to run
 In terminal,
