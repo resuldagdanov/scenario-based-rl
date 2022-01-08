@@ -10,7 +10,7 @@ sys.path.append(parent)
 from utils.db import DB
 from utils import base_utils
 
-#TODO: also add seeds for all random generators
+# TODO: also add seeds for all random generators
 parser = argparse.ArgumentParser(description='initialize parameters')
 parser.add_argument('--evaluate', action="store_true", help='RL Model Evaluate(True) Train(False)')
 parser.add_argument('--model_name', type=str, default=None, help='model_name')
@@ -36,7 +36,7 @@ parser.add_argument('--epsilon_min', type=float, default=0.02, help='epsilon_min
 args = parser.parse_args()
 
 args.debug = True
-#args.is_cpu = True
+# args.is_cpu = True
 args.n_actions = 6
 
 for arg in vars(args):
@@ -49,7 +49,7 @@ db.create_evaluation_table()
 db.create_buffer_table()
 
 if not args.evaluate:
-    args.model_name = base_utils.get_time_info() #create new model name with current time
+    args.model_name = base_utils.get_time_info() # create new model name with current time
     print(f"Train will start with {args.model_name}")
     db.insert_data_to_training_table(args)
 else:

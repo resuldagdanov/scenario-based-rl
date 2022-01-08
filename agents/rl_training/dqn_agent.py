@@ -423,7 +423,6 @@ class DqnAgent(AutonomousAgent):
         throttle = self._speed_controller.step(delta)
         throttle = np.clip(throttle, 0.0, 0.75)
 
-
         return steer, throttle, target_speed
 
     def get_angle_to(self, pos, theta, target):

@@ -72,6 +72,7 @@ class OffsetAgent(AutonomousAgent):
     def setup(self, rl_model):
         if rl_model is None:
             self.run_imitation_agent = True
+            self.debug = True
         else:
             self.run_imitation_agent = False
 
@@ -210,23 +211,29 @@ class OffsetAgent(AutonomousAgent):
             with torch.no_grad():
                 state_space = self.policy(fronts=dnn_input_image, fused_input=fused_inputs_torch)
             state_space = state_space.cpu().detach().numpy()[0]
+            # convert state space to torch tensors to be an input to neural net
+            state_torch = torch.from_numpy(state_space.copy()).unsqueeze(0).to(self.device)
 
             with torch.no_grad():
-                actions = self.policy.compute_action(state_space=state_space)
-            dnn_brake, offset = actions.cpu().detach().numpy()[0]
+                dnn_brake, offset = self.policy.compute_action(state_space=state_torch)
+            dnn_brake = dnn_brake.cpu().detach().numpy()[0]
+            offset = offset.cpu().detach().numpy()[0]
 
         else:
             # apply freezed pre-trained model onto the image and get state space
             state = self.agent.get_state_space(fronts=dnn_input_image, fused_input=fused_inputs_torch)
-            dnn_brake, offset = self.agent.select_action(network=self.agent.policy, state_space=state)
+            # convert state space to torch tensors to be an input to neural net
+            state_torch = torch.from_numpy(state.copy()).unsqueeze(0).to(self.device)
 
-        agent_action = np.array([dnn_brake, offset])
+            dnn_brake, offset = self.agent.select_action(network=self.agent.policy, state_space=state_torch)
+
+        agent_action = np.array([dnn_brake[0], offset[0]])
 
         # left: -, right: +
         new_near_node = self.shift_point(ego_compass=compass, ego_gps=gps, near_node=near_node, offset_amount=offset)
 
         # get auto-pilot actions
-        steer, throttle, brake, target_speed = self.get_control(new_near_node, far_node, data)
+        steer, throttle, target_speed = self.get_control(new_near_node, far_node, data)
 
         # determine whether to accelerate or brake
         if dnn_brake >= 0.5:
@@ -245,6 +252,8 @@ class OffsetAgent(AutonomousAgent):
         applied_control.steer = float(steer)
         applied_control.brake = float(brake)
 
+        print("[Applied Action] :", "throttle:", round(throttle, 2), "steer:", round(steer, 2), "brake:", round(brake, 2), " [Network Output] :", "brake:", round(agent_action[0], 2), "offset:", round(agent_action[1], 2))
+
         return applied_control
 
     def rl_computation(self, state, agent_action, dnn_brake, throttle, speed, gps, far_node):
@@ -255,7 +264,8 @@ class OffsetAgent(AutonomousAgent):
         value_loss = None
 
         if self.push_buffer and not self.agent.evaluate:
-            self.agent.memory.push(state, agent_action, reward, self.next_state, done)
+            # TODO: database format should be changed to be compatible rl transitions
+            self.agent.memory.push_transition(state, agent_action, reward, self.next_state, done)
 
             if self.agent.memory.filled_size > self.agent.batch_size:
                 sample_batch = self.agent.memory.sample(self.agent.batch_size)
@@ -328,24 +338,26 @@ class OffsetAgent(AutonomousAgent):
                 print("[Reward]: correctly braking !")
                 reward += 15
 
+        else:
+            if ego_speed <= 0.5:
+                self.count_vehicle_stop += 1
+            else:
+                self.count_vehicle_stop = 0
+
+            # terminate if vehicle is not moving for too long steps
+            if self.count_vehicle_stop > 100:
+                print("[Penalty]: too long stopping !")
+                reward -= 20
+                done = 1
+
         # negative reward for collision or lane invasion
         if self.is_lane_invasion:
             print("[Penalty]: lane invasion !")
             reward -= 50
+            
         if self.is_collision:
             print("[Penalty]: collision !")
             reward -= 100 * self.collision_intensity
-            done = 1
-
-        if ego_speed <= 0.5:
-            self.count_vehicle_stop += 1
-        else:
-            self.count_vehicle_stop = 0
-
-        # terminate if vehicle is not moving for too long steps
-        if self.count_vehicle_stop > 100:
-            print("[Penalty]: too long stopping !")
-            reward -= 20
             done = 1
 
         return reward, done
@@ -404,7 +416,7 @@ class OffsetAgent(AutonomousAgent):
 
         return light, walker, vehicle
 
-    def get_control(self, target, far_target, tick_data, brake):
+    def get_control(self, target, far_target, tick_data):
         pos = self.get_position(tick_data)
         theta = tick_data['compass']
         speed = tick_data['speed']
@@ -422,11 +434,7 @@ class OffsetAgent(AutonomousAgent):
         should_slow = abs(angle_far_unnorm) > 45.0 or abs(angle_unnorm) > 5.0
         target_speed = 4.0 if should_slow else 7.0
         
-        if brake > 0.5:
-            target_speed = 0.0
-        
         self.should_slow = int(should_slow)
-        self.should_brake = int(brake)
         self.angle = angle
         self.angle_unnorm = angle_unnorm
         self.angle_far_unnorm = angle_far_unnorm
@@ -435,11 +443,7 @@ class OffsetAgent(AutonomousAgent):
         throttle = self._speed_controller.step(delta)
         throttle = np.clip(throttle, 0.0, 0.75)
 
-        if brake > 0.5:
-            steer *= 0.5
-            throttle = 0.0
-
-        return steer, throttle, brake, target_speed
+        return steer, throttle, target_speed
 
     def get_angle_to(self, pos, theta, target):
         R = np.array([
