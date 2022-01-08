@@ -20,7 +20,6 @@ class DQNNetwork(nn.Module):
             nn.Linear(64, 64),
             nn.ReLU(),
             nn.Linear(64, n_actions)
-
         )
 
         self.to(device)

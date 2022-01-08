@@ -61,6 +61,7 @@ class DqnAgent(AutonomousAgent):
         if not self.agent.evaluate:
             self.best_reward = self.agent.db.get_best_reward(self.agent.training_id)
             self.total_step_num = self.agent.db.get_total_step_num(self.agent.training_id)
+            self.epsilon = self.agent.db.get_epsilon(self.agent.training_id)
             print(f"training model_name {self.agent.model_name}   episode_number {self.agent.db.get_global_episode_number(self.agent.training_id)}   total_step_num {self.total_step_num}   latest_sample_id {self.agent.db.get_latest_sample_id(self.agent.training_id)}   best_reward {self.best_reward}   best_reward_episode_number {self.agent.db.get_best_reward_episode_number(self.agent.training_id)}")
         else:
             self.best_reward = 0.0
@@ -243,9 +244,9 @@ class DqnAgent(AutonomousAgent):
 
         # get action from value network
         if self.agent.evaluate: # evaluation
-            dnn_agent_action = np.array(self.agent.select_max_action(image_features=image_features_torch, fused_input=fused_inputs_torch)[0]) # 1 dimensional for DQN            
+            dnn_agent_action = np.array(self.agent.select_max_action(image_features=image_features_torch, fused_input=fused_inputs_torch)) # 1 dimensional for DQN            
         else: # training
-            dnn_agent_action = np.array(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch)) # 1 dimensional for DQN
+            dnn_agent_action = np.array(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch, epsilon=self.epsilon)) # 1 dimensional for DQN
 
         throttle, steer, brake = self.calculate_high_level_action(dnn_agent_action, compass, gps, near_node, far_node, data)
         applied_control = carla.VehicleControl()
@@ -255,6 +256,9 @@ class DqnAgent(AutonomousAgent):
 
         # compute step reward and deside for termination
         reward, done = self.calculate_reward(throttle=throttle, ego_speed=speed, ego_gps=gps, goal_point=far_node)
+
+        #self.is_lane_invasion = False  # TODO: turn this to False when ego vehicles is in lane
+        #self.is_collision = False
 
         loss = None
         if self.push_buffer and not self.agent.evaluate:
@@ -277,17 +281,24 @@ class DqnAgent(AutonomousAgent):
 
         if not self.agent.evaluate: #training
             if loss is not None:
-                print("[Action]: high_level_action: {:d}, throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, loss: {:.2f}, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(dnn_agent_action, throttle, steer, brake, speed, loss, reward, self.step_number, self.total_step_num))
+                print("[Action]: epsilon: {:.2f}, high_level_action: {:d}, throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, loss: {:.2f}, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(self.epsilon, dnn_agent_action, throttle, steer, brake, speed, loss, reward, self.step_number, self.total_step_num))
             else:
-                print("[Action]: high_level_action: {:d}, throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(dnn_agent_action, throttle, steer, brake, speed, reward, self.step_number, self.total_step_num))
+                print("[Action]: epsilon: {:.2f}, high_level_action: {:d}, throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(self.epsilon, dnn_agent_action, throttle, steer, brake, speed, reward, self.step_number, self.total_step_num))
         else: #evaluation
             print("[Action]: high_level_action: {:d}, throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(dnn_agent_action, throttle, steer, brake, speed, reward, self.step_number, self.total_step_num))
 
-        # terminate an episode
-        if done or self.step_number > 500:
-            if not self.agent.evaluate: #training
-                self.agent.target_update() # at the end of the episode update target network # TODO: this can be done at each x step
+        if not self.agent.evaluate:
+            if self.total_step_num % 10 == 0:
+                self.epsilon *= self.agent.epsilon_decay
+                self.epsilon = max(self.epsilon, self.agent.epsilon_min)
+                self.agent.db.update_epsilon(self.epsilon, self.agent.training_id)
 
+            if self.total_step_num % 100 == 0:
+                self.agent.target_update()
+
+        # terminate an episode
+        if done:
+            if not self.agent.evaluate: #training
                 self.agent.db.update_latest_sample_id(self.agent.memory.id, self.agent.training_id)
                 self.agent.db.update_total_step_num(self.total_step_num, self.agent.training_id)
 
@@ -362,6 +373,9 @@ class DqnAgent(AutonomousAgent):
         if self.is_collision:
             print("[Penalty]: collision !")
             reward -= 100 * self.collision_intensity
+            done = 1
+
+        if self.step_number > 500:
             done = 1
 
         return reward, done
