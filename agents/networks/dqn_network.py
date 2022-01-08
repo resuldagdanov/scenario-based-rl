@@ -22,8 +22,6 @@ class DQNNetwork(nn.Module):
             nn.Linear(64, n_actions)
 
         )
-        self.fc1 = nn.Linear(state_size + 128, 64)
-        self.fc2 = nn.Linear(64, 64)
 
         self.to(device)
 
