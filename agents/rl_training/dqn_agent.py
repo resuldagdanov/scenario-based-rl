@@ -330,7 +330,6 @@ class DqnAgent(AutonomousAgent):
 
         # TODO: make sure is_light is True at the beginning of red light cases
         # give penalty if ego vehicle is not braking where it should brake
-        print(f"is_light {is_light}")
         if any(x is not None for x in [is_light, is_walker, is_vehicle]):
             print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle)
             
@@ -357,7 +356,7 @@ class DqnAgent(AutonomousAgent):
                 done = 1
 
         # negative reward for collision or lane invasion
-        if self.is_lane_invasion:
+        if self.is_lane_invasion: # TODO: this penalty is too high, it avoids lane changing (steer left or right)
             print("[Penalty]: lane invasion !")
             reward -= 50
         if self.is_collision:
@@ -388,10 +387,8 @@ class DqnAgent(AutonomousAgent):
         lights_list = all_actors.filter('*traffic_light*')
         walkers_list = all_actors.filter('*walker*')
         vehicle_list = all_actors.filter('*vehicle*')
-        print(f"lights_list {lights_list}")
 
         traffic_lights = base_utils.get_nearby_lights(self.hero_vehicle, lights_list)
-        print(f"traffic_lights {traffic_lights}")
 
         light = self.is_light_red(traffic_lights)
         walker = self.is_walker_hazard(walkers_list)
@@ -467,11 +464,9 @@ class DqnAgent(AutonomousAgent):
         return x
 
     def is_light_red(self, traffic_lights):
-        print(f"self.hero_vehicle.get_traffic_light_state() {self.hero_vehicle.get_traffic_light_state()}")
         if self.hero_vehicle.get_traffic_light_state() != carla.libcarla.TrafficLightState.Green:
             affecting = self.hero_vehicle.get_traffic_light()
             for light in traffic_lights:
-                print(f"is_light_red {light}")
                 if light.id == affecting.id:
                     return affecting
         return None
@@ -531,7 +526,7 @@ class DqnAgent(AutonomousAgent):
         if not self:
             return
 
-        self.is_collision == True
+        self.is_collision = True
 
         impulse = event.normal_impulse
         self.collision_intensity = math.sqrt(impulse.x ** 2 + impulse.y ** 2 + impulse.z ** 2)
@@ -542,7 +537,7 @@ class DqnAgent(AutonomousAgent):
         if not self:
             return
 
-        self.is_lane_invasion == True  
+        self.is_lane_invasion = True  
 
     def destroy(self):
         if self.collision_sensor is not None:

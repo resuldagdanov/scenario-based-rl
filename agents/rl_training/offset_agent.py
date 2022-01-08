@@ -541,7 +541,7 @@ class OffsetAgent(AutonomousAgent):
         if not self:
             return
 
-        self.is_collision == True
+        self.is_collision = True
 
         impulse = event.normal_impulse
         self.collision_intensity = math.sqrt(impulse.x ** 2 + impulse.y ** 2 + impulse.z ** 2)
@@ -552,7 +552,7 @@ class OffsetAgent(AutonomousAgent):
         if not self:
             return
 
-        self.is_lane_invasion == True  
+        self.is_lane_invasion = True  
 
     def destroy(self):
         if self.collision_sensor is not None:

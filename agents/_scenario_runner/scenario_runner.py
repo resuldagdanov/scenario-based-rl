@@ -488,7 +488,7 @@ class ScenarioRunner(object):
             # rl_model = DDPG(db, self._args.evaluate)
 
             # TODO: if rl model is none, then evaluate imitation learning model
-            rl_model = None
+            #rl_model = None
 
             # NOTE: loop running each RL episode
             for eps in range(self._args.repetitions):

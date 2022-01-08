@@ -70,7 +70,6 @@ def get_nearby_lights(vehicle, lights, pixels_per_meter=5.5, size=512, radius=5)
         ])
 
     for light in lights:
-        print(f"light {light}")
         delta = light.get_transform().location - pos
 
         target = R.T.dot([delta.x, delta.y])
@@ -96,7 +95,6 @@ def get_nearby_lights(vehicle, lights, pixels_per_meter=5.5, size=512, radius=5)
             continue
 
         result.append(light)
-        print(f"result {result}")
 
     return result
 
