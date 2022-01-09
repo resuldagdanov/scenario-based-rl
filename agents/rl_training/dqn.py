@@ -1,6 +1,9 @@
 import os
 import sys
 import torch as T
+T.manual_seed(0)
+T.backends.cudnn.benchmark = False
+T.use_deterministic_algorithms(True)
 import torch.nn as nn
 import random
 from tensorboardX import SummaryWriter
@@ -66,9 +69,6 @@ class DQNModel():
 
         self.writer = SummaryWriter(logdir=log_dir, comment="_carla_model")
 
-        seed = 0 #TODO: get this from DB
-        random.seed(seed)
-
         # load pretrained ResNet
         self.resnet_backbone = ResNetBackbone(device=self.device)
 
@@ -85,10 +85,11 @@ class DQNModel():
             self.batch_size = db.get_batch_size(self.training_id)
 
             buffer_size = db.get_buffer_size(self.training_id)
-            random_seed = db.get_random_seed(self.training_id)
+            self.random_seed = db.get_random_seed(self.training_id)
             learning_rate = db.get_lrvalue(self.training_id)
 
-            self.memory = ReplayBuffer(self.db, buffer_size=buffer_size, seed=random_seed)
+            self.memory = ReplayBuffer(self.db, buffer_size=buffer_size, seed=self.random_seed)
+            random.seed(self.random_seed)
 
             self.optimizer = T.optim.Adam(self.dqn_network.parameters(), lr=learning_rate)
             self.l1 = nn.SmoothL1Loss().to(self.device) #Huber Loss
@@ -101,7 +102,9 @@ class DQNModel():
                 self.load_models(episode_num)
 
     def select_action(self, image_features, fused_input, epsilon):
-        if random.random() < epsilon: # random action
+        random_number = random.random() 
+        print(f"random_number {random_number}")
+        if random_number < epsilon: # random action
             action = random.choice(range(0, self.n_actions, 1))
             return action
         else:

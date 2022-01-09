@@ -8,6 +8,7 @@
 from enum import Enum
 from collections import deque
 import random
+random.seed(0)
 
 import carla
 from agents.navigation.controller import VehiclePIDController

@@ -4,8 +4,12 @@ import os
 import signal
 import sys
 import numpy as np
+np.random.seed(0)
 import carla
-import torch
+import torch as T
+T.manual_seed(0)
+T.backends.cudnn.benchmark = False
+T.use_deterministic_algorithms(True)
 import cv2
 import math
 import weakref
@@ -236,7 +240,7 @@ class DqnAgent(AutonomousAgent):
 
         # fused inputs to torch
         fused_inputs = np.array(fused_inputs, np.float32)
-        fused_inputs_torch = torch.from_numpy(fused_inputs.copy()).unsqueeze(0).to(self.device)
+        fused_inputs_torch = T.from_numpy(fused_inputs.copy()).unsqueeze(0).to(self.device)
 
         # apply freezed pre-trained resnet model onto the image
         image_features_torch = self.agent.resnet_backbone(dnn_input_image)
@@ -378,7 +382,7 @@ class DqnAgent(AutonomousAgent):
         #    reward -= 50
         if self.is_collision:
             print(f"[Penalty]: collision !")
-            reward -= 100 #* self.collision_intensity
+            reward -= 100
             done = 1
 
         if self.step_number > 500: # TODO: make this hyperparam
@@ -468,7 +472,7 @@ class DqnAgent(AutonomousAgent):
         # normalize to 0 - 1
         image = image / 255
         # convert image to torch tensor
-        image = torch.from_numpy(image.copy()).unsqueeze(0)
+        image = T.from_numpy(image.copy()).unsqueeze(0)
         
         # normalize input image (using default torch normalization technique)
         image = self.normalize_rgb(image)

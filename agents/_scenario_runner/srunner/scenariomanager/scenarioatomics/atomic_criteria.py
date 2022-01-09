@@ -18,6 +18,8 @@ The atomic criteria are implemented with py_trees.
 import weakref
 import math
 import numpy as np
+np.random.seed(0)
+
 import py_trees
 import shapely.geometry
 

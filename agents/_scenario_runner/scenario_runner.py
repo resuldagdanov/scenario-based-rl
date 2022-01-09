@@ -573,7 +573,7 @@ def main():
     parser.add_argument('--port', default='2000', help='TCP port to listen to (default: 2000)')
     parser.add_argument('--timeout', default="10.0", help='Set the CARLA client timeout value in seconds')
     parser.add_argument('--trafficManagerPort', default='8000', help='Port to use for the TrafficManager (default: 8000)')
-    parser.add_argument('--trafficManagerSeed', default='0', help='Seed used by the TrafficManager (default: 0)')
+    parser.add_argument('--trafficManagerSeed', default='0', help='Seed used by the TrafficManager (default: 0)') # TODO: save this seed
     parser.add_argument('--sync', action='store_true', help='Forces the simulation to run synchronously')
     parser.add_argument('--list', action="store_true", help='List all supported scenarios and exit')
     parser.add_argument('--scenario', help='Name of the scenario to be executed. Use the preposition \'group:\' to run all scenarios of one class, e.g. ControlLoss or FollowLeadingVehicle')
@@ -592,8 +592,8 @@ def main():
     parser.add_argument('--debug', action="store_true", help='Run with debug output')
     parser.add_argument('--reloadWorld', action="store_true", help='Reload the CARLA world before starting a scenario (default=True)')
     parser.add_argument('--record', type=str, default='', help='Path were the files will be saved, relative to SCENARIO_RUNNER_ROOT.\nActivates the CARLA recording feature and saves to file all the criteria information.')
-    parser.add_argument('--randomize', action="store_true", help='Scenario parameters are randomized')
-    parser.add_argument('--repetitions', default=50, type=int, help='Number of scenario executions')
+    parser.add_argument('--randomize', action="store_true", help='Scenario parameters are randomized') # default is False, no randomize
+    parser.add_argument('--repetitions', default=20, type=int, help='Number of scenario executions')
     parser.add_argument('--waitForEgo', action="store_true", help='Connect the scenario to an existing ego vehicle')
     parser.add_argument('--evaluate', action="store_true", help='RL Model Evaluate(True) Train(False)')
     arguments = parser.parse_args()
@@ -627,6 +627,10 @@ def main():
 
     if arguments.agent:
         arguments.sync = True
+    
+    print("\nSCENARIO RUNNER ARGUMENTS")
+    for arg in vars(arguments):
+        print(f"{arg} : {getattr(arguments, arg)}")
 
     scenario_runner = None
     result = True

@@ -11,6 +11,9 @@ from utils.db import DB
 from utils import base_utils
 
 # TODO: also add seeds for all random generators
+# Add trafficManagerSeed
+# Add torch manual seed
+# Add numpy seed
 parser = argparse.ArgumentParser(description='initialize parameters')
 parser.add_argument('--evaluate', action="store_true", help='RL Model Evaluate(True) Train(False)')
 parser.add_argument('--model_name', type=str, default=None, help='model_name')
@@ -19,7 +22,7 @@ parser.add_argument('--is_cpu', type=bool, default=False, help='CPU(True) GPU(Fa
 parser.add_argument('--debug', type=bool, default=False, help='debug(True) no_debug(False) (Default is False)')
 parser.add_argument('--n_actions', type=int, default=2, help='number of actions') #For DQN Agent this is 6, for SAC and DDPG it is 2
 parser.add_argument('--state_size', type=int, default=1000, help='resnet output size (state_size))')
-parser.add_argument('--random_seed', type=int, default=100, help='random package seed')
+parser.add_argument('--random_seed', type=int, default=100, help='random package seed') # TODO: check this
 parser.add_argument('--buffer_size', type=int, default=200_000, help='buffer size')
 parser.add_argument('--lrpolicy', type=float, default=0.0001, help='learning rate of policy network') #actor
 parser.add_argument('--lrvalue', type=float, default=0.0005, help='learning rate of value network') #critic
@@ -35,8 +38,8 @@ parser.add_argument('--epsilon_min', type=float, default=0.07, help='epsilon_min
 
 args = parser.parse_args()
 
-args.debug = True
-#args.is_cpu = True
+#args.debug = True
+args.is_cpu = True
 args.n_actions = 6
 
 for arg in vars(args):

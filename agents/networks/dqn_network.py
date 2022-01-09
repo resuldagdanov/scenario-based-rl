@@ -1,6 +1,9 @@
 import os
 import torch as T
+T.manual_seed(0)
 import torch.nn as nn
+T.backends.cudnn.benchmark = False
+T.use_deterministic_algorithms(True)
 
 class DQNNetwork(nn.Module):
     def __init__(self, device, state_size, n_actions, name, checkpoint_dir):

@@ -17,6 +17,7 @@ It can also be used as blueprint to implement custom visualizers.
 
 import cv2
 import numpy as np
+np.random.seed(0)
 
 import carla
 

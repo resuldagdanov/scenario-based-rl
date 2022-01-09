@@ -17,7 +17,7 @@ vehicle stopped close enough to the leading vehicle
 """
 
 import random
-
+random.seed(0)
 import py_trees
 
 import carla

@@ -1,6 +1,8 @@
 import torch
+torch.manual_seed(0)
 import torch.nn as nn
-
+torch.backends.cudnn.benchmark = False
+torch.use_deterministic_algorithms(True)
 
 class ValueNetwork(nn.Module):
     def __init__(self, device):

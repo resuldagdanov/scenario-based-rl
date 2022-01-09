@@ -8,6 +8,7 @@
 from collections import deque
 import math
 import numpy as np
+np.random.seed(0)
 import carla
 from agents.tools.misc import get_speed
 

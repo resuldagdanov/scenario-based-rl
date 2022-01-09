@@ -2,7 +2,9 @@ import os
 import sys
 import itertools
 import torch
-
+torch.manual_seed(0)
+torch.backends.cudnn.benchmark = False
+torch.use_deterministic_algorithms(True)
 from tensorboardX import SummaryWriter
 
 # to add the parent "agents" folder to sys path and import models

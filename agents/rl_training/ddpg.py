@@ -2,7 +2,9 @@
 import os
 import sys
 import torch
-import numpy as np
+torch.manual_seed(0)
+torch.backends.cudnn.benchmark = False
+torch.use_deterministic_algorithms(True)
 from copy import deepcopy
 
 from tensorboardX import SummaryWriter
