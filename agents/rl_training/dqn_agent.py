@@ -336,9 +336,7 @@ class DqnAgent(AutonomousAgent):
         else:
             absolute_value_angle = 0.0
 
-        angle_penalty = -25 * absolute_value_angle
-        print(f"angle {angle} angle_penalty {angle_penalty}")
-        reward += angle_penalty
+        reward -= 25 * absolute_value_angle
 
         # distance to each far distance goal points in meters
         distance = np.linalg.norm(goal_point - ego_gps)
@@ -431,8 +429,6 @@ class DqnAgent(AutonomousAgent):
         steer = self._turn_controller.step(angle)
         steer = np.clip(steer, -1.0, 1.0)
         steer = round(steer, 3)
-
-        print(f"angle {angle} steer {steer}")
 
         # acceleration
         angle_far_unnorm = self.get_angle_to(pos, theta, far_target)
