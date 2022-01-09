@@ -6,8 +6,8 @@ export evaluate=false #true
 export model_name="Jan_09_2022-18_31_00" #only used if evaluate true, make sure it exists
 export load_episode_number=30 #only used if evaluate true, make sure it exists
 
-export repetitions=1
-export max_episode_batch_num=1
+export repetitions=15
+export max_episode_batch_num=10
 export xml_file="red_light_1.xml"
 export json_file="all_towns_traffic_scenarios_WOR.json"
 

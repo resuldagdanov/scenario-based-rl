@@ -102,9 +102,7 @@ class DQNModel():
                 self.load_models(episode_num)
 
     def select_action(self, image_features, fused_input, epsilon):
-        random_number = random.random() 
-        print(f"random_number {random_number}")
-        if random_number < epsilon: # random action
+        if random.random() < epsilon: # random action
             action = random.choice(range(0, self.n_actions, 1))
             return action
         else:

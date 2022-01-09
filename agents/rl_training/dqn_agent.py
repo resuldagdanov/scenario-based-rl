@@ -297,7 +297,7 @@ class DqnAgent(AutonomousAgent):
                 self.epsilon = max(self.epsilon, self.agent.epsilon_min)
                 self.agent.db.update_epsilon(self.epsilon, self.agent.training_id)
 
-            if self.total_step_num % 100 == 0: # TODO: Make this hyperparam
+            if self.total_step_num % 1000 == 0: # TODO: Make this hyperparam
                 self.agent.target_update()
 
         # terminate an episode
