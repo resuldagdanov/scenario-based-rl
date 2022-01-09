@@ -193,7 +193,7 @@ class DqnAgent(AutonomousAgent):
             new_near_node = near_node
 
         # get auto-pilot actions
-        steer, throttle, target_speed = self.get_control(new_near_node, far_node, data)
+        steer, throttle, target_speed, angle = self.get_control(new_near_node, far_node, data)
 
         if high_level_action == 0 or high_level_action == 1 or high_level_action == 2: # brake
             throttle = 0.0
@@ -202,7 +202,7 @@ class DqnAgent(AutonomousAgent):
             throttle = throttle
             brake = 0.0
 
-        return throttle, steer, brake
+        return throttle, steer, brake, angle
 
     def run_step(self, input_data, timestamp):
         if not self.initialized:
@@ -248,17 +248,17 @@ class DqnAgent(AutonomousAgent):
         else: # training
             dnn_agent_action = np.array(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch, epsilon=self.epsilon)) # 1 dimensional for DQN
 
-        throttle, steer, brake = self.calculate_high_level_action(dnn_agent_action, compass, gps, near_node, far_node, data)
+        throttle, steer, brake, angle = self.calculate_high_level_action(dnn_agent_action, compass, gps, near_node, far_node, data)
         applied_control = carla.VehicleControl()
         applied_control.throttle = throttle
         applied_control.steer = steer
         applied_control.brake = brake
 
         # compute step reward and deside for termination
-        reward, done = self.calculate_reward(throttle=throttle, ego_speed=speed, ego_gps=gps, goal_point=far_node)
+        reward, done = self.calculate_reward(throttle=throttle, ego_speed=speed, ego_gps=gps, goal_point=far_node, angle=angle)
 
-        #self.is_lane_invasion = False  # TODO: turn this to False when ego vehicles is in lane
-        #self.is_collision = False
+        self.is_lane_invasion = False  # TODO: turn this to False when ego vehicles is in lane
+        self.is_collision = False
 
         loss = None
         if self.push_buffer and not self.agent.evaluate:
@@ -327,11 +327,18 @@ class DqnAgent(AutonomousAgent):
         return applied_control
 
     #TODO: if you change the reward, save the snippet and save the id of it to DB
-    def calculate_reward(self, throttle, ego_speed, ego_gps, goal_point):
+    def calculate_reward(self, throttle, ego_speed, ego_gps, goal_point, angle):
         reward = -0.1
         done = 0
 
-        reward += ego_speed
+        if abs(angle) > 0.03:
+            absolute_value_angle = abs(angle)
+        else:
+            absolute_value_angle = 0.0
+
+        angle_penalty = -25 * absolute_value_angle
+        print(f"angle {angle} angle_penalty {angle_penalty}")
+        reward += angle_penalty
 
         # distance to each far distance goal points in meters
         distance = np.linalg.norm(goal_point - ego_gps)
@@ -339,11 +346,10 @@ class DqnAgent(AutonomousAgent):
         # if any of the following is not None, then the agent should brake
         is_light, is_walker, is_vehicle = self.traffic_data()
 
-        # TODO: make sure is_light is True at the beginning of red light cases
+        print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle)
+
         # give penalty if ego vehicle is not braking where it should brake
-        if any(x is not None for x in [is_light, is_walker, is_vehicle]):
-            print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle)
-            
+        if any(x is not None for x in [is_light, is_walker, is_vehicle]):            
             # accelerating while it should brake
             if throttle > 0.2: #throttle
                 print("[Penalty]: not braking !")
@@ -352,7 +358,7 @@ class DqnAgent(AutonomousAgent):
             # braking as it should be
             else:
                 print("[Reward]: correctly braking !")
-                reward += 15
+                reward += 50
                 
         # terminate if vehicle is not moving for too long steps
         else:
@@ -366,16 +372,18 @@ class DqnAgent(AutonomousAgent):
                 reward -= 20
                 done = 1
 
+            reward += ego_speed
+
         # negative reward for collision or lane invasion
-        if self.is_lane_invasion: # TODO: this penalty is too high, it avoids lane changing (steer left or right)
-            print("[Penalty]: lane invasion !")
-            reward -= 50
+        #if self.is_lane_invasion:
+        #    print("[Penalty]: lane invasion !")
+        #    reward -= 50
         if self.is_collision:
-            print("[Penalty]: collision !")
-            reward -= 100 * self.collision_intensity
+            print(f"[Penalty]: collision !")
+            reward -= 100 #* self.collision_intensity
             done = 1
 
-        if self.step_number > 500:
+        if self.step_number > 500: # TODO: make this hyperparam
             done = 1
 
         return reward, done
@@ -395,6 +403,7 @@ class DqnAgent(AutonomousAgent):
         self.collision_sensor.listen(lambda event: DqnAgent._on_collision(weakref.ref(self), event))
         self.lane_invasion_sensor.listen(lambda event: DqnAgent._on_lane_invasion(weakref.ref(self), event))
 
+    # TODO: should we include stop signs? is there any route/scenarios with them?
     def traffic_data(self):
         all_actors = self.world.get_actors()
 
@@ -423,6 +432,8 @@ class DqnAgent(AutonomousAgent):
         steer = np.clip(steer, -1.0, 1.0)
         steer = round(steer, 3)
 
+        print(f"angle {angle} steer {steer}")
+
         # acceleration
         angle_far_unnorm = self.get_angle_to(pos, theta, far_target)
         should_slow = abs(angle_far_unnorm) > 45.0 or abs(angle_unnorm) > 5.0
@@ -437,7 +448,7 @@ class DqnAgent(AutonomousAgent):
         throttle = self._speed_controller.step(delta)
         throttle = np.clip(throttle, 0.0, 0.75)
 
-        return steer, throttle, target_speed
+        return steer, throttle, target_speed, angle
 
     def get_angle_to(self, pos, theta, target):
         R = np.array([
@@ -477,11 +488,10 @@ class DqnAgent(AutonomousAgent):
         return x
 
     def is_light_red(self, traffic_lights):
-        if self.hero_vehicle.get_traffic_light_state() != carla.libcarla.TrafficLightState.Green:
-            affecting = self.hero_vehicle.get_traffic_light()
-            for light in traffic_lights:
-                if light.id == affecting.id:
-                    return affecting
+        for light in traffic_lights:
+            if light.get_state() == carla.TrafficLightState.Red:
+                return True
+        
         return None
 
     def is_walker_hazard(self, walkers_list):
