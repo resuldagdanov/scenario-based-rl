@@ -1,5 +1,6 @@
 import carla
 import numpy as np
+np.random.seed(0)
 from datetime import datetime
 
 def get_time_info():
@@ -97,8 +98,6 @@ def get_nearby_lights(vehicle, lights, pixels_per_meter=5.5, size=512, radius=5)
         result.append(light)
 
     return result
-
-# TODO: Add moving average plot
 
 def tensorboard_writer(writer, eps, episode_total_reward, best_reward, policy_loss, value_loss, n_updates):
     writer.add_scalar("episode total reward - episode", episode_total_reward, eps)

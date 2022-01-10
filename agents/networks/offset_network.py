@@ -1,7 +1,9 @@
 import torch
+torch.manual_seed(0)
 import torch.nn as nn
 import torchvision
-
+torch.backends.cudnn.benchmark = False
+torch.use_deterministic_algorithms(True)
 
 class OffsetNetwork(nn.Module):
     def __init__(self):

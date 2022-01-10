@@ -59,6 +59,7 @@ import datetime
 import weakref
 import math
 import random
+random.seed(0)
 
 try:
     import pygame

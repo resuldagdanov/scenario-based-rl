@@ -2,14 +2,14 @@
 
 #TODO: this can be given from command prompt as well
 #global variables
-export evaluate=false #true
-export model_name="Jan_08_2022-23_44_19" #only used if evaluate true, make sure it exists
-export load_episode_number=15 #only used if evaluate true, make sure it exists
+export evaluate=true #true
+export model_name="Jan_10_2022-04_29_56" #only used if evaluate true, make sure it exists
+export load_episode_number=81 #only used if evaluate true, make sure it exists
 
-export repetitions=5
-export max_episode_batch_num=1
-export xml_file="collisions_layout_1.xml" #"collisions_vehicle_1.xml" #"routes_town01_one_route.xml" #"routes_town01_short.xml"
-export json_file="all_towns_traffic_scenarios_WOR.json" #"all_towns_traffic_scenarios_autopilot.json"
+export repetitions=1 #20
+export max_episode_batch_num=1 #25
+export xml_file="red_light_1.xml"
+export json_file="all_towns_traffic_scenarios_WOR.json"
 
 max_episode_num=`expr $repetitions \* $max_episode_batch_num`
 
@@ -40,6 +40,7 @@ train () {
 
     kill -9 $pid_carla
     printf "carla server is killed\n"
+    sleep 10
 }
 
 SECONDS=0
@@ -49,5 +50,12 @@ do
     train
 done
 
+convertsecs() {
+    ((h=${1}/3600))
+    ((m=(${1}%3600)/60))
+    ((s=${1}%60))
+    printf "It took %02d hours %02d minutes %02d seconds.\n" $h $m $s
+}
+
 duration=$SECONDS
-echo "It took $(($duration / 3600)) hours $(($duration / 60)) minutes $(($duration % 60)) seconds."
+echo "$(convertsecs $duration)"

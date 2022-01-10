@@ -18,6 +18,7 @@ import threading
 import time
 
 import numpy
+numpy.random.seed(0)
 
 import carla
 

@@ -20,10 +20,13 @@ import math
 import operator
 import os
 import random
+random.seed(0)
 import time
 import subprocess
 
 import numpy as np
+np.random.seed(0)
+
 import py_trees
 from py_trees.blackboard import Blackboard
 import networkx

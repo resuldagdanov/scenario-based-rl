@@ -4,8 +4,12 @@ import os
 import signal
 import sys
 import numpy as np
+np.random.seed(0)
 import carla
-import torch
+import torch as T
+T.manual_seed(0)
+T.backends.cudnn.benchmark = False
+T.use_deterministic_algorithms(True)
 import cv2
 import math
 import weakref
@@ -236,7 +240,7 @@ class DqnAgent(AutonomousAgent):
 
         # fused inputs to torch
         fused_inputs = np.array(fused_inputs, np.float32)
-        fused_inputs_torch = torch.from_numpy(fused_inputs.copy()).unsqueeze(0).to(self.device)
+        fused_inputs_torch = T.from_numpy(fused_inputs.copy()).unsqueeze(0).to(self.device)
 
         # apply freezed pre-trained resnet model onto the image
         image_features_torch = self.agent.resnet_backbone(dnn_input_image)
@@ -288,12 +292,12 @@ class DqnAgent(AutonomousAgent):
             print("[Action]: high_level_action: {:d}, throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(dnn_agent_action, throttle, steer, brake, speed, reward, self.step_number, self.total_step_num))
 
         if not self.agent.evaluate:
-            if self.total_step_num % 20 == 0:  # TODO: Make this hyperparam
+            if self.total_step_num % 50 == 0:  # TODO: Make this hyperparam
                 self.epsilon *= self.agent.epsilon_decay
                 self.epsilon = max(self.epsilon, self.agent.epsilon_min)
                 self.agent.db.update_epsilon(self.epsilon, self.agent.training_id)
 
-            if self.total_step_num % 100 == 0: # TODO: Make this hyperparam
+            if self.total_step_num % 1000 == 0: # TODO: Make this hyperparam
                 self.agent.target_update()
 
         # terminate an episode
@@ -336,15 +340,13 @@ class DqnAgent(AutonomousAgent):
         else:
             absolute_value_angle = 0.0
 
-        angle_penalty = -25 * absolute_value_angle
-        print(f"angle {angle} angle_penalty {angle_penalty}")
-        reward += angle_penalty
+        reward -= 25 * absolute_value_angle
 
         # distance to each far distance goal points in meters
         distance = np.linalg.norm(goal_point - ego_gps)
 
         # if any of the following is not None, then the agent should brake
-        is_light, is_walker, is_vehicle = self.traffic_data()
+        is_light, is_walker, is_vehicle = self.traffic_data() # TODO: try with giving them as inputs (e.g. append them to state information)
 
         print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle)
 
@@ -371,8 +373,8 @@ class DqnAgent(AutonomousAgent):
                 print("[Penalty]: too long stopping !")
                 reward -= 20
                 done = 1
-
-            reward += ego_speed
+            else:
+                reward += 5 * ego_speed # TODO: try with different rewards
 
         # negative reward for collision or lane invasion
         #if self.is_lane_invasion:
@@ -380,7 +382,7 @@ class DqnAgent(AutonomousAgent):
         #    reward -= 50
         if self.is_collision:
             print(f"[Penalty]: collision !")
-            reward -= 100 #* self.collision_intensity
+            reward -= 100
             done = 1
 
         if self.step_number > 500: # TODO: make this hyperparam
@@ -432,8 +434,6 @@ class DqnAgent(AutonomousAgent):
         steer = np.clip(steer, -1.0, 1.0)
         steer = round(steer, 3)
 
-        print(f"angle {angle} steer {steer}")
-
         # acceleration
         angle_far_unnorm = self.get_angle_to(pos, theta, far_target)
         should_slow = abs(angle_far_unnorm) > 45.0 or abs(angle_unnorm) > 5.0
@@ -472,7 +472,7 @@ class DqnAgent(AutonomousAgent):
         # normalize to 0 - 1
         image = image / 255
         # convert image to torch tensor
-        image = torch.from_numpy(image.copy()).unsqueeze(0)
+        image = T.from_numpy(image.copy()).unsqueeze(0)
         
         # normalize input image (using default torch normalization technique)
         image = self.normalize_rgb(image)

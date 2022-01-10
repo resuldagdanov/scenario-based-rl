@@ -18,6 +18,7 @@ The ego vehicle adjusts its velocity or changes the lane as well.
 """
 
 import random
+random.seed(0)
 import py_trees
 import carla
 

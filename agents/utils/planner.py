@@ -2,7 +2,7 @@ import os
 from collections import deque
 
 import numpy as np
-
+np.random.seed(0)
 
 DEBUG = int(os.environ.get('HAS_DISPLAY', 0))
 

@@ -16,6 +16,7 @@ The ego vehicle may need to brake to avoid a collision.
 """
 
 import random
+random.seed(0)
 import py_trees
 import carla
 

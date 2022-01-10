@@ -28,7 +28,6 @@ class ReplayBuffer:
 
         # low inclusive, high exclusive
         sample_indexes = random.sample(range(0, high), batch_size)
-        
         sample_batch = self.db.read_batch_data(tuple(sample_indexes), batch_size, self.model_name)
         
         return sample_batch

@@ -95,6 +95,7 @@ except ImportError:
 
 try:
     import numpy as np
+    np.random.seed(0)
 except ImportError:
     raise RuntimeError('cannot import numpy, make sure numpy package is installed')
 

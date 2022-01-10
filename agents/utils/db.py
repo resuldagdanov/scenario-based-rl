@@ -1,6 +1,7 @@
 import psycopg2 as psy
 import pickle
 import numpy as np
+np.random.seed(0)
 
 class DB:
     def __init__(self): #TODO: add exceptions for the cases DB not found or not connected

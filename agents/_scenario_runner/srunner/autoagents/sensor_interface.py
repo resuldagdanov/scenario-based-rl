@@ -19,6 +19,7 @@ except ImportError:
     from Queue import Empty
 
 import numpy as np
+np.random.seed(0)
 
 import carla
 

@@ -10,6 +10,7 @@ This module provides GlobalRoutePlanner implementation.
 
 import math
 import numpy as np
+np.random.seed(0)
 import networkx as nx
 
 import carla

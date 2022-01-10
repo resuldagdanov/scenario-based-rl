@@ -4,10 +4,14 @@ import os
 import sys
 import time
 import numpy as np
+np.random.seed(0)
 import cv2
 import math
 import torch
+torch.manual_seed(0)
 import carla
+torch.backends.cudnn.benchmark = False
+torch.use_deterministic_algorithms(True)
 
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 

@@ -14,6 +14,7 @@ import shapely.geometry
 import shapely.affinity
 
 import numpy as np
+np.random.seed(0)
 
 import carla
 from agents.tools.misc import vector

@@ -10,6 +10,7 @@
 
 import math
 import numpy as np
+np.random.seed(0)
 import carla
 
 def draw_waypoints(world, waypoints, z=0.5):

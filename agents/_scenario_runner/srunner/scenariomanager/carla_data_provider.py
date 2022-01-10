@@ -15,6 +15,7 @@ from __future__ import print_function
 import math
 import re
 from numpy import random
+random.seed(0)
 from six import iteritems
 
 import carla
