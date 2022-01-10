@@ -385,7 +385,7 @@ class DqnAgent(AutonomousAgent):
             reward -= 100
             done = 1
 
-        if self.step_number > 500: # TODO: make this hyperparam
+        if self.step_number > 1000: # TODO: make this hyperparam
             done = 1
 
         return reward, done
