@@ -18,33 +18,47 @@ pygame 2.0.1
 
 ## how to download and run posgtresql
 Follow instructions https://www.postgresql.org/download/linux/ubuntu/
-
-    sudo apt install postgresql postgresql-contrib
-
-    pip install psycopg2-binary
-
-    sudo service postgresql start                   # start postgresql server
-
-    systemctl status postgresql                     # see whether postgresql server is active
-    
-    sudo service postgresql stop                    # stop postgresql server
-
-    sudo -u postgres psql
-
-    postgres=# \password                            # enter postgres as password
-
-    postgres=# CREATE DATABASE "BUFFER_DB";;        # check it typing \l
-
+```sh
+sudo apt install postgresql postgresql-contrib
+```
+```sh
+pip install psycopg2-binary
+```
+```sh
+sudo service postgresql start                   # start postgresql server
+```
+```sh
+systemctl status postgresql                     # see whether postgresql server is active
+```
+```sh
+sudo service postgresql stop                    # stop postgresql server
+```
+```sh
+sudo -u postgres psql
+```
+```sh
+postgres=# \password                            # enter postgres as password
+```
+```sh
+postgres=# CREATE DATABASE "BUFFER_DB";;        # check it typing \l
+```
 ## PGADMIN4 (gui for postgresql database)
 https://www.pgadmin.org/download/pgadmin-4-apt/
 
 ## how to run
 In terminal,
 
-    cd scenario-based-rl/agents/scripts
+```sh
+cd scenario-based-rl/agents/scripts
 
-    ./main.sh
+./main.sh
+```
 
+
+## Run Carla Server on GPU
+```sh
+./CarlaUE4.sh -prefernvidia
+```
 
 ## List of Supported Scenarios
 
