@@ -292,7 +292,7 @@ class DqnAgent(AutonomousAgent):
             print("[Action]: high_level_action: {:d}, throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(dnn_agent_action, throttle, steer, brake, speed, reward, self.step_number, self.total_step_num))
 
         if not self.agent.evaluate:
-            if self.total_step_num % 20 == 0:  # TODO: Make this hyperparam
+            if self.total_step_num % 50 == 0:  # TODO: Make this hyperparam
                 self.epsilon *= self.agent.epsilon_decay
                 self.epsilon = max(self.epsilon, self.agent.epsilon_min)
                 self.agent.db.update_epsilon(self.epsilon, self.agent.training_id)
@@ -346,7 +346,7 @@ class DqnAgent(AutonomousAgent):
         distance = np.linalg.norm(goal_point - ego_gps)
 
         # if any of the following is not None, then the agent should brake
-        is_light, is_walker, is_vehicle = self.traffic_data()
+        is_light, is_walker, is_vehicle = self.traffic_data() # TODO: try with giving them as inputs (e.g. append them to state information)
 
         print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle)
 
@@ -373,8 +373,8 @@ class DqnAgent(AutonomousAgent):
                 print("[Penalty]: too long stopping !")
                 reward -= 20
                 done = 1
-
-            reward += ego_speed
+            else:
+                reward += 5 * ego_speed # TODO: try with different rewards
 
         # negative reward for collision or lane invasion
         #if self.is_lane_invasion:

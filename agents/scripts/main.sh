@@ -2,12 +2,12 @@
 
 #TODO: this can be given from command prompt as well
 #global variables
-export evaluate=false #true
-export model_name="Jan_09_2022-18_31_00" #only used if evaluate true, make sure it exists
-export load_episode_number=30 #only used if evaluate true, make sure it exists
+export evaluate=true #true
+export model_name="Jan_10_2022-04_29_56" #only used if evaluate true, make sure it exists
+export load_episode_number=81 #only used if evaluate true, make sure it exists
 
-export repetitions=15
-export max_episode_batch_num=10
+export repetitions=1 #20
+export max_episode_batch_num=1 #25
 export xml_file="red_light_1.xml"
 export json_file="all_towns_traffic_scenarios_WOR.json"
 
@@ -40,6 +40,7 @@ train () {
 
     kill -9 $pid_carla
     printf "carla server is killed\n"
+    sleep 10
 }
 
 SECONDS=0
@@ -49,5 +50,12 @@ do
     train
 done
 
+convertsecs() {
+    ((h=${1}/3600))
+    ((m=(${1}%3600)/60))
+    ((s=${1}%60))
+    printf "It took %02d hours %02d minutes %02d seconds.\n" $h $m $s
+}
+
 duration=$SECONDS
-echo "It took $(($duration / 3600)) hours $(($duration / 60)) minutes $(($duration % 60)) seconds."
+echo "$(convertsecs $duration)"
