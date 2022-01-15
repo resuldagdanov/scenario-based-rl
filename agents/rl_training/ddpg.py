@@ -23,7 +23,7 @@ CHECKPOINT_PATH = os.environ.get('CHECKPOINT_PATH', None)
 
 
 class DDPG():
-    def __init__(self, db, evaluate=False):
+    def __init__(self, db, evaluate=True):
         self.db = db
         self.evaluate = evaluate
 
@@ -37,7 +37,7 @@ class DDPG():
         trained_policy_path = os.path.join(os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/models/"), model_name)
 
         if self.evaluate: # evaluate
-            is_value_pretrained = True
+            is_value_pretrained = False #True # TODO: Understand this and its usage
 
             self.evaluation_id = self.db.get_evaluation_id()
 
@@ -52,7 +52,7 @@ class DDPG():
             self.checkpoint_dir = CHECKPOINT_PATH + 'models/' + self.model_name + "/"
             log_dir = CHECKPOINT_PATH + 'logs/' + self.model_name + "_model_ep_num_" + str(load_episode_number) + "_id_" + str(self.evaluation_id) + "/"
         
-        else: # train
+        else: # train # TODO: This is unneccessary ?
             self.training_id = self.db.get_training_id()
 
             is_cpu = db.get_is_cpu(self.training_id)
@@ -145,7 +145,8 @@ class DDPG():
             actions = network.compute_action(state_space=state_space)
 
         # brake and offset amount
-        return actions.cpu().detach().numpy()[0]
+        actions_np = tuple(act.cpu().detach().numpy()[0] for act in actions)
+        return actions_np
 
     # set up function for computing DDPG Q-loss
     def calculate_loss_q(self, state_space, actions, rewards, next_state_space, dones):

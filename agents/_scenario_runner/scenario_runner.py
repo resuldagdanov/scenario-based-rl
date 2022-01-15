@@ -474,51 +474,45 @@ class ScenarioRunner(object):
         route_configurations = RouteParser.parse_routes_file(routes, scenario_file, single_route)
 
         # NOTE: true: evaluate imitation learning agent without using database
-        evaluate_imitation = False #True
+        evaluate_imitation = True # TODO: add this to args
 
         for config in route_configurations:
+            from utils.db import DB
+            db = DB()
+
             if evaluate_imitation:
-                # rl model is none, then evaluate imitation learning model
-                rl_model = None
+                from rl_training.ddpg import DDPG
+                model = DDPG(db)
+
             else:
-                from utils.db import DB
-                db = DB()
-
                 from rl_training.dqn import DQNModel
-                rl_model = DQNModel(db, self._args.evaluate)
-
-                #from rl_training.model import RLModel
-                #rl_model = RLModel(db, self._args.evaluate)
-
-                # TODO: uncomment following when offset model is used
-                # from rl_training.ddpg import DDPG
-                # rl_model = DDPG(db, self._args.evaluate)
+                model = DQNModel(db, self._args.evaluate)
 
             # loop running each RL episode
             for eps in range(self._args.repetitions):
 
                 # run database structure only when rl model is defined, not during imitation learning model evaluation
-                if rl_model is not None:
+                if not evaluate_imitation:
                     if self._args.evaluate: # evaluation
-                        print("\n--- next episode ---  #:", db.get_evaluation_global_episode_number(rl_model.evaluation_id))
+                        print("\n--- next episode ---  #:", db.get_evaluation_global_episode_number(model.evaluation_id))
                     else: # training
-                        print("\n--- next episode ---  #:", db.get_global_episode_number(rl_model.training_id))
+                        print("\n--- next episode ---  #:", db.get_global_episode_number(model.training_id))
 
-                result = self._load_and_run_scenario(config=config, rl_model=rl_model)
+                result = self._load_and_run_scenario(config=config, rl_model=model)
 
                 self._cleanup()
 
-                if rl_model is not None:
+                if not evaluate_imitation:
                     if self._args.evaluate: # evaluation
-                        db.increment_and_update_evaluation_global_episode_number(rl_model.evaluation_id)
+                        db.increment_and_update_evaluation_global_episode_number(model.evaluation_id)
                     else: # training
-                        db.increment_and_update_global_episode_number(rl_model.training_id)
+                        db.increment_and_update_global_episode_number(model.training_id)
                     
                 print("\n")
 
-            if rl_model is not None:
+            if not evaluate_imitation:
                 if not self._args.evaluate: # training
-                    rl_model.save_models(db.get_global_episode_number(rl_model.training_id)) # save after training is completed for batch of episodes
+                    model.save_models(db.get_global_episode_number(model.training_id)) # save after training is completed for batch of episodes
                 db.close() # close DB connection after training is over
         
         return result

@@ -2,6 +2,7 @@
 
 #TODO: this can be given from command prompt as well
 #global variables
+export imitation_learning=true #to evaluate imitation learning model make it true, to train or evaluate dqn model make it false
 export evaluate=true #true
 export model_name="Jan_10_2022-04_29_56" #only used if evaluate true, make sure it exists
 export load_episode_number=81 #only used if evaluate true, make sure it exists
@@ -13,11 +14,12 @@ export json_file="all_towns_traffic_scenarios_WOR.json"
 
 max_episode_num=`expr $repetitions \* $max_episode_batch_num`
 
-echo "max_episode_num:" $max_episode_num
+echo "max_episode_num:" $max_episode_num;
 echo "evaluate: $evaluate";
 echo "repetitions: $repetitions";
 echo "xml_file: $xml_file";
 echo "json_file: $json_file";
+echo "imitation_learning: $imitation_learning";
 
 if ${evaluate}; then #evaluate
     python3 init_training_parameters.py --evaluate --model_name $model_name --load_episode_number $load_episode_number --xml_file $xml_file --json_file $json_file
@@ -34,7 +36,7 @@ train () {
     export pid_carla=$(ps -elf | grep "CarlaUE4/Binaries/Linux" | grep -v grep | awk '{print $4}')
     
     cd $working_dir
-    ./run_agent.sh -e $evaluate -r $repetitions -x $xml_file -j $json_file & 
+    ./run_agent.sh -e $evaluate -r $repetitions -x $xml_file -j $json_file -i $imitation_learning & 
     export pid_training=$!
     wait $pid_training
 

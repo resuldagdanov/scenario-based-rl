@@ -116,12 +116,13 @@ class OffsetAgent(AutonomousAgent):
 
         self.initialized = True
 
+        self.step_number = 1
+        self.episode_total_reward = 0.0
+        
         # do not initialize if only imitation agent is evaluated
         if not self.run_imitation_agent:
             self.push_buffer = False
             self.next_state = []
-            self.step_number = 1
-            self.episode_total_reward = 0.0
             self.count_vehicle_stop = 0
             self.n_updates = 0
             self.total_loss_pi = 0.0
@@ -225,7 +226,7 @@ class OffsetAgent(AutonomousAgent):
 
         else:
             # apply freezed pre-trained model onto the image and get state space
-            state = self.agent.get_state_space(fronts=dnn_input_image, fused_input=fused_inputs_torch)
+            state = self.agent.get_state_space(front_image=dnn_input_image, fused_input=fused_inputs_torch)
             # convert state space to torch tensors to be an input to neural net
             state_torch = torch.from_numpy(state.copy()).unsqueeze(0).to(self.device)
 
@@ -237,7 +238,7 @@ class OffsetAgent(AutonomousAgent):
         new_near_node = self.shift_point(ego_compass=compass, ego_gps=gps, near_node=near_node, offset_amount=offset)
 
         # get auto-pilot actions
-        steer, throttle, target_speed = self.get_control(new_near_node, far_node, data)
+        steer, throttle, target_speed, angle = self.get_control(new_near_node, far_node, data)
 
         # determine whether to accelerate or brake
         if dnn_brake >= 0.5:
@@ -249,7 +250,7 @@ class OffsetAgent(AutonomousAgent):
 
         if not self.run_imitation_agent:
             # maintains RL structure
-            self.rl_computation(state=state, agent_action=agent_action, dnn_brake=dnn_brake, throttle=throttle, speed=speed, gps=gps, far_node=far_node)
+            self.rl_computation(state=state, agent_action=agent_action, dnn_brake=dnn_brake, throttle=throttle, speed=speed, gps=gps, far_node=far_node, angle=angle)
 
         applied_control = carla.VehicleControl()
         applied_control.throttle = float(throttle)
@@ -260,9 +261,9 @@ class OffsetAgent(AutonomousAgent):
 
         return applied_control
 
-    def rl_computation(self, state, agent_action, dnn_brake, throttle, speed, gps, far_node):
+    def rl_computation(self, state, agent_action, dnn_brake, throttle, speed, gps, far_node, angle):
         # compute step reward and deside for termination
-        reward, done = self.calculate_reward(dnn_brake=dnn_brake, throttle=throttle, ego_speed=speed, ego_gps=gps, goal_point=far_node)
+        reward, done = self.calculate_reward(throttle=throttle, ego_speed=speed, ego_gps=gps, goal_point=far_node, angle=angle)
 
         policy_loss = None
         value_loss = None
@@ -315,53 +316,62 @@ class OffsetAgent(AutonomousAgent):
         self.step_number += 1
         self.total_step_num += 1
 
-    # TODO: if you change the reward, save the snippet and save the id of it to DB
-    def calculate_reward(self, dnn_brake, throttle, ego_speed, ego_gps, goal_point):
+    #TODO: if you change the reward, save the snippet and save the id of it to DB
+    def calculate_reward(self, throttle, ego_speed, ego_gps, goal_point, angle):
         reward = -0.1
         done = 0
 
-        reward += ego_speed
+        if abs(angle) > 0.03:
+            absolute_value_angle = abs(angle)
+        else:
+            absolute_value_angle = 0.0
+
+        reward -= 25 * absolute_value_angle
 
         # distance to each far distance goal points in meters
         distance = np.linalg.norm(goal_point - ego_gps)
 
         # if any of the following is not None, then the agent should brake
-        is_light, is_walker, is_vehicle = self.traffic_data()
+        is_light, is_walker, is_vehicle = self.traffic_data() # TODO: try with giving them as inputs (e.g. append them to state information)
+
+        print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle) # TODO: make sure light is not becoming red when it is too far
 
         # give penalty if ego vehicle is not braking where it should brake
-        if any(x is not None for x in [is_light, is_walker, is_vehicle]):
-            print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle)
-            
+        if any(x is not None for x in [is_light, is_walker, is_vehicle]):            
             # accelerating while it should brake
-            if dnn_brake < 0.2:
+            if throttle > 0.2: #throttle
                 print("[Penalty]: not braking !")
                 reward -= ego_speed * throttle
-            
+
             # braking as it should be
             else:
                 print("[Reward]: correctly braking !")
-                reward += 15
-
+                reward += 50
+                
+        # terminate if vehicle is not moving for too long steps
         else:
             if ego_speed <= 0.5:
                 self.count_vehicle_stop += 1
             else:
                 self.count_vehicle_stop = 0
 
-            # terminate if vehicle is not moving for too long steps
             if self.count_vehicle_stop > 100:
                 print("[Penalty]: too long stopping !")
                 reward -= 20
                 done = 1
+            else:
+                reward += 5 * ego_speed # TODO: try with different rewards
 
         # negative reward for collision or lane invasion
-        if self.is_lane_invasion:
-            print("[Penalty]: lane invasion !")
-            reward -= 50
-            
+        #if self.is_lane_invasion:
+        #    print("[Penalty]: lane invasion !")
+        #    reward -= 50
         if self.is_collision:
-            print("[Penalty]: collision !")
-            reward -= 100 * self.collision_intensity
+            print(f"[Penalty]: collision !")
+            reward -= 100
+            done = 1
+
+        if self.step_number > 1000: # TODO: make this hyperparam
             done = 1
 
         return reward, done
@@ -447,7 +457,7 @@ class OffsetAgent(AutonomousAgent):
         throttle = self._speed_controller.step(delta)
         throttle = np.clip(throttle, 0.0, 0.75)
 
-        return steer, throttle, target_speed
+        return steer, throttle, target_speed, angle
 
     def get_angle_to(self, pos, theta, target):
         R = np.array([
@@ -487,11 +497,10 @@ class OffsetAgent(AutonomousAgent):
         return x
 
     def is_light_red(self, traffic_lights):
-        if self.hero_vehicle.get_traffic_light_state() != carla.libcarla.TrafficLightState.Green:
-            affecting = self.hero_vehicle.get_traffic_light()
-            for light in traffic_lights:
-                if light.id == affecting.id:
-                    return affecting
+        for light in traffic_lights:
+            if light.get_state() == carla.TrafficLightState.Red:
+                return True
+        
         return None
 
     def is_walker_hazard(self, walkers_list):
