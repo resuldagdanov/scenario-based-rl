@@ -473,16 +473,13 @@ class ScenarioRunner(object):
         # retrieve routes
         route_configurations = RouteParser.parse_routes_file(routes, scenario_file, single_route)
 
-        # NOTE: true: evaluate imitation learning agent without using database
-        evaluate_imitation = True # TODO: add this to args
-
         for config in route_configurations:
             from utils.db import DB
             db = DB()
 
-            if evaluate_imitation:
+            if self._args.imitation_learning:
                 from rl_training.ddpg import DDPG
-                model = DDPG(db)
+                model = DDPG(db, self._args.evaluate)
 
             else:
                 from rl_training.dqn import DQNModel
@@ -492,7 +489,7 @@ class ScenarioRunner(object):
             for eps in range(self._args.repetitions):
 
                 # run database structure only when rl model is defined, not during imitation learning model evaluation
-                if not evaluate_imitation:
+                if not self._args.imitation_learning:
                     if self._args.evaluate: # evaluation
                         print("\n--- next episode ---  #:", db.get_evaluation_global_episode_number(model.evaluation_id))
                     else: # training
@@ -502,7 +499,7 @@ class ScenarioRunner(object):
 
                 self._cleanup()
 
-                if not evaluate_imitation:
+                if not self._args.imitation_learning:
                     if self._args.evaluate: # evaluation
                         db.increment_and_update_evaluation_global_episode_number(model.evaluation_id)
                     else: # training
@@ -510,10 +507,11 @@ class ScenarioRunner(object):
                     
                 print("\n")
 
-            if not evaluate_imitation:
+            if not self._args.imitation_learning:
                 if not self._args.evaluate: # training
                     model.save_models(db.get_global_episode_number(model.training_id)) # save after training is completed for batch of episodes
-                db.close() # close DB connection after training is over
+            
+            db.close() # close DB connection after training is over
         
         return result
 
@@ -590,6 +588,7 @@ def main():
     parser.add_argument('--repetitions', default=20, type=int, help='Number of scenario executions')
     parser.add_argument('--waitForEgo', action="store_true", help='Connect the scenario to an existing ego vehicle')
     parser.add_argument('--evaluate', action="store_true", help='RL Model Evaluate(True) Train(False)')
+    parser.add_argument('--imitation_learning', action="store_true", help='Imitation Learning Model (True), RL Model (False)')
     arguments = parser.parse_args()
     # pylint: enable=line-too-long
 
