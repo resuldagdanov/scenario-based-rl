@@ -348,7 +348,7 @@ class DqnAgent(AutonomousAgent):
         # if any of the following is not None, then the agent should brake
         is_light, is_walker, is_vehicle = self.traffic_data() # TODO: try with giving them as inputs (e.g. append them to state information)
 
-        print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle)
+        print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle) # TODO: make sure light is not becoming red when it is too far
 
         # give penalty if ego vehicle is not braking where it should brake
         if any(x is not None for x in [is_light, is_walker, is_vehicle]):            

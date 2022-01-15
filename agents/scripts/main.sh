@@ -8,8 +8,8 @@ export load_episode_number=81 #only used if evaluate true, make sure it exists
 
 export repetitions=1
 export max_episode_batch_num=1
-export xml_file="routes_town05_SC5_2_tiny_one_route_3.xml"
-export json_file="town05_SC5_example.json" #"all_towns_traffic_scenarios_WOR.json" 
+export xml_file="stop_sign_1.xml"
+export json_file="all_towns_traffic_scenarios_WOR.json" 
 
 max_episode_num=`expr $repetitions \* $max_episode_batch_num`
 
