@@ -105,7 +105,7 @@ class DqnAgent(AutonomousAgent):
         self.total_loss = 0.0
 
         if self.debug:
-            cv2.namedWindow("rgb-front")
+            cv2.namedWindow("RL-rgb-front")
 
     def get_position(self, tick_data):
         gps = tick_data['gps']
@@ -232,7 +232,7 @@ class DqnAgent(AutonomousAgent):
 
         if self.debug:
             disp_front_image = cv2.UMat(front_cv_image)
-            cv2.imshow("rgb-front", disp_front_image)
+            cv2.imshow("RL-rgb-front", disp_front_image)
             cv2.waitKey(1)
 
         # construct network input image format
@@ -346,12 +346,12 @@ class DqnAgent(AutonomousAgent):
         distance = np.linalg.norm(goal_point - ego_gps)
 
         # if any of the following is not None, then the agent should brake
-        is_light, is_walker, is_vehicle = self.traffic_data() # TODO: try with giving them as inputs (e.g. append them to state information)
+        is_light, is_walker, is_vehicle, is_stop = self.traffic_data() # TODO: try with giving them as inputs (e.g. append them to state information)
 
-        print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle) # TODO: make sure light is not becoming red when it is too far
+        print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle, " stop-", is_stop) # TODO: make sure light is not becoming red when it is too far
 
         # give penalty if ego vehicle is not braking where it should brake
-        if any(x is not None for x in [is_light, is_walker, is_vehicle]):            
+        if any(x is not None for x in [is_light, is_walker, is_vehicle, is_stop]):            
             # accelerating while it should brake
             if throttle > 0.2: #throttle
                 print("[Penalty]: not braking !")
@@ -405,21 +405,26 @@ class DqnAgent(AutonomousAgent):
         self.collision_sensor.listen(lambda event: DqnAgent._on_collision(weakref.ref(self), event))
         self.lane_invasion_sensor.listen(lambda event: DqnAgent._on_lane_invasion(weakref.ref(self), event))
 
-    # TODO: should we include stop signs? is there any route/scenarios with them?
     def traffic_data(self):
         all_actors = self.world.get_actors()
 
         lights_list = all_actors.filter('*traffic_light*')
         walkers_list = all_actors.filter('*walker*')
         vehicle_list = all_actors.filter('*vehicle*')
+        stop_list = all_actors.filter('*stop*')
 
         traffic_lights = base_utils.get_nearby_lights(self.hero_vehicle, lights_list)
+        stops = base_utils.get_nearby_lights(self.hero_vehicle, stop_list) # TODO: if you need different radius, write new function
 
         light = self.is_light_red(traffic_lights)
         walker = self.is_walker_hazard(walkers_list)
         vehicle = self.is_vehicle_hazard(vehicle_list)
+        if len(stops) == 0:
+            stop = None
+        else:
+            stop = stops
 
-        return light, walker, vehicle
+        return light, walker, vehicle, stop
 
     def get_control(self, target, far_target, tick_data):
         pos = self.get_position(tick_data)

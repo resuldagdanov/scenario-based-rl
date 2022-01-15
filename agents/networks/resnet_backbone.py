@@ -15,7 +15,7 @@ class ResNetBackbone(nn.Module):
         self.checkpoint_file = os.path.join(self.checkpoint_dir, name)
 
         # import ResNet-50
-        self.resnet50_backbone = models.resnet50(pretrained=True)
+        self.resnet50_backbone = models.resnet50(pretrained=True) # TODO: solve the problem, this doesnt work when is_cpu = False
 
         # freeze weights
         for param in self.resnet50_backbone.parameters():

@@ -10,7 +10,7 @@ class OffsetNetwork(nn.Module):
         super().__init__()
 
         # front RGB part import ResNet-50
-        self.front_rgb_backbone = torchvision.models.resnet50(pretrained=True)
+        self.front_rgb_backbone = torchvision.models.resnet50(pretrained=True) # TODO: solve the problem, this doesnt work when is_cpu = False
 
         # remove last layer of front RGB of ResNet-50
         self.front_rgb_backbone.fc = nn.Sequential(

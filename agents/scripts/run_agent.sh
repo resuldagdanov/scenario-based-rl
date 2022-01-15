@@ -19,7 +19,6 @@ export PYTHONPATH=$PYTHONPATH:$CARLA_ROOT/PythonAPI/carla/dist/carla-0.9.13-py3.
 export PYTHONPATH=$PYTHONPATH:leaderboard
 export PYTHONPATH=$PYTHONPATH:scenario_runner
 
-# NOTE: change the following exports
 export BASE_CODE_PATH="$(dirname $(dirname "$(pwd)"))" # automatically find scenario-based-rl folder
 export ROUTES=${BASE_CODE_PATH}/data/routes/${xml_file}
 export SCENARIOS=${BASE_CODE_PATH}/data/scenarios/${json_file}
