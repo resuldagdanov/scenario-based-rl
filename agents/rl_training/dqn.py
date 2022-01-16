@@ -38,7 +38,6 @@ class DQNModel():
             checkpoint_dir = CHECKPOINT_PATH + 'models/' + self.model_name + "/"
             log_dir = CHECKPOINT_PATH + 'logs/' + self.model_name + "_model_ep_num_" + str(load_episode_number) + "_id_" + str(self.evaluation_id) + "/"
 
-            print(f"log_dir {log_dir}")
         else: #train
             self.training_id = self.db.get_training_id()
 
@@ -99,7 +98,6 @@ class DQNModel():
 
         if self.evaluate: #evaluate
             self.load_models(load_episode_number)
-            print("load_models")
         else: #train
             episode_num = self.db.get_global_episode_number(self.training_id)
             if episode_num != 0 : #load previous models if it is not first episode of training
@@ -114,7 +112,6 @@ class DQNModel():
             return action
 
     def select_max_action(self, image_features, fused_input):
-        print("greedy_action")
         max_action = T.argmax(self.dqn_network(image_features, fused_input)).unsqueeze(0).unsqueeze(0).cpu().detach().numpy()[0]
         return max_action[0]
 
@@ -157,6 +154,4 @@ class DQNModel():
     def load_models(self, episode_number):
         print(f'.... loading models episode_number {episode_number} ....')
         self.dqn_network.load_checkpoint(episode_number)
-        for param in self.dqn_network.parameters():
-            print(param.data)
         self.target_dqn_network.load_checkpoint(episode_number)

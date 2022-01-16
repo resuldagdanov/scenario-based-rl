@@ -484,7 +484,6 @@ class ScenarioRunner(object):
             else:
                 from rl_training.dqn import DQNModel
                 model = DQNModel(db, self._args.evaluate)
-                print(f"DQNModel")
 
             # loop running each RL episode
             for eps in range(self._args.repetitions):
