@@ -2,14 +2,14 @@
 
 #TODO: this can be given from command prompt as well
 #global variables
-export imitation_learning=true #to evaluate imitation learning model make it true, to train or evaluate dqn model make it false
-export evaluate=true #true
-export model_name="Jan_10_2022-04_29_56" #only used if evaluate true, make sure it exists
-export load_episode_number=81 #only used if evaluate true, make sure it exists
+export imitation_learning=false #to evaluate imitation learning model make it true, to train or evaluate dqn model make it false
+export evaluate=false #true
+export model_name="Jan_15_2022-22_08_22" #only used if evaluate true, make sure it exists
+export load_episode_number=140 #only used if evaluate true, make sure it exists
 
 export repetitions=1
 export max_episode_batch_num=1
-export xml_file="stuck_vehicle_1.xml" #"traffic_junction_1.xml" #"stop_sign_6.xml" #"stuck_vehicle_1.xml"
+export xml_file="red_light_1.xml" #"stuck_vehicle_2.xml" #"stuck_vehicle_1.xml" #"stop_sign_6.xml"
 export json_file="all_towns_traffic_scenarios_WOR.json" 
 
 max_episode_num=`expr $repetitions \* $max_episode_batch_num`

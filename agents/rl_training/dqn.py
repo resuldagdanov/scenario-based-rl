@@ -7,6 +7,7 @@ T.use_deterministic_algorithms(True)
 import torch.nn as nn
 import random
 from tensorboardX import SummaryWriter
+import copy
 
 # to add the parent "agents" folder to sys path and import models
 current = os.path.dirname(os.path.realpath(__file__))
@@ -36,6 +37,8 @@ class DQNModel():
             self.model_name = self.db.get_evaluation_model_name(self.evaluation_id)
             checkpoint_dir = CHECKPOINT_PATH + 'models/' + self.model_name + "/"
             log_dir = CHECKPOINT_PATH + 'logs/' + self.model_name + "_model_ep_num_" + str(load_episode_number) + "_id_" + str(self.evaluation_id) + "/"
+
+            print(f"log_dir {log_dir}")
         else: #train
             self.training_id = self.db.get_training_id()
 
@@ -70,11 +73,11 @@ class DQNModel():
         self.writer = SummaryWriter(logdir=log_dir, comment="_carla_model")
 
         # load pretrained ResNet
-        self.resnet_backbone = ResNetBackbone(device=self.device)
+        self.resnet_backbone = ResNetBackbone(device=self.device) # TODO: save weights to local and load
 
         self.dqn_network = DQNNetwork(device=self.device, state_size=self.state_size, n_actions=self.n_actions, name='dqn', checkpoint_dir=checkpoint_dir)
         self.target_dqn_network = DQNNetwork(device=self.device, state_size=self.state_size, n_actions=self.n_actions, name='dqn_target', checkpoint_dir=checkpoint_dir)
-        self.target_dqn_network.load_state_dict(self.dqn_network.state_dict())
+        self.target_dqn_network.load_state_dict(copy.deepcopy(self.dqn_network.state_dict()))
         self.target_dqn_network.eval()
 
         if not self.evaluate:
@@ -96,6 +99,7 @@ class DQNModel():
 
         if self.evaluate: #evaluate
             self.load_models(load_episode_number)
+            print("load_models")
         else: #train
             episode_num = self.db.get_global_episode_number(self.training_id)
             if episode_num != 0 : #load previous models if it is not first episode of training
@@ -110,6 +114,7 @@ class DQNModel():
             return action
 
     def select_max_action(self, image_features, fused_input):
+        print("greedy_action")
         max_action = T.argmax(self.dqn_network(image_features, fused_input)).unsqueeze(0).unsqueeze(0).cpu().detach().numpy()[0]
         return max_action[0]
 
@@ -142,7 +147,7 @@ class DQNModel():
         return loss.data.cpu().detach().numpy()
 
     def target_update(self):
-        self.target_dqn_network.load_state_dict(self.dqn_network.state_dict())
+        self.target_dqn_network.load_state_dict(copy.deepcopy(self.dqn_network.state_dict()))
 
     def save_models(self, episode_number):
         print(f'.... saving models episode_number {episode_number} ....')
@@ -152,4 +157,6 @@ class DQNModel():
     def load_models(self, episode_number):
         print(f'.... loading models episode_number {episode_number} ....')
         self.dqn_network.load_checkpoint(episode_number)
+        for param in self.dqn_network.parameters():
+            print(param.data)
         self.target_dqn_network.load_checkpoint(episode_number)
