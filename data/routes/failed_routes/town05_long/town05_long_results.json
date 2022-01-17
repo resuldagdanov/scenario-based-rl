@@ -1,0 +1,683 @@
+{
+    "_checkpoint": {
+        "global_record": {
+            "index": -1,
+            "infractions": {
+                "collisions_layout": 0.0,
+                "collisions_pedestrian": 0.0,
+                "collisions_vehicle": 11.18033607860777,
+                "outside_route_lanes": 0.0,
+                "red_light": 16.58880278744612,
+                "route_dev": 0.0,
+                "route_timeout": 0.0,
+                "stop_infraction": 8.610218783226317,
+                "vehicle_blocked": 0.0
+            },
+            "meta": {
+                "exceptions": [
+                    [
+                        "RouteScenario_17",
+                        1,
+                        "Failed"
+                    ],
+                    [
+                        "RouteScenario_20",
+                        4,
+                        "Failed"
+                    ],
+                    [
+                        "RouteScenario_23",
+                        7,
+                        "Failed"
+                    ]
+                ]
+            },
+            "route_id": -1,
+            "scores": {
+                "score_composed": 27.07615125445116,
+                "score_penalty": 0.385677504,
+                "score_route": 83.2024212545971
+            },
+            "scores_std_dev": {
+                "score_composed": 22.698888259083745,
+                "score_penalty": 0.33410583435048435,
+                "score_route": 27.88900074522399
+            },
+            "status": "Failed"
+        },
+        "progress": [
+            10,
+            10
+        ],
+        "records": [
+            {
+                "index": 0,
+                "infractions": {
+                    "collisions_layout": [],
+                    "collisions_pedestrian": [],
+                    "collisions_vehicle": [
+                        [
+                            -121.073,
+                            -89.253,
+                            0.034,
+                            -0.007,
+                            -89.587,
+                            -0.0
+                        ],
+                        [
+                            -121.146,
+                            -92.262,
+                            0.033,
+                            -0.062,
+                            -95.807,
+                            0.605
+                        ],
+                        [
+                            -191.572,
+                            -3.113,
+                            0.065,
+                            0.008,
+                            89.989,
+                            -0.036
+                        ],
+                        [
+                            -130.832,
+                            -88.089,
+                            0.034,
+                            0.048,
+                            0.091,
+                            0.0
+                        ]
+                    ],
+                    "outside_route_lanes": [],
+                    "red_light": [
+                        [
+                            -121.148,
+                            -78.681,
+                            0.043,
+                            -0.415,
+                            -89.578,
+                            0.012
+                        ]
+                    ],
+                    "route_dev": [],
+                    "route_timeout": [],
+                    "stop_infraction": [
+                        [
+                            -195.183,
+                            75.276,
+                            0.089,
+                            0.01,
+                            96.81,
+                            0.024
+                        ]
+                    ],
+                    "vehicle_blocked": []
+                },
+                "meta": {
+                    "duration_game": 504.7500075213611,
+                    "duration_system": 659.8794410228729,
+                    "route_length": 1071.0281341479306
+                },
+                "route_id": "RouteScenario_16",
+                "scores": {
+                    "score_composed": 7.2576,
+                    "score_penalty": 0.072576,
+                    "score_route": 100.0
+                },
+                "status": "Completed"
+            },
+            {
+                "index": 1,
+                "infractions": {
+                    "collisions_layout": [],
+                    "collisions_pedestrian": [],
+                    "collisions_vehicle": [],
+                    "outside_route_lanes": [],
+                    "red_light": [
+                        [
+                            39.732,
+                            -178.636,
+                            0.034,
+                            -0.003,
+                            -75.64,
+                            -0.019
+                        ]
+                    ],
+                    "route_dev": [],
+                    "route_timeout": [],
+                    "stop_infraction": [],
+                    "vehicle_blocked": []
+                },
+                "meta": {
+                    "duration_game": 180.6000026911497,
+                    "duration_system": 212.99157810211182,
+                    "route_length": 862.4300893683893
+                },
+                "route_id": "RouteScenario_17",
+                "scores": {
+                    "score_composed": 41.49460221929913,
+                    "score_penalty": 0.7,
+                    "score_route": 59.27800317042734
+                },
+                "status": "Failed"
+            },
+            {
+                "index": 2,
+                "infractions": {
+                    "collisions_layout": [],
+                    "collisions_pedestrian": [],
+                    "collisions_vehicle": [
+                        [
+                            36.327,
+                            99.121,
+                            0.034,
+                            -0.018,
+                            -68.134,
+                            -0.175
+                        ],
+                        [
+                            -171.896,
+                            -1.591,
+                            0.033,
+                            0.087,
+                            -159.978,
+                            -0.093
+                        ],
+                        [
+                            -177.184,
+                            -2.801,
+                            0.042,
+                            0.307,
+                            -175.048,
+                            -0.121
+                        ],
+                        [
+                            -181.525,
+                            -5.047,
+                            0.055,
+                            0.284,
+                            -137.724,
+                            0.113
+                        ]
+                    ],
+                    "outside_route_lanes": [],
+                    "red_light": [
+                        [
+                            42.962,
+                            -90.963,
+                            0.033,
+                            0.026,
+                            168.843,
+                            -0.051
+                        ],
+                        [
+                            -140.434,
+                            -138.927,
+                            0.09,
+                            -0.048,
+                            0.462,
+                            0.0
+                        ]
+                    ],
+                    "route_dev": [],
+                    "route_timeout": [],
+                    "stop_infraction": [
+                        [
+                            -188.092,
+                            -77.43,
+                            0.08,
+                            -0.466,
+                            -90.049,
+                            0.136
+                        ]
+                    ],
+                    "vehicle_blocked": []
+                },
+                "meta": {
+                    "duration_game": 410.9500061236322,
+                    "duration_system": 586.0786805152893,
+                    "route_length": 1018.1548091661475
+                },
+                "route_id": "RouteScenario_18",
+                "scores": {
+                    "score_composed": 5.0803199999999995,
+                    "score_penalty": 0.05080319999999999,
+                    "score_route": 100.0
+                },
+                "status": "Completed"
+            },
+            {
+                "index": 3,
+                "infractions": {
+                    "collisions_layout": [],
+                    "collisions_pedestrian": [],
+                    "collisions_vehicle": [],
+                    "outside_route_lanes": [],
+                    "red_light": [
+                        [
+                            16.858,
+                            208.651,
+                            0.034,
+                            0.043,
+                            0.343,
+                            0.001
+                        ]
+                    ],
+                    "route_dev": [],
+                    "route_timeout": [],
+                    "stop_infraction": [],
+                    "vehicle_blocked": []
+                },
+                "meta": {
+                    "duration_game": 383.25000571087,
+                    "duration_system": 480.98543906211853,
+                    "route_length": 1651.1240425772803
+                },
+                "route_id": "RouteScenario_19",
+                "scores": {
+                    "score_composed": 70.0,
+                    "score_penalty": 0.7,
+                    "score_route": 100.0
+                },
+                "status": "Completed"
+            },
+            {
+                "index": 4,
+                "infractions": {
+                    "collisions_layout": [],
+                    "collisions_pedestrian": [],
+                    "collisions_vehicle": [],
+                    "outside_route_lanes": [],
+                    "red_light": [],
+                    "route_dev": [],
+                    "route_timeout": [],
+                    "stop_infraction": [],
+                    "vehicle_blocked": []
+                },
+                "meta": {
+                    "duration_game": 202.75000302121043,
+                    "duration_system": 281.6182487010956,
+                    "route_length": 1247.5247794196757
+                },
+                "route_id": "RouteScenario_20",
+                "scores": {
+                    "score_composed": 30.59776312861571,
+                    "score_penalty": 1.0,
+                    "score_route": 30.59776312861571
+                },
+                "status": "Failed"
+            },
+            {
+                "index": 5,
+                "infractions": {
+                    "collisions_layout": [],
+                    "collisions_pedestrian": [],
+                    "collisions_vehicle": [],
+                    "outside_route_lanes": [],
+                    "red_light": [
+                        [
+                            35.073,
+                            100.854,
+                            0.034,
+                            0.059,
+                            -89.977,
+                            0.0
+                        ]
+                    ],
+                    "route_dev": [],
+                    "route_timeout": [],
+                    "stop_infraction": [
+                        [
+                            90.645,
+                            5.682,
+                            0.034,
+                            -0.007,
+                            6.204,
+                            -0.28
+                        ]
+                    ],
+                    "vehicle_blocked": []
+                },
+                "meta": {
+                    "duration_game": 147.85000220313668,
+                    "duration_system": 186.4164173603058,
+                    "route_length": 531.0775144021973
+                },
+                "route_id": "RouteScenario_21",
+                "scores": {
+                    "score_composed": 55.99999999999999,
+                    "score_penalty": 0.5599999999999999,
+                    "score_route": 100.0
+                },
+                "status": "Completed"
+            },
+            {
+                "index": 6,
+                "infractions": {
+                    "collisions_layout": [],
+                    "collisions_pedestrian": [],
+                    "collisions_vehicle": [
+                        [
+                            -188.047,
+                            3.005,
+                            0.06,
+                            -0.119,
+                            -0.17,
+                            0.035
+                        ]
+                    ],
+                    "outside_route_lanes": [],
+                    "red_light": [
+                        [
+                            -127.263,
+                            77.688,
+                            0.034,
+                            -0.052,
+                            84.073,
+                            0.053
+                        ],
+                        [
+                            -61.618,
+                            91.497,
+                            0.041,
+                            0.405,
+                            0.068,
+                            0.1
+                        ]
+                    ],
+                    "route_dev": [],
+                    "route_timeout": [],
+                    "stop_infraction": [],
+                    "vehicle_blocked": []
+                },
+                "meta": {
+                    "duration_game": 264.5500039421022,
+                    "duration_system": 367.0731382369995,
+                    "route_length": 991.7588080369975
+                },
+                "route_id": "RouteScenario_22",
+                "scores": {
+                    "score_composed": 29.4,
+                    "score_penalty": 0.294,
+                    "score_route": 100.0
+                },
+                "status": "Completed"
+            },
+            {
+                "index": 7,
+                "infractions": {
+                    "collisions_layout": [],
+                    "collisions_pedestrian": [],
+                    "collisions_vehicle": [
+                        [
+                            -56.153,
+                            81.082,
+                            0.086,
+                            -0.066,
+                            118.025,
+                            -0.098
+                        ]
+                    ],
+                    "outside_route_lanes": [],
+                    "red_light": [
+                        [
+                            -113.002,
+                            -95.264,
+                            0.034,
+                            -0.05,
+                            -175.11,
+                            -0.074
+                        ],
+                        [
+                            -51.013,
+                            -9.699,
+                            0.08,
+                            -0.352,
+                            89.471,
+                            0.025
+                        ]
+                    ],
+                    "route_dev": [],
+                    "route_timeout": [],
+                    "stop_infraction": [],
+                    "vehicle_blocked": []
+                },
+                "meta": {
+                    "duration_game": 299.9500044696033,
+                    "duration_system": 399.84619402885437,
+                    "route_length": 1271.9079656924944
+                },
+                "route_id": "RouteScenario_23",
+                "scores": {
+                    "score_composed": 12.391643196596792,
+                    "score_penalty": 0.294,
+                    "score_route": 42.14844624692787
+                },
+                "status": "Failed"
+            },
+            {
+                "index": 8,
+                "infractions": {
+                    "collisions_layout": [],
+                    "collisions_pedestrian": [],
+                    "collisions_vehicle": [],
+                    "outside_route_lanes": [],
+                    "red_light": [
+                        [
+                            -113.49,
+                            -4.42,
+                            0.034,
+                            0.018,
+                            -174.798,
+                            -0.136
+                        ],
+                        [
+                            -121.148,
+                            -78.657,
+                            0.034,
+                            0.023,
+                            -89.603,
+                            -0.0
+                        ],
+                        [
+                            -52.043,
+                            -105.674,
+                            0.103,
+                            -0.529,
+                            79.886,
+                            0.129
+                        ],
+                        [
+                            -110.908,
+                            -145.713,
+                            0.089,
+                            0.017,
+                            -179.458,
+                            0.005
+                        ],
+                        [
+                            -61.637,
+                            91.495,
+                            0.042,
+                            0.406,
+                            0.06,
+                            0.099
+                        ],
+                        [
+                            28.201,
+                            77.103,
+                            0.034,
+                            -0.0,
+                            87.367,
+                            0.058
+                        ]
+                    ],
+                    "route_dev": [],
+                    "route_timeout": [],
+                    "stop_infraction": [
+                        [
+                            90.696,
+                            1.801,
+                            0.034,
+                            -0.003,
+                            -3.417,
+                            -0.029
+                        ],
+                        [
+                            -203.704,
+                            91.332,
+                            0.034,
+                            0.022,
+                            0.14,
+                            0.0
+                        ]
+                    ],
+                    "vehicle_blocked": []
+                },
+                "meta": {
+                    "duration_game": 736.9500109814107,
+                    "duration_system": 983.1297996044159,
+                    "route_length": 2101.2027349873474
+                },
+                "route_id": "RouteScenario_24",
+                "scores": {
+                    "score_composed": 7.529535999999998,
+                    "score_penalty": 0.07529535999999998,
+                    "score_route": 100.0
+                },
+                "status": "Completed"
+            },
+            {
+                "index": 9,
+                "infractions": {
+                    "collisions_layout": [],
+                    "collisions_pedestrian": [],
+                    "collisions_vehicle": [
+                        [
+                            -194.322,
+                            -68.85,
+                            0.089,
+                            0.007,
+                            69.843,
+                            0.204
+                        ]
+                    ],
+                    "outside_route_lanes": [],
+                    "red_light": [
+                        [
+                            -110.48,
+                            147.701,
+                            0.089,
+                            0.015,
+                            -179.72,
+                            0.0
+                        ]
+                    ],
+                    "route_dev": [],
+                    "route_timeout": [],
+                    "stop_infraction": [
+                        [
+                            90.56,
+                            5.68,
+                            0.034,
+                            -0.011,
+                            6.079,
+                            -0.264
+                        ],
+                        [
+                            -188.035,
+                            103.625,
+                            0.089,
+                            0.057,
+                            -90.658,
+                            -0.004
+                        ],
+                        [
+                            -258.362,
+                            -0.321,
+                            0.033,
+                            0.055,
+                            179.859,
+                            0.0
+                        ],
+                        [
+                            -188.01,
+                            103.487,
+                            0.09,
+                            -0.022,
+                            -90.698,
+                            0.004
+                        ],
+                        [
+                            -202.221,
+                            -84.662,
+                            0.034,
+                            -0.037,
+                            1.022,
+                            -0.064
+                        ],
+                        [
+                            -191.522,
+                            75.274,
+                            0.095,
+                            -0.277,
+                            89.222,
+                            0.054
+                        ]
+                    ],
+                    "vehicle_blocked": []
+                },
+                "meta": {
+                    "duration_game": 390.100005812943,
+                    "duration_system": 582.28648853302,
+                    "route_length": 1554.57833961516
+                },
+                "route_id": "RouteScenario_25",
+                "scores": {
+                    "score_composed": 11.010048000000005,
+                    "score_penalty": 0.11010048000000004,
+                    "score_route": 100.0
+                },
+                "status": "Completed"
+            }
+        ]
+    },
+    "eligible": true,
+    "entry_status": "Finished",
+    "labels": [
+        "Avg. driving score",
+        "Avg. route completion",
+        "Avg. infraction penalty",
+        "Collisions with pedestrians",
+        "Collisions with vehicles",
+        "Collisions with layout",
+        "Red lights infractions",
+        "Stop sign infractions",
+        "Off-road infractions",
+        "Route deviations",
+        "Route timeouts",
+        "Agent blocked"
+    ],
+    "sensors": [
+        "carla_camera",
+        "carla_lidar",
+        "carla_gnss",
+        "carla_imu",
+        "carla_speedometer"
+    ],
+    "values": [
+        "27.076",
+        "83.202",
+        "0.386",
+        "0.000",
+        "11.180",
+        "0.000",
+        "16.589",
+        "8.610",
+        "0.000",
+        "0.000",
+        "0.000",
+        "0.000"
+    ]
+}
