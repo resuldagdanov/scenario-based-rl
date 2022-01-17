@@ -1,16 +1,16 @@
 #!/bin/bash
 
-#TODO: this can be given from command prompt as well
-#global variables
-export imitation_learning=false #to evaluate imitation learning model make it true, to train or evaluate dqn model make it false
-export evaluate=false #true
-export model_name="Jan_15_2022-22_08_22" #only used if evaluate true, make sure it exists
-export load_episode_number=140 #only used if evaluate true, make sure it exists
+# TODO: this can be given from command prompt as well
+# global variables
+export imitation_learning=false # to evaluate imitation learning model make it true, to train or evaluate dqn model make it false
+export evaluate=false # true
+export model_name="Jan_15_2022-22_08_22" # only used if evaluate true, make sure it exists
+export load_episode_number=140 # only used if evaluate true, make sure it exists
 
 export repetitions=1
 export max_episode_batch_num=1
-export xml_file="stuck_vehicle_1.xml" #"stuck_vehicle_2.xml" #"stop_sign_6.xml"
 export json_file="all_towns_traffic_scenarios_WOR.json" 
+export xml_file="failed_routes/town05_long/stuck_vehicle_1.xml"
 
 max_episode_num=`expr $repetitions \* $max_episode_batch_num`
 
@@ -21,9 +21,9 @@ echo "xml_file: $xml_file";
 echo "json_file: $json_file";
 echo "imitation_learning: $imitation_learning";
 
-if ${evaluate}; then #evaluate
+if ${evaluate}; then # evaluate
     python3 init_training_parameters.py --evaluate --model_name $model_name --load_episode_number $load_episode_number --xml_file $xml_file --json_file $json_file
-else #train
+else # train
     python3 init_training_parameters.py --xml_file $xml_file --json_file $json_file
 fi
 

@@ -215,6 +215,13 @@ class RouteScenario(BasicScenario):
         ego_vehicle = CarlaDataProvider.request_new_actor('vehicle.lincoln.mkz_2017',
                                                           elevate_transform,
                                                           rolename='hero')
+        
+        spectator = CarlaDataProvider.get_world().get_spectator()
+        ego_trans = ego_vehicle.get_transform()
+        ego_yaw = ego_trans.rotation.yaw
+        spectator.set_transform(carla.Transform(ego_trans.location + carla.Location(x=-15 * math.cos(ego_yaw * 3.1415 / 180),
+                                                                                    y=-15 * math.sin(ego_yaw * 3.1415 / 180),
+                                                                                    z=15), carla.Rotation(yaw=ego_yaw, pitch=-30)))
 
         return ego_vehicle
 
