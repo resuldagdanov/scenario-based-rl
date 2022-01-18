@@ -4,15 +4,21 @@ import os
 import signal
 import sys
 import numpy as np
-np.random.seed(0)
 import carla
 import torch as T
-T.manual_seed(0)
-T.backends.cudnn.benchmark = False
-#T.use_deterministic_algorithms(True)
 import cv2
 import math
 import weakref
+import random
+
+seed = 0
+T.manual_seed(seed)
+np.random.seed(seed)
+random.seed(seed) 
+# for cuda
+T.cuda.manual_seed_all(seed)
+T.backends.cudnn.deterministic = True
+T.backends.cudnn.benchmark = False
 
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 
@@ -24,7 +30,7 @@ sys.path.append(parent)
 from utils import base_utils
 from utils.pid_controller import PIDController
 from utils.planner import RoutePlanner
-from _scenario_runner.srunner.autoagents.autonomous_agent import AutonomousAgent
+from srunner.autoagents.autonomous_agent import AutonomousAgent
 
  #TODO: SENSOR configs can be put to DB
 
@@ -222,6 +228,7 @@ class DqnAgent(AutonomousAgent):
 
         # front image
         rgb_front_image = data['rgb_front']
+        print(f"rgb_front_image {np.sum(rgb_front_image)}")
         front_cv_image = rgb_front_image[:, :, ::-1]
 
         fused_inputs = np.zeros(3, dtype=np.float32)
@@ -236,6 +243,8 @@ class DqnAgent(AutonomousAgent):
             cv2.waitKey(1)
 
         # construct network input image format
+        print(f"front_cv_image.shape {front_cv_image.shape}")
+        print(f"front_cv_image {np.sum(front_cv_image)}")
         dnn_input_image = self.image_to_dnn_input(image=front_cv_image)
 
         # fused inputs to torch
@@ -245,6 +254,10 @@ class DqnAgent(AutonomousAgent):
         # apply freezed pre-trained resnet model onto the image
         image_features_torch = self.agent.resnet_backbone(dnn_input_image)
         image_features = image_features_torch.cpu().detach().numpy()[0]
+
+        print(f"dnn_input_image {T.sum(dnn_input_image)}")
+        print(f"image_features_torch {image_features_torch}")
+        print(f"fused_inputs_torch {fused_inputs_torch}")
 
         # get action from value network
         if self.agent.evaluate: # evaluation
@@ -351,7 +364,7 @@ class DqnAgent(AutonomousAgent):
         print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle, " stop-", is_stop) # TODO: make sure light is not becoming red when it is too far
 
         # give penalty if ego vehicle is not braking where it should brake
-        if any(x is not None for x in [is_light, is_walker, is_vehicle, is_stop]):            
+        if any(x is not None for x in [is_light, is_walker, is_vehicle]): #is_stop     
             # accelerating while it should brake
             if throttle > 0.2: #throttle
                 print("[Penalty]: not braking !")
@@ -570,8 +583,9 @@ class DqnAgent(AutonomousAgent):
     def destroy(self):
         if self.collision_sensor is not None:
             self.collision_sensor.stop()
+
         if self.lane_invasion_sensor is not None:
             self.lane_invasion_sensor.stop()
-
-        # terminate and go to another eposide
-        os.kill(os.getpid(), signal.SIGINT) # TODO: Check this
+        
+        # terminate and go to another episode
+        os.kill(os.getpid(), signal.SIGINT)

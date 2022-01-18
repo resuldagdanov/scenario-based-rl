@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 
 import torch as T
-import torch.nn as nn
 import numpy as np
 import random
 from torchvision import models
@@ -13,9 +12,10 @@ np.random.seed(seed)
 random.seed(seed) 
 # for cuda
 T.cuda.manual_seed_all(seed)
-#T.backends.cudnn.deterministic = True
+T.backends.cudnn.deterministic = True
 T.backends.cudnn.benchmark = False
-T.backends.cudnn.enabled = False
+
+import torch.nn as nn
 
 class ResNetBackbone(nn.Module):
     def __init__(self, device, checkpoint_dir, name='resnet50'):
@@ -43,3 +43,6 @@ class ResNetBackbone(nn.Module):
     def load_weights(self):
         checkpoint_file = os.path.join(self.checkpoint_dir, self.name)
         self.resnet50_backbone.load_state_dict(T.load(checkpoint_file))
+
+        for name, param in self.resnet50_backbone.named_parameters():
+            print(f"load weights for resnet50 {name} {param}")

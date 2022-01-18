@@ -1,11 +1,20 @@
 import os
 import sys
 import torch as T
-T.manual_seed(0)
-T.backends.cudnn.benchmark = False
-#T.backends.cudnn.deterministic = True
-import torch.nn as nn
+import numpy as np
 import random
+
+seed = 0
+T.manual_seed(seed)
+np.random.seed(seed)
+random.seed(seed) 
+# for cuda
+T.cuda.manual_seed_all(seed)
+T.backends.cudnn.deterministic = True
+T.backends.cudnn.benchmark = False
+
+import torch.nn as nn
+
 from tensorboardX import SummaryWriter
 import copy
 
@@ -93,7 +102,7 @@ class DQNModel():
             self.memory = ReplayBuffer(self.db, buffer_size=buffer_size, seed=self.random_seed)
             random.seed(self.random_seed)
 
-            self.optimizer = T.optim.Adam(self.dqn_network.parameters(), lr=learning_rate)
+            self.optimizer = T.optim.Adam(self.dqn_network.parameters(), lr=learning_rate) # TODO: should we define optimizer for the evaluate case too?
             self.l1 = nn.SmoothL1Loss().to(self.device) #Huber Loss
 
         if self.evaluate: #evaluate
@@ -150,9 +159,19 @@ class DQNModel():
     def save_models(self, episode_number):
         print(f'.... saving models episode_number {episode_number} ....')
         self.dqn_network.save_checkpoint(episode_number)
+        for name, param in self.dqn_network.named_parameters():
+            print(f"save weights for dqn_network {episode_number} {name} {param}")
+
         self.target_dqn_network.save_checkpoint(episode_number)
+        for name, param in self.target_dqn_network.named_parameters():
+            print(f"save weights for target_dqn_network {episode_number} {name} {param}")
 
     def load_models(self, episode_number):
         print(f'.... loading models episode_number {episode_number} ....')
         self.dqn_network.load_checkpoint(episode_number)
+        for name, param in self.dqn_network.named_parameters():
+            print(f"load weights for dqn_network {episode_number} {name} {param}")
+
         self.target_dqn_network.load_checkpoint(episode_number)
+        for name, param in self.target_dqn_network.named_parameters():
+            print(f"load weights for target_dqn_network {episode_number} {name} {param}")

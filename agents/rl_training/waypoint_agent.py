@@ -3,16 +3,23 @@ from __future__ import print_function
 import os
 import signal
 import sys
-import numpy as np
-np.random.seed(0)
 import carla
-import torch
-torch.manual_seed(0)
-torch.backends.cudnn.benchmark = False
-#torch.use_deterministic_algorithms(True)
 import cv2
 import math
 import weakref
+
+import torch as T
+import numpy as np
+import random
+
+seed = 0
+T.manual_seed(seed)
+np.random.seed(seed)
+random.seed(seed) 
+# for cuda
+T.cuda.manual_seed_all(seed)
+T.backends.cudnn.deterministic = True
+T.backends.cudnn.benchmark = False
 
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 
@@ -24,7 +31,7 @@ sys.path.append(parent)
 from utils import base_utils
 from utils.pid_controller import PIDController
 from utils.planner import RoutePlanner
-from _scenario_runner.srunner.autoagents.autonomous_agent import AutonomousAgent
+from srunner.autoagents.autonomous_agent import AutonomousAgent
 
  #TODO: SENSOR configs can be put to DB
 

@@ -1,8 +1,17 @@
-import torch
-torch.manual_seed(0)
+import torch as T
+import numpy as np
+import random
+
+seed = 0
+T.manual_seed(seed)
+np.random.seed(seed)
+random.seed(seed) 
+# for cuda
+T.cuda.manual_seed_all(seed)
+T.backends.cudnn.deterministic = True
+T.backends.cudnn.benchmark = False
+
 import torch.nn as nn
-torch.backends.cudnn.benchmark = False
-#torch.use_deterministic_algorithms(True)
 
 class ValueNetwork(nn.Module):
     def __init__(self, device):
@@ -20,10 +29,10 @@ class ValueNetwork(nn.Module):
         self.to(device)
 
     def forward(self, state_space, action):
-        concatenate_features = torch.cat((state_space, action), dim=1)
+        concatenate_features = T.cat((state_space, action), dim=1)
 
-        net_out = torch.relu(self.fc1(concatenate_features))
-        net_out = torch.relu(self.fc2(net_out))
+        net_out = T.relu(self.fc1(concatenate_features))
+        net_out = T.relu(self.fc2(net_out))
 
         q_value = self.q_layer(net_out)
 

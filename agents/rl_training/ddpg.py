@@ -1,11 +1,19 @@
 
 import os
 import sys
-import torch
-torch.manual_seed(0)
-torch.backends.cudnn.benchmark = False
-#torch.use_deterministic_algorithms(True)
 from copy import deepcopy
+import torch as T
+import numpy as np
+import random
+
+seed = 0
+T.manual_seed(seed)
+np.random.seed(seed)
+random.seed(seed) 
+# for cuda
+T.cuda.manual_seed_all(seed)
+T.backends.cudnn.deterministic = True
+T.backends.cudnn.benchmark = False
 
 from tensorboardX import SummaryWriter
 
@@ -74,9 +82,9 @@ class DDPG():
         print(f"logs will be saved to {log_dir}")
 
         if is_cpu:
-            self.device = torch.device('cpu')
+            self.device = T.device('cpu')
         else:
-            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            self.device = T.device('cuda' if T.cuda.is_available() else 'cpu')
 
         print("device: ", self.device)
 
@@ -86,7 +94,7 @@ class DDPG():
         self.policy = OffsetNetwork()
         self.policy.to(self.device)
 
-        self.policy.load_state_dict(torch.load(trained_policy_path))
+        self.policy.load_state_dict(T.load(trained_policy_path))
         self.policy.eval()
 
         # freeze weights until brake network and offset network including mlp network
@@ -101,7 +109,7 @@ class DDPG():
         self.qvalue = ValueNetwork(device=self.device)
 
         if is_value_pretrained is True:
-            self.qvalue.load_state_dict(torch.load(trained_qvalue_path))
+            self.qvalue.load_state_dict(T.load(trained_qvalue_path))
 
         # during training
         if not self.evaluate:
@@ -131,17 +139,17 @@ class DDPG():
                 p.requires_grad = False
 
             # define actor and critic network optimizers
-            self.policy_optimizer = torch.optim.Adam(self.policy.parameters(), lr=lrpolicy)
-            self.qvalue_optimizer = torch.optim.Adam(self.qvalue.parameters(), lr=lrvalue)
+            self.policy_optimizer = T.optim.Adam(self.policy.parameters(), lr=lrpolicy)
+            self.qvalue_optimizer = T.optim.Adam(self.qvalue.parameters(), lr=lrvalue)
 
     def get_state_space(self, front_image, fused_input):
-        with torch.no_grad():
+        with T.no_grad():
             state_space = self.policy(fronts=front_image, fused_input=fused_input)
 
         return state_space.cpu().detach().numpy()[0]
 
     def select_action(self, network, state_space):
-        with torch.no_grad():
+        with T.no_grad():
             actions = network.compute_action(state_space=state_space)
 
         # brake and offset amount
@@ -153,7 +161,7 @@ class DDPG():
         q = self.qvalue(state_space=state_space, action=actions)
 
         # bellman backup for Q function
-        with torch.no_grad():
+        with T.no_grad():
             next_action = self.select_action(network=self.policy_target, state_space=next_state_space)
             q_pi_target = self.qvalue_target(state_space=next_state_space, action=next_action)
 
@@ -177,11 +185,11 @@ class DDPG():
         state, actions, rewards, next_state, dones = sample_batch
 
         # convert sample_batch vectors to tensor
-        state = torch.tensor(state, dtype=torch.float32).to(self.device)
-        actions = torch.tensor(actions, dtype=torch.float32).to(self.device)
-        rewards = torch.unsqueeze(torch.tensor(rewards, dtype=torch.float32), dim=1).to(self.device)
-        next_state = torch.tensor(next_state, dtype=torch.float32).to(self.device)
-        dones = torch.tensor(dones, dtype=torch.uint8).to(self.device)
+        state = T.tensor(state, dtype=T.float32).to(self.device)
+        actions = T.tensor(actions, dtype=T.float32).to(self.device)
+        rewards = T.unsqueeze(T.tensor(rewards, dtype=T.float32), dim=1).to(self.device)
+        next_state = T.tensor(next_state, dtype=T.float32).to(self.device)
+        dones = T.tensor(dones, dtype=T.uint8).to(self.device)
 
         # run one gradient descent step for Q
         self.qvalue_optimizer.zero_grad()
@@ -209,7 +217,7 @@ class DDPG():
             q_param.requires_grad = True
             
         # update target networks by polyak averaging
-        with torch.no_grad():
+        with T.no_grad():
             # NB: we use an in-place operations "mul_", "add_" to update target
             # params, as opposed to "mul" and "add", which would make new tensors
             for target_param, param in zip(self.policy_target.parameters(), self.policy.parameters()):
@@ -223,5 +231,5 @@ class DDPG():
         return loss_pi.data.cpu().detach().numpy(), loss_q.data.cpu().detach().numpy()
 
     def save_models(self, episode_number):
-        torch.save(self.policy.state_dict(), os.path.join(self.checkpoint_dir, "policy" + "-ep_" + str(episode_number)))
-        torch.save(self.qvalue.state_dict(), os.path.join(self.checkpoint_dir, "qvalue" + "-ep_" + str(episode_number)))
+        T.save(self.policy.state_dict(), os.path.join(self.checkpoint_dir, "policy" + "-ep_" + str(episode_number)))
+        T.save(self.qvalue.state_dict(), os.path.join(self.checkpoint_dir, "qvalue" + "-ep_" + str(episode_number)))

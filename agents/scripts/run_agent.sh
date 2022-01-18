@@ -16,10 +16,13 @@ export CARLA_SERVER=${CARLA_ROOT}/CarlaUE4.sh
 export PYTHONPATH=$PYTHONPATH:${CARLA_ROOT}/PythonAPI
 export PYTHONPATH=$PYTHONPATH:${CARLA_ROOT}/PythonAPI/carla
 export PYTHONPATH=$PYTHONPATH:$CARLA_ROOT/PythonAPI/carla/dist/carla-0.9.13-py3.7-linux-x86_64.egg
-export PYTHONPATH=$PYTHONPATH:leaderboard
-export PYTHONPATH=$PYTHONPATH:scenario_runner
 
 export BASE_CODE_PATH="$(dirname $(dirname "$(pwd)"))" # automatically find scenario-based-rl folder
+export PYTHONPATH=$PYTHONPATH:${BASE_CODE_PATH}/leaderboard:leaderboard
+export PYTHONPATH=$PYTHONPATH:${BASE_CODE_PATH}/scenario_runner:scenario_runner
+
+echo $PYTHONPATH
+
 export ROUTES=${BASE_CODE_PATH}/data/routes/${xml_file}
 export SCENARIOS=${BASE_CODE_PATH}/data/scenarios/${json_file}
 export CHECKPOINT_PATH=${BASE_CODE_PATH}/checkpoint/

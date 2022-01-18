@@ -1,18 +1,25 @@
-import torch
-torch.manual_seed(0)
-import torch.nn as nn
-import torch.nn.functional as F
-import torchvision
+import torch as T
 import numpy as np
-np.random.seed(0)
-torch.backends.cudnn.benchmark = False
-#torch.use_deterministic_algorithms(True)
+import random
+
+seed = 0
+T.manual_seed(seed)
+np.random.seed(seed)
+random.seed(seed) 
+# for cuda
+T.cuda.manual_seed_all(seed)
+T.backends.cudnn.deterministic = True
+T.backends.cudnn.benchmark = False
+
+import torch.nn as nn
+import torchvision
+
 
 class BrakeNetwork(nn.Module):
     def __init__(self, pretrained=True):
         super().__init__()
 
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = T.device('cuda' if T.cuda.is_available() else 'cpu')
 
         # for RGB part import ResNet-50
         self.rgb_backbone = torchvision.models.resnet50(pretrained=pretrained)
@@ -41,11 +48,11 @@ class BrakeNetwork(nn.Module):
         return x
 
     def forward(self, rgb, fused_input):
-        rgb_features = torch.relu(self.rgb_backbone(rgb))
+        rgb_features = T.relu(self.rgb_backbone(rgb))
         
-        fused_features = torch.relu(self.fused_encoder(fused_input))
+        fused_features = T.relu(self.fused_encoder(fused_input))
 
-        mid_features = torch.cat((rgb_features, fused_features), dim=1)
+        mid_features = T.cat((rgb_features, fused_features), dim=1)
 
         brake = self.brake_network(mid_features) 
 
@@ -64,7 +71,7 @@ class BrakeNetwork(nn.Module):
         # normalize to 0 - 1
         image = image / 255
         # to tensor and unsquueze for batch dimension
-        image_torch = torch.from_numpy(image.copy()).unsqueeze(0)
+        image_torch = T.from_numpy(image.copy()).unsqueeze(0)
         
         # normalize input image
         image_torch = self.model.normalize_rgb(image_torch)
@@ -72,10 +79,10 @@ class BrakeNetwork(nn.Module):
 
         # fused inputs to torch
         fused_inputs = np.array(fused_inputs, np.float32)
-        fused_inputs_torch = torch.from_numpy(fused_inputs.copy()).unsqueeze(0).to(self.device)
+        fused_inputs_torch = T.from_numpy(fused_inputs.copy()).unsqueeze(0).to(self.device)
 
         # inference
-        with torch.no_grad():
+        with T.no_grad():
             brake_torch = self.forward(image_torch, fused_inputs_torch)
         
         # torch control to CPU numpy array

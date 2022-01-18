@@ -1,12 +1,19 @@
 import os
 import sys
 import itertools
-import torch as T
-T.manual_seed(0)
-T.backends.cudnn.benchmark = False
-#T.use_deterministic_algorithms(True)
 from tensorboardX import SummaryWriter
-from datetime import datetime
+import torch as T
+import numpy as np
+import random
+
+seed = 0
+T.manual_seed(seed)
+np.random.seed(seed)
+random.seed(seed) 
+# for cuda
+T.cuda.manual_seed_all(seed)
+T.backends.cudnn.deterministic = True
+T.backends.cudnn.benchmark = False
 
 # to add the parent "agents" folder to sys path and import models
 current = os.path.dirname(os.path.realpath(__file__))

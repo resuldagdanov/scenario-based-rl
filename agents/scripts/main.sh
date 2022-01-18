@@ -2,15 +2,15 @@
 
 # TODO: this can be given from command prompt as well
 # global variables
-export imitation_learning=false # to evaluate imitation learning model make it true, to train or evaluate dqn model make it false
-export evaluate=false # true
-export model_name="Jan_15_2022-22_08_22" # only used if evaluate true, make sure it exists
-export load_episode_number=140 # only used if evaluate true, make sure it exists
+export imitation_learning=true # to evaluate imitation learning model make it true, to train or evaluate dqn model make it false
+export evaluate=true # true
+export model_name="Jan_10_2022-04_29_56" # only used if evaluate true, make sure it exists
+export load_episode_number=81 # only used if evaluate true, make sure it exists
 
-export repetitions=2
+export repetitions=1
 export max_episode_batch_num=1
-export json_file="all_towns_traffic_scenarios_WOR.json" 
-export xml_file="failed_routes/town05_long/stuck_vehicle_1.xml"
+export json_file="all_towns_traffic_scenarios_WOR.json" #"town05_all_scenarios.json" #
+export xml_file="original_routes/routes_town05_long.xml" #"failed_routes/town05_long/stuck_vehicle_1.xml"
 
 max_episode_num=`expr $repetitions \* $max_episode_batch_num`
 
@@ -34,7 +34,7 @@ train () {
     working_dir=$(pwd)
 
     cd $CARLA_ROOT
-    ./CarlaUE4.sh -RenderOffScreen &
+    ./CarlaUE4.sh & #-RenderOffScreen &
     sleep 15
     export pid_carla=$(ps -elf | grep "CarlaUE4/Binaries/Linux" | grep -v grep | awk '{print $4}')
     

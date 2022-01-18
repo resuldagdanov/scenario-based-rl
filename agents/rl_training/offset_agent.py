@@ -3,16 +3,23 @@ from __future__ import print_function
 import os
 import signal
 import sys
-import numpy as np
-np.random.seed(0)
 import carla
-import torch
-torch.manual_seed(0)
-torch.backends.cudnn.benchmark = False
-#torch.use_deterministic_algorithms(True)
 import cv2
 import math
 import weakref
+
+import torch as T
+import numpy as np
+import random
+
+seed = 0
+T.manual_seed(seed)
+np.random.seed(seed)
+random.seed(seed) 
+# for cuda
+T.cuda.manual_seed_all(seed)
+T.backends.cudnn.deterministic = True
+T.backends.cudnn.benchmark = False
 
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 
@@ -24,7 +31,7 @@ sys.path.append(parent)
 from utils import base_utils
 from utils.pid_controller import PIDController
 from utils.planner import RoutePlanner
-from _scenario_runner.srunner.autoagents.autonomous_agent import AutonomousAgent
+from srunner.autoagents.autonomous_agent import AutonomousAgent
 from networks.offset_network import OffsetNetwork
 
  # TODO: SENSOR configs can be put to DB
@@ -43,7 +50,7 @@ class OffsetAgent(AutonomousAgent):
 
         # initialize imitation learning model only
         if self.run_imitation_agent:
-            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            self.device = T.device('cpu') #T.device('cuda' if T.cuda.is_available() else 'cpu')
             print("device: ", self.device)
 
             # load pretrained policy network
@@ -53,9 +60,10 @@ class OffsetAgent(AutonomousAgent):
             # TODO: IMPORTANT! make a global input parameter
             model_name = "offset_model_epoch_45.pth"
             trained_policy_path = os.path.join(os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/models/"), model_name)
-
-            self.policy.load_state_dict(torch.load(trained_policy_path))
-            self.policy.eval()
+            print(f"trained_policy_path {trained_policy_path}")
+            
+            #self.policy.load_state_dict(T.load(trained_policy_path))
+            #self.policy.eval()
         else:
             self.device = self.agent.device
 
@@ -71,7 +79,8 @@ class OffsetAgent(AutonomousAgent):
         self.is_collision = False
         self.is_lane_invasion = False
 
-        self.privileged_sensors()
+        if not self.run_imitation_agent:
+            self.privileged_sensors()
 
     def setup(self, rl_model):
         if rl_model is None:
@@ -112,7 +121,12 @@ class OffsetAgent(AutonomousAgent):
 
         self.init_dnn_agent()
         self.init_auto_pilot()
+
         self.init_privileged_agent()
+
+        if not self.run_imitation_agent:
+            self.collision_sensor = None
+            self.lane_invasion_sensor = None
 
         self.initialized = True
 
@@ -130,6 +144,7 @@ class OffsetAgent(AutonomousAgent):
 
         if self.debug:
             cv2.namedWindow("IL-rgb-front")
+        
 
     def get_position(self, tick_data):
         gps = tick_data['gps']
@@ -210,16 +225,16 @@ class OffsetAgent(AutonomousAgent):
 
         # fused inputs to torch
         fused_inputs = np.array(fused_inputs, np.float32)
-        fused_inputs_torch = torch.from_numpy(fused_inputs.copy()).unsqueeze(0).to(self.device)
+        fused_inputs_torch = T.from_numpy(fused_inputs.copy()).unsqueeze(0).to(self.device)
 
         if self.run_imitation_agent:
-            with torch.no_grad():
+            with T.no_grad():
                 state_space = self.policy(fronts=dnn_input_image, fused_input=fused_inputs_torch)
             state_space = state_space.cpu().detach().numpy()[0]
             # convert state space to torch tensors to be an input to neural net
-            state_torch = torch.from_numpy(state_space.copy()).unsqueeze(0).to(self.device)
+            state_torch = T.from_numpy(state_space.copy()).unsqueeze(0).to(self.device)
 
-            with torch.no_grad():
+            with T.no_grad():
                 dnn_brake, offset = self.policy.compute_action(state_space=state_torch)
             dnn_brake = dnn_brake.cpu().detach().numpy()[0]
             offset = offset.cpu().detach().numpy()[0]
@@ -228,7 +243,7 @@ class OffsetAgent(AutonomousAgent):
             # apply freezed pre-trained model onto the image and get state space
             state = self.agent.get_state_space(front_image=dnn_input_image, fused_input=fused_inputs_torch)
             # convert state space to torch tensors to be an input to neural net
-            state_torch = torch.from_numpy(state.copy()).unsqueeze(0).to(self.device)
+            state_torch = T.from_numpy(state.copy()).unsqueeze(0).to(self.device)
 
             dnn_brake, offset = self.agent.select_action(network=self.agent.policy, state_space=state_torch)
 
@@ -487,7 +502,7 @@ class OffsetAgent(AutonomousAgent):
         # normalize to 0 - 1
         image = image / 255
         # convert image to torch tensor
-        image = torch.from_numpy(image.copy()).unsqueeze(0)
+        image = T.from_numpy(image.copy()).unsqueeze(0)
         
         # normalize input image (using default torch normalization technique)
         image = self.normalize_rgb(image)
@@ -578,10 +593,11 @@ class OffsetAgent(AutonomousAgent):
         self.is_lane_invasion = True  
 
     def destroy(self):
-        if self.collision_sensor is not None:
-            self.collision_sensor.stop()
-        if self.lane_invasion_sensor is not None:
-            self.lane_invasion_sensor.stop()
-
+        if not self.run_imitation_agent:
+            if self.collision_sensor is not None:
+                self.collision_sensor.stop()
+            if self.lane_invasion_sensor is not None:
+                self.lane_invasion_sensor.stop()
+        
         # terminate and go to another eposide
         os.kill(os.getpid(), signal.SIGINT)

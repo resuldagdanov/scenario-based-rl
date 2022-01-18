@@ -32,6 +32,19 @@ import pkg_resources
 
 import carla
 
+import torch as T
+import numpy as np
+import random
+
+seed = 0
+T.manual_seed(seed)
+np.random.seed(seed)
+random.seed(seed) 
+# for cuda
+T.cuda.manual_seed_all(seed)
+T.backends.cudnn.deterministic = True
+T.backends.cudnn.benchmark = False
+
 from srunner.scenarioconfigs.openscenario_configuration import OpenScenarioConfiguration
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 from srunner.scenariomanager.scenario_manager import ScenarioManager
@@ -478,8 +491,8 @@ class ScenarioRunner(object):
             db = DB()
 
             if self._args.imitation_learning:
-                from rl_training.ddpg import DDPG
-                model = DDPG(db, self._args.evaluate)
+                #from rl_training.ddpg import DDPG
+                model = None
 
             else:
                 from rl_training.dqn import DQNModel
