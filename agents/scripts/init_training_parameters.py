@@ -38,8 +38,8 @@ parser.add_argument('--epsilon_min', type=float, default=0.07, help='epsilon_min
 
 args = parser.parse_args()
 
-args.debug = True
-args.is_cpu = True
+#args.debug = True
+args.is_cpu = False
 args.n_actions = 6
 
 for arg in vars(args):

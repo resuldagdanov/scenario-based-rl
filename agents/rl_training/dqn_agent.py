@@ -246,6 +246,8 @@ class DqnAgent(AutonomousAgent):
         image_features_torch = self.agent.resnet_backbone(dnn_input_image)
         image_features = image_features_torch.cpu().detach().numpy()[0]
 
+        print(f"image_features_torch {image_features_torch}")
+        print(f"fused_inputs_torch {fused_inputs_torch}")
         # get action from value network
         if self.agent.evaluate: # evaluation
             dnn_agent_action = np.array(self.agent.select_max_action(image_features=image_features_torch, fused_input=fused_inputs_torch)) # 1 dimensional for DQN            
@@ -261,7 +263,7 @@ class DqnAgent(AutonomousAgent):
         # compute step reward and deside for termination
         reward, done = self.calculate_reward(throttle=throttle, ego_speed=speed, ego_gps=gps, goal_point=far_node, angle=angle)
 
-        self.is_lane_invasion = False  # TODO: turn this to False when ego vehicles is in lane
+        self.is_lane_invasion = False
         self.is_collision = False
 
         loss = None
@@ -385,7 +387,7 @@ class DqnAgent(AutonomousAgent):
             reward -= 100
             done = 1
 
-        if self.step_number > 1000: # TODO: make this hyperparam
+        if self.step_number > 10: #1000: # TODO: make this hyperparam
             done = 1
 
         return reward, done
