@@ -1,6 +1,13 @@
 import os
 import sys
 import argparse
+from pathlib import Path
+
+import torch as T
+T.manual_seed(0)
+from torchvision import models
+#T.backends.cudnn.deterministic = True
+T.backends.cudnn.benchmark = False
 
 # to add the parent "agents" folder to sys path and import models
 current = os.path.dirname(os.path.realpath(__file__))
@@ -35,6 +42,7 @@ parser.add_argument('--json_file', type=str, help='json_file contains scenarios'
 parser.add_argument('--epsilon_max', type=float, default=1.0, help='epsilon_max')
 parser.add_argument('--epsilon_decay', type=float, default=0.99, help='epsilon_decay')
 parser.add_argument('--epsilon_min', type=float, default=0.07, help='epsilon_min')
+parser.add_argument('--write_resnet', type=bool, default=False, help='if True, write resnet params') # be careful while turning this to True!!!
 
 args = parser.parse_args()
 
@@ -60,3 +68,13 @@ else:
     db.insert_data_to_evaluation_table(args)
 
 db.close()
+
+if args.write_resnet:
+    resnet50_backbone = models.resnet50(pretrained=True)
+    current_path = Path(os.getcwd())
+    checkpoint_dir = str(current_path.parent.parent.absolute()) + "/checkpoint/" + "models/"
+    checkpoint_file = os.path.join(checkpoint_dir, "resnet50")
+    print(f"resnet50 model is saved to {checkpoint_file}!")
+    T.save(resnet50_backbone.state_dict(), checkpoint_file)
+    for param in resnet50_backbone.parameters():
+        print(f"save weights for resnet50 {param.data}")

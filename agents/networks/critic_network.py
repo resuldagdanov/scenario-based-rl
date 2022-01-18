@@ -4,7 +4,7 @@ T.manual_seed(0)
 import torch.nn as nn
 import torch.optim as optim
 T.backends.cudnn.benchmark = False
-T.use_deterministic_algorithms(True)
+#T.use_deterministic_algorithms(True)
 
 class CriticNetwork(nn.Module):
     def __init__(self, device, state_size, n_actions, name, checkpoint_dir):

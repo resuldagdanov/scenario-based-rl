@@ -4,7 +4,7 @@ import itertools
 import torch as T
 T.manual_seed(0)
 T.backends.cudnn.benchmark = False
-T.use_deterministic_algorithms(True)
+#T.use_deterministic_algorithms(True)
 from tensorboardX import SummaryWriter
 from datetime import datetime
 

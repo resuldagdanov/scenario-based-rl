@@ -6,7 +6,7 @@ import torchvision
 import numpy as np
 np.random.seed(0)
 torch.backends.cudnn.benchmark = False
-torch.use_deterministic_algorithms(True)
+#torch.use_deterministic_algorithms(True)
 
 class BrakeNetwork(nn.Module):
     def __init__(self, pretrained=True):

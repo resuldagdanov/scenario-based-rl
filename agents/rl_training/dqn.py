@@ -3,7 +3,7 @@ import sys
 import torch as T
 T.manual_seed(0)
 T.backends.cudnn.benchmark = False
-T.use_deterministic_algorithms(True)
+#T.backends.cudnn.deterministic = True
 import torch.nn as nn
 import random
 from tensorboardX import SummaryWriter
@@ -72,16 +72,12 @@ class DQNModel():
         self.writer = SummaryWriter(logdir=log_dir, comment="_carla_model")
 
         # load pretrained ResNet
-        self.resnet_backbone = ResNetBackbone(device=self.device) # TODO: save weights to local and load
+        self.resnet_backbone = ResNetBackbone(device=self.device, checkpoint_dir=checkpoint_dir) # TODO: save weights to local and load
 
         self.dqn_network = DQNNetwork(device=self.device, state_size=self.state_size, n_actions=self.n_actions, name='dqn', checkpoint_dir=checkpoint_dir)
-        for param in self.dqn_network.parameters():
-            print(f"dqn_init dqn_network {param.data}")
 
         self.target_dqn_network = DQNNetwork(device=self.device, state_size=self.state_size, n_actions=self.n_actions, name='dqn_target', checkpoint_dir=checkpoint_dir)
         self.target_dqn_network.load_state_dict(copy.deepcopy(self.dqn_network.state_dict()))
-        for param in self.target_dqn_network.parameters():
-            print(f"dqn_init target_dqn_network {param.data}")
 
         if not self.evaluate:
             self.alpha = db.get_alpha(self.training_id)
@@ -150,25 +146,13 @@ class DQNModel():
 
     def target_update(self):
         self.target_dqn_network.load_state_dict(copy.deepcopy(self.dqn_network.state_dict()))
-        for param in self.target_dqn_network.parameters():
-            print(f"target_update target_dqn_network {param.data}")
 
     def save_models(self, episode_number):
         print(f'.... saving models episode_number {episode_number} ....')
         self.dqn_network.save_checkpoint(episode_number)
-        for param in self.dqn_network.parameters():
-            print(f"save_models dqn_network {param.data}")
-
         self.target_dqn_network.save_checkpoint(episode_number)
-        for param in self.target_dqn_network.parameters():
-            print(f"save_models target_dqn_network {param.data}")
 
     def load_models(self, episode_number):
         print(f'.... loading models episode_number {episode_number} ....')
         self.dqn_network.load_checkpoint(episode_number)
-        for param in self.dqn_network.parameters():
-            print(f"load_models dqn_network {param.data}")
-
         self.target_dqn_network.load_checkpoint(episode_number)
-        for param in self.target_dqn_network.parameters():
-            print(f"load_models target_dqn_network {param.data}")

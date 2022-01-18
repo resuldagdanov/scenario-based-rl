@@ -9,7 +9,7 @@ import carla
 import torch
 torch.manual_seed(0)
 torch.backends.cudnn.benchmark = False
-torch.use_deterministic_algorithms(True)
+#torch.use_deterministic_algorithms(True)
 import cv2
 import math
 import weakref

@@ -7,7 +7,7 @@ export evaluate=false # true
 export model_name="Jan_15_2022-22_08_22" # only used if evaluate true, make sure it exists
 export load_episode_number=140 # only used if evaluate true, make sure it exists
 
-export repetitions=1
+export repetitions=2
 export max_episode_batch_num=1
 export json_file="all_towns_traffic_scenarios_WOR.json" 
 export xml_file="failed_routes/town05_long/stuck_vehicle_1.xml"
@@ -26,6 +26,9 @@ if ${evaluate}; then # evaluate
 else # train
     python3 init_training_parameters.py --xml_file $xml_file --json_file $json_file
 fi
+
+
+#export CUBLAS_WORKSPACE_CONFIG=:16:8 # to run with CUDA while using pytorch deterministic algorithms (e.g. torch.set_deterministic(True))
 
 train () {
     working_dir=$(pwd)

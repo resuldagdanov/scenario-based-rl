@@ -11,7 +11,7 @@ import torch
 torch.manual_seed(0)
 import carla
 torch.backends.cudnn.benchmark = False
-torch.use_deterministic_algorithms(True)
+#torch.use_deterministic_algorithms(True)
 
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 

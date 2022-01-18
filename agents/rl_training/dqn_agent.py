@@ -9,7 +9,7 @@ import carla
 import torch as T
 T.manual_seed(0)
 T.backends.cudnn.benchmark = False
-T.use_deterministic_algorithms(True)
+#T.use_deterministic_algorithms(True)
 import cv2
 import math
 import weakref
@@ -246,8 +246,6 @@ class DqnAgent(AutonomousAgent):
         image_features_torch = self.agent.resnet_backbone(dnn_input_image)
         image_features = image_features_torch.cpu().detach().numpy()[0]
 
-        print(f"image_features_torch {image_features_torch}")
-        print(f"fused_inputs_torch {fused_inputs_torch}")
         # get action from value network
         if self.agent.evaluate: # evaluation
             dnn_agent_action = np.array(self.agent.select_max_action(image_features=image_features_torch, fused_input=fused_inputs_torch)) # 1 dimensional for DQN            
@@ -387,7 +385,7 @@ class DqnAgent(AutonomousAgent):
             reward -= 100
             done = 1
 
-        if self.step_number > 10: #1000: # TODO: make this hyperparam
+        if self.step_number > 1000: # TODO: make this hyperparam
             done = 1
 
         return reward, done
@@ -576,4 +574,4 @@ class DqnAgent(AutonomousAgent):
             self.lane_invasion_sensor.stop()
 
         # terminate and go to another eposide
-        os.kill(os.getpid(), signal.SIGINT)
+        os.kill(os.getpid(), signal.SIGINT) # TODO: Check this
