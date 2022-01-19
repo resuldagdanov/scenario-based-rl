@@ -184,30 +184,40 @@ class DQNModel():
 
         checkpoint_file = os.path.join(self.checkpoint_dir, "dqn" + "-ep_" + str(episode_number))
         T.save(self.dqn_network.state_dict(), checkpoint_file)
+        """
         for name, param in self.dqn_network.named_parameters():
             print (f"save_models dqn_network {name} {param.data}")
+        """
 
         checkpoint_file = os.path.join(self.checkpoint_dir, "dqn_target" + "-ep_" + str(episode_number))
         T.save(self.target_dqn_network.state_dict(), checkpoint_file)
+        """
         for name, param in self.target_dqn_network.named_parameters():
             print (f"save_models target_dqn_network {name} {param.data}")
+        """
 
     def load_models(self, episode_number):
         print(f'.... loading models episode_number {episode_number} ....')
 
         checkpoint_file = os.path.join(self.checkpoint_dir,  "dqn" + "-ep_" + str(episode_number))
         self.dqn_network.load_state_dict(T.load(checkpoint_file))
+        """
         for name, param in self.dqn_network.named_parameters():
             print (f"load_models dqn_network {name} {param.data}")
+        """
 
         checkpoint_file = os.path.join(self.checkpoint_dir,  "dqn_target" + "-ep_" + str(episode_number))
         self.target_dqn_network.load_state_dict(T.load(checkpoint_file))
+        """
         for name, param in self.target_dqn_network.named_parameters():
             print (f"load_models target_dqn_network {name} {param.data}")
+        """
 
     def load_resnet_weights(self):
         print(f'.... loading resnet50 model ....')
         checkpoint_file = os.path.join(self.checkpoint_dir_resnet, "resnet50")
         self.resnet50.load_state_dict(T.load(checkpoint_file))
+        """
         for name, param in self.resnet50.named_parameters():
             print (f"load resnet50 {name} {param.data}")
+        """

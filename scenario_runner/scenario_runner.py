@@ -55,8 +55,6 @@ torch.backends.cudnn.benchmark = False
 
 # Version of scenario_runner
 VERSION = '0.9.9'
-
-
 class ScenarioRunner(object):
 
     """
@@ -467,13 +465,13 @@ class ScenarioRunner(object):
         route_configurations = RouteParser.parse_routes_file(routes, scenario_file, single_route)
 
         for config in route_configurations:
-            from agents.utils.db import DB
+            from agent_utils.db import DB
             db = DB()
 
             if self._args.imitation_learning:
                 model = None
             else:
-                from agents.rl_training.dqn import DQNModel
+                from rl_training.dqn import DQNModel
 
                 model = DQNModel(db, self._args.evaluate)
 

@@ -96,7 +96,9 @@ class DqnAgent(AutonomousAgent):
 
         self.init_dnn_agent()
         self.init_auto_pilot()
+        print(f"before privileged agent")
         self.init_privileged_agent()
+        print(f"after privileged agent")
 
         self.initialized = True
         self.push_buffer = False
@@ -272,9 +274,9 @@ class DqnAgent(AutonomousAgent):
 
         throttle, steer, brake, angle = self.calculate_high_level_action(dnn_agent_action, compass, gps, near_node, far_node, data)
         applied_control = carla.VehicleControl()
-        applied_control.throttle = throttle
+        applied_control.throttle = 0.5 #throttle
         applied_control.steer = steer
-        applied_control.brake = brake
+        applied_control.brake = 0.0 #brake
 
         # compute step reward and deside for termination
         reward, done = self.calculate_reward(throttle=throttle, ego_speed=speed, ego_gps=gps, goal_point=far_node, angle=angle)
@@ -417,6 +419,7 @@ class DqnAgent(AutonomousAgent):
         bp_collision = blueprint.find('sensor.other.collision')
         bp_lane_invasion = blueprint.find('sensor.other.lane_invasion')
 
+        print(f"enter priviliged sensors")
         # attach sensors to the ego vehicle
         self.collision_sensor = self.world.spawn_actor(bp_collision, carla.Transform(), attach_to=self.hero_vehicle)
         self.lane_invasion_sensor = self.world.spawn_actor(bp_lane_invasion, carla.Transform(), attach_to=self.hero_vehicle)
@@ -424,6 +427,7 @@ class DqnAgent(AutonomousAgent):
         # create sensor event callbacks
         self.collision_sensor.listen(lambda event: DqnAgent._on_collision(weakref.ref(self), event))
         self.lane_invasion_sensor.listen(lambda event: DqnAgent._on_lane_invasion(weakref.ref(self), event))
+        print(f"end priviliged sensors")
 
     def traffic_data(self):
         all_actors = self.world.get_actors()
