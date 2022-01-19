@@ -21,8 +21,8 @@ current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
 sys.path.append(parent)
 
-from utils.db import DB
-from utils import base_utils
+from agent_utils.db import DB
+from agent_utils import base_utils
 
 # TODO: also add seeds for all random generators
 # Add trafficManagerSeed
@@ -53,8 +53,8 @@ parser.add_argument('--write_resnet', type=bool, default=False, help='if True, w
 
 args = parser.parse_args()
 
-#args.debug = True
-args.is_cpu = True #False
+args.debug = True
+args.is_cpu = False #False
 args.n_actions = 6
 
 for arg in vars(args):

@@ -17,12 +17,13 @@ T.manual_seed(seed)
 np.random.seed(seed)
 random.seed(seed) 
 # for cuda
+"""
 T.cuda.manual_seed_all(seed)
 T.backends.cudnn.deterministic = True
 T.backends.cudnn.benchmark = False
+"""
 
-from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
-from srunner.autoagents.autonomous_agent import AutonomousAgent
+from leaderboard.autoagents import autonomous_agent 
 
 # to add the parent "agents" folder to sys path and import models
 current = os.path.dirname(os.path.realpath(__file__))
@@ -43,7 +44,37 @@ SENSOR_CONFIG = {
             'fov': 100
         }
 
-class OffsetAgent(AutonomousAgent):
+def get_entry_point():
+    return 'ImitationLearningAgent' 
+
+class ImitationLearningAgent(autonomous_agent.AutonomousAgent):
+    def setup(self,rl_model):
+        self.track = autonomous_agent.Track.SENSORS 
+
+        rl_model = None
+        if rl_model is None:
+            self.run_imitation_agent = True
+            self.debug = True
+        else:
+            self.run_imitation_agent = False
+
+            self.rl_model = rl_model
+            self.debug = self.rl_model.debug
+            self.writer = self.rl_model.writer
+
+        if not self.run_imitation_agent:
+            if not self.rl_model.evaluate:
+                self.best_reward = self.rl_model.db.get_best_reward(self.rl_model.training_id)
+                self.total_step_num = self.rl_model.db.get_total_step_num(self.rl_model.training_id)
+                print(f"training model_name {self.rl_model.model_name}   episode_number {self.rl_model.db.get_global_episode_number(self.rl_model.training_id)}   total_step_num {self.total_step_num}   latest_sample_id {self.rl_model.db.get_latest_sample_id(self.rl_model.training_id)}   best_reward {self.best_reward}   best_reward_episode_number {self.rl_model.db.get_best_reward_episode_number(self.rl_model.training_id)}")
+            else:
+                self.best_reward = 0.0
+                self.total_step_num = self.rl_model.db.get_evaluation_total_step_num(self.rl_model.evaluation_id)
+                print(f"evaluation model_name {self.rl_model.model_name}   model_episode_number {self.rl_model.db.get_evaluation_model_episode_number(self.rl_model.evaluation_id)}   episode_number {self.rl_model.db.get_evaluation_global_episode_number(self.rl_model.evaluation_id)}   total_step_num {self.total_step_num}   average_evaluation_score {self.rl_model.db.get_evaluation_average_evaluation_score(self.rl_model.evaluation_id)}")
+
+        self.initialized = False
+        self._sensor_data = SENSOR_CONFIG
+
     def init_dnn_agent(self):
         input_dims = (3, SENSOR_CONFIG['height'], SENSOR_CONFIG['width'])
 
@@ -53,58 +84,23 @@ class OffsetAgent(AutonomousAgent):
             print("device: ", self.device)
 
             # load pretrained policy network
-            self.policy = OffsetNetwork()
-            self.policy.to(self.device)
+            self.agent = OffsetNetwork()
+            self.agent.to(self.device)
 
             # TODO: IMPORTANT! make a global input parameter
             model_name = "offset_model_epoch_45.pth"
             trained_policy_path = os.path.join(os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/models/"), model_name)
             print(f"trained_policy_path {trained_policy_path}")
             
-            self.policy.load_state_dict(T.load(trained_policy_path))
-            self.policy.eval()
+            self.agent.load_state_dict(T.load(trained_policy_path))
+            self.agent.eval()
         else:
-            self.device = self.agent.device
+            self.device = self.rl_model.device
 
     def init_auto_pilot(self):
         self._turn_controller = PIDController(K_P=1.25, K_I=0.75, K_D=0.3, n=40)
         self._speed_controller = PIDController(K_P=5.0, K_I=0.5, K_D=1.0, n=40)
 
-    def init_privileged_agent(self):
-        self.hero_vehicle = CarlaDataProvider.get_hero_actor()
-        self.world = self.hero_vehicle.get_world()
-
-        self.collision_intensity = 0.0
-        self.is_collision = False
-        self.is_lane_invasion = False
-
-        if not self.run_imitation_agent:
-            self.privileged_sensors()
-
-    def setup(self,rl_model):
-        rl_model = None
-        if rl_model is None:
-            self.run_imitation_agent = True
-            self.debug = True
-        else:
-            self.run_imitation_agent = False
-
-            self.agent = rl_model
-            self.debug = self.agent.debug
-            self.writer = self.agent.writer
-
-        if not self.run_imitation_agent:
-            if not self.agent.evaluate:
-                self.best_reward = self.agent.db.get_best_reward(self.agent.training_id)
-                self.total_step_num = self.agent.db.get_total_step_num(self.agent.training_id)
-                print(f"training model_name {self.agent.model_name}   episode_number {self.agent.db.get_global_episode_number(self.agent.training_id)}   total_step_num {self.total_step_num}   latest_sample_id {self.agent.db.get_latest_sample_id(self.agent.training_id)}   best_reward {self.best_reward}   best_reward_episode_number {self.agent.db.get_best_reward_episode_number(self.agent.training_id)}")
-            else:
-                self.best_reward = 0.0
-                self.total_step_num = self.agent.db.get_evaluation_total_step_num(self.agent.evaluation_id)
-                print(f"evaluation model_name {self.agent.model_name}   model_episode_number {self.agent.db.get_evaluation_model_episode_number(self.agent.evaluation_id)}   episode_number {self.agent.db.get_evaluation_global_episode_number(self.agent.evaluation_id)}   total_step_num {self.total_step_num}   average_evaluation_score {self.agent.db.get_evaluation_average_evaluation_score(self.agent.evaluation_id)}")
-
-        self.initialized = False
-        self._sensor_data = SENSOR_CONFIG
 
     def set_global_plan(self, global_plan_gps, global_plan_world_coord):
         super().set_global_plan(global_plan_gps, global_plan_world_coord)
@@ -119,11 +115,10 @@ class OffsetAgent(AutonomousAgent):
         self._route_planner.set_route(self._plan_gps_HACK, True)
         self._command_planner.set_route(self._global_plan, True)
 
-
         self.init_dnn_agent()
         self.init_auto_pilot()
 
-        self.init_privileged_agent()
+        #self.init_privileged_agent()
 
         if not self.run_imitation_agent:
             self.collision_sensor = None
@@ -175,6 +170,11 @@ class OffsetAgent(AutonomousAgent):
                     'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0,
                     'sensor_tick': 0.05,
                     'id': 'imu'
+                    },
+                {
+                    'type': 'sensor.speedometer',
+                    'reading_frequency': 20,
+                    'id': 'speed'
                     }
                 ]   
     
@@ -184,13 +184,12 @@ class OffsetAgent(AutonomousAgent):
         gps = input_data['gps'][1][:2]
         compass = input_data['imu'][1][-1]
 
-        speed = self.hero_vehicle.get_velocity()
-        speed_kmh = 3.6 * math.sqrt(speed.x**2 + speed.y**2 + speed.z**2) # km/h
+        speed = input_data['speed'][1]['speed']
 
         return {
                 'rgb_front': rgb_front,
                 'gps': gps,
-                'speed': speed_kmh,
+                'speed': speed,
                 'compass': compass
                 }
 
@@ -206,13 +205,14 @@ class OffsetAgent(AutonomousAgent):
         near_node, near_command = self._route_planner.run_step(gps)
         far_node, far_command = self._command_planner.run_step(gps)
 
+        print(f"near_node {near_node}")
         # front image
         rgb_front_image = data['rgb_front']
         front_cv_image = rgb_front_image[:, :, ::-1]
 
         fused_inputs = np.zeros(3, dtype=np.float32)
 
-        fused_inputs[0] = speed / 3.6 # m/s
+        fused_inputs[0] = speed
         fused_inputs[1] = far_node[0] - gps[0]
         fused_inputs[2] = far_node[1] - gps[1]
 
@@ -230,23 +230,23 @@ class OffsetAgent(AutonomousAgent):
 
         if self.run_imitation_agent:
             with T.no_grad():
-                state_space = self.policy(fronts=dnn_input_image, fused_input=fused_inputs_torch)
+                state_space = self.agent(fronts=dnn_input_image, fused_input=fused_inputs_torch)
             state_space = state_space.cpu().detach().numpy()[0]
             # convert state space to torch tensors to be an input to neural net
             state_torch = T.from_numpy(state_space.copy()).unsqueeze(0).to(self.device)
 
             with T.no_grad():
-                dnn_brake, offset = self.policy.compute_action(state_space=state_torch)
+                dnn_brake, offset = self.agent.compute_action(state_space=state_torch)
             dnn_brake = dnn_brake.cpu().detach().numpy()[0]
             offset = offset.cpu().detach().numpy()[0]
 
         else:
             # apply freezed pre-trained model onto the image and get state space
-            state = self.agent.get_state_space(front_image=dnn_input_image, fused_input=fused_inputs_torch)
+            state = self.rl_model.get_state_space(front_image=dnn_input_image, fused_input=fused_inputs_torch)
             # convert state space to torch tensors to be an input to neural net
             state_torch = T.from_numpy(state.copy()).unsqueeze(0).to(self.device)
 
-            dnn_brake, offset = self.agent.select_action(network=self.agent.policy, state_space=state_torch)
+            dnn_brake, offset = self.rl_model.select_action(network=self.rl_model.policy, state_space=state_torch)
 
         agent_action = np.array([dnn_brake[0], offset[0]])
 
@@ -284,14 +284,14 @@ class OffsetAgent(AutonomousAgent):
         policy_loss = None
         value_loss = None
 
-        if self.push_buffer and not self.agent.evaluate:
+        if self.push_buffer and not self.rl_model.evaluate:
             # TODO: database format should be changed to be compatible rl transitions
-            self.agent.memory.push_transition(state, agent_action, reward, self.next_state, done)
+            self.rl_model.memory.push_transition(state, agent_action, reward, self.next_state, done)
 
-            if self.agent.memory.filled_size > self.agent.batch_size:
-                sample_batch = self.agent.memory.sample(self.agent.batch_size)
+            if self.rl_model.memory.filled_size > self.rl_model.batch_size:
+                sample_batch = self.rl_model.memory.sample(self.rl_model.batch_size)
 
-                policy_loss, value_loss = self.agent.update(sample_batch)
+                policy_loss, value_loss = self.rl_model.update(sample_batch)
             
                 self.n_updates += 1 # number of updates in one episode
                 self.total_loss_pi += policy_loss # episodic loss
@@ -305,29 +305,29 @@ class OffsetAgent(AutonomousAgent):
 
         # terminate an episode
         if done:
-            if not self.agent.evaluate: # training
-                self.agent.db.update_latest_sample_id(self.agent.memory.id, self.agent.training_id)
-                self.agent.db.update_total_step_num(self.total_step_num, self.agent.training_id)
+            if not self.rl_model.evaluate: # training
+                self.rl_model.db.update_latest_sample_id(self.rl_model.memory.id, self.rl_model.training_id)
+                self.rl_model.db.update_total_step_num(self.total_step_num, self.rl_model.training_id)
 
                 if self.episode_total_reward > self.best_reward:
                     self.best_reward = self.episode_total_reward
-                    self.agent.db.update_best_reward(self.best_reward, self.agent.training_id)
-                    self.agent.db.update_best_reward_episode_number(self.agent.db.get_global_episode_number(self.agent.training_id), self.agent.training_id)
+                    self.rl_model.db.update_best_reward(self.best_reward, self.rl_model.training_id)
+                    self.rl_model.db.update_best_reward_episode_number(self.rl_model.db.get_global_episode_number(self.rl_model.training_id), self.rl_model.training_id)
 
                     print("Best Episode Reward: ", self.best_reward)
 
-                    self.agent.save_models(self.agent.db.get_global_episode_number(self.agent.training_id))
+                    self.rl_model.save_models(self.rl_model.db.get_global_episode_number(self.rl_model.training_id))
 
-                base_utils.tensorboard_writer(self.writer, self.agent.db.get_global_episode_number(self.agent.training_id), self.episode_total_reward, self.best_reward, self.total_loss_pi, self.total_loss_q, self.n_updates)
+                base_utils.tensorboard_writer(self.writer, self.rl_model.db.get_global_episode_number(self.rl_model.training_id), self.episode_total_reward, self.best_reward, self.total_loss_pi, self.total_loss_q, self.n_updates)
             
             else: # evaluation
-                self.agent.db.update_evaluation_total_step_num(self.total_step_num, self.agent.evaluation_id)
-                self.agent.db.update_evaluation_average_evaluation_score(self.episode_total_reward, self.agent.evaluation_id)
-                base_utils.tensorboard_writer_evaluation(self.writer, self.agent.db.get_evaluation_global_episode_number(self.agent.evaluation_id), self.episode_total_reward)
+                self.rl_model.db.update_evaluation_total_step_num(self.total_step_num, self.rl_model.evaluation_id)
+                self.rl_model.db.update_evaluation_average_evaluation_score(self.episode_total_reward, self.rl_model.evaluation_id)
+                base_utils.tensorboard_writer_evaluation(self.writer, self.rl_model.db.get_evaluation_global_episode_number(self.rl_model.evaluation_id), self.episode_total_reward)
 
             print("------------ Terminating! ------------")
             print("Episode Total Reward: ", round(self.episode_total_reward, 3))
-            self.destroy()
+            #self.destroy()
 
         self.step_number += 1
         self.total_step_num += 1
@@ -415,21 +415,6 @@ class OffsetAgent(AutonomousAgent):
         new_near_node[1] += ego_gps[1]
 
         return new_near_node
-
-    def privileged_sensors(self):
-        blueprint = self.world.get_blueprint_library()
-
-        # get blueprint of the sensors
-        bp_collision = blueprint.find('sensor.other.collision')
-        bp_lane_invasion = blueprint.find('sensor.other.lane_invasion')
-
-        # attach sensors to the ego vehicle
-        self.collision_sensor = self.world.spawn_actor(bp_collision, carla.Transform(), attach_to=self.hero_vehicle)
-        self.lane_invasion_sensor = self.world.spawn_actor(bp_lane_invasion, carla.Transform(), attach_to=self.hero_vehicle)
-
-        # create sensor event callbacks
-        self.collision_sensor.listen(lambda event: OffsetAgent._on_collision(weakref.ref(self), event))
-        self.lane_invasion_sensor.listen(lambda event: OffsetAgent._on_lane_invasion(weakref.ref(self), event))
 
     def traffic_data(self):
         all_actors = self.world.get_actors()
@@ -594,7 +579,8 @@ class OffsetAgent(AutonomousAgent):
         self.is_lane_invasion = True  
 
     def destroy(self):
-        #del self.policy 
+        del self.agent 
+        print(f"agent is destroyed")
 
         if not self.run_imitation_agent:
             if self.collision_sensor is not None:
@@ -603,4 +589,4 @@ class OffsetAgent(AutonomousAgent):
                 self.lane_invasion_sensor.stop()
         
         # terminate and go to another eposide
-        os.kill(os.getpid(), signal.SIGINT)
+        #os.kill(os.getpid(), signal.SIGINT)

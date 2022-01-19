@@ -22,7 +22,7 @@ current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
 sys.path.append(parent)
 
-from utils.buffer import ReplayBuffer
+from agent_utils.buffer import ReplayBuffer
 from networks.value_network import ValueNetwork
 from networks.offset_network import OffsetNetwork
 

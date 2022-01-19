@@ -27,9 +27,9 @@ current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
 sys.path.append(parent)
 
-from utils import base_utils
-from utils.pid_controller import PIDController
-from utils.planner import RoutePlanner
+from agent_utils import base_utils
+from agent_utils.pid_controller import PIDController
+from agent_utils.planner import RoutePlanner
 from srunner.autoagents.autonomous_agent import AutonomousAgent
 
  #TODO: SENSOR configs can be put to DB
@@ -228,7 +228,7 @@ class DqnAgent(AutonomousAgent):
 
         # front image
         rgb_front_image = data['rgb_front']
-        print(f"rgb_front_image {np.sum(rgb_front_image)}")
+        #print(f"rgb_front_image {np.sum(rgb_front_image)}")
         front_cv_image = rgb_front_image[:, :, ::-1]
 
         fused_inputs = np.zeros(3, dtype=np.float32)
@@ -243,8 +243,10 @@ class DqnAgent(AutonomousAgent):
             cv2.waitKey(1)
 
         # construct network input image format
+        """
         print(f"front_cv_image.shape {front_cv_image.shape}")
         print(f"front_cv_image {np.sum(front_cv_image)}")
+        """
         dnn_input_image = self.image_to_dnn_input(image=front_cv_image)
 
         # fused inputs to torch
@@ -255,9 +257,11 @@ class DqnAgent(AutonomousAgent):
         image_features_torch = self.agent.resnet_backbone(dnn_input_image)
         image_features = image_features_torch.cpu().detach().numpy()[0]
 
+        """
         print(f"dnn_input_image {T.sum(dnn_input_image)}")
         print(f"image_features_torch {image_features_torch}")
         print(f"fused_inputs_torch {fused_inputs_torch}")
+        """
 
         # get action from value network
         if self.agent.evaluate: # evaluation
@@ -374,6 +378,8 @@ class DqnAgent(AutonomousAgent):
             else:
                 print("[Reward]: correctly braking !")
                 reward += 50
+
+            self.count_vehicle_stop = 0
                 
         # terminate if vehicle is not moving for too long steps
         else:
@@ -398,7 +404,7 @@ class DqnAgent(AutonomousAgent):
             reward -= 100
             done = 1
 
-        if self.step_number > 1000: # TODO: make this hyperparam
+        if self.step_number > 2000: # TODO: make this hyperparam
             done = 1
 
         return reward, done

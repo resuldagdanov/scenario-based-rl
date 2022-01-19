@@ -7,9 +7,11 @@ T.manual_seed(seed)
 np.random.seed(seed)
 random.seed(seed) 
 # for cuda
+"""
 T.cuda.manual_seed_all(seed)
 T.backends.cudnn.deterministic = True
 T.backends.cudnn.benchmark = False
+"""
 
 import torch.nn as nn
 import torchvision
