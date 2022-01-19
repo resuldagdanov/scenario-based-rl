@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.log
+.project
+.pydevproject
+
+#*.sh
+#*.xml
+#*.json
+
+#!/data/*
