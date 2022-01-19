@@ -44,5 +44,7 @@ class ResNetBackbone(nn.Module):
         checkpoint_file = os.path.join(self.checkpoint_dir, self.name)
         self.resnet50_backbone.load_state_dict(T.load(checkpoint_file))
 
+        """
         for name, param in self.resnet50_backbone.named_parameters():
             print(f"load weights for resnet50 {name} {param}")
+        """

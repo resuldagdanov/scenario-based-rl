@@ -486,14 +486,12 @@ class ScenarioRunner(object):
         # retrieve routes
         route_configurations = RouteParser.parse_routes_file(routes, scenario_file, single_route)
 
-        for config in route_configurations:
-            from utils.db import DB
+        for config in route_configurations: # TODO make sure it works well, when more than route exists it fails right now
+            from agent_utils.db import DB
             db = DB()
 
             if self._args.imitation_learning:
-                #from rl_training.ddpg import DDPG
                 model = None
-
             else:
                 from rl_training.dqn import DQNModel
                 model = DQNModel(db, self._args.evaluate)

@@ -23,7 +23,7 @@ current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
 sys.path.append(parent)
 
-from utils.buffer import ReplayBuffer
+from agent_utils.buffer import ReplayBuffer
 from networks.dqn_network import DQNNetwork
 from networks.resnet_backbone import ResNetBackbone
 
@@ -159,19 +159,27 @@ class DQNModel():
     def save_models(self, episode_number):
         print(f'.... saving models episode_number {episode_number} ....')
         self.dqn_network.save_checkpoint(episode_number)
+        """
         for name, param in self.dqn_network.named_parameters():
             print(f"save weights for dqn_network {episode_number} {name} {param}")
+        """
 
         self.target_dqn_network.save_checkpoint(episode_number)
+        """
         for name, param in self.target_dqn_network.named_parameters():
             print(f"save weights for target_dqn_network {episode_number} {name} {param}")
+        """
 
     def load_models(self, episode_number):
         print(f'.... loading models episode_number {episode_number} ....')
         self.dqn_network.load_checkpoint(episode_number)
+        """
         for name, param in self.dqn_network.named_parameters():
             print(f"load weights for dqn_network {episode_number} {name} {param}")
+        """
 
         self.target_dqn_network.load_checkpoint(episode_number)
+        """
         for name, param in self.target_dqn_network.named_parameters():
             print(f"load weights for target_dqn_network {episode_number} {name} {param}")
+        """
