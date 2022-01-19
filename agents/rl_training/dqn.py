@@ -3,6 +3,7 @@ import sys
 import torch as T
 import numpy as np
 import random
+from pathlib import Path
 
 seed = 0
 T.manual_seed(seed)
@@ -14,9 +15,10 @@ T.backends.cudnn.deterministic = True
 T.backends.cudnn.benchmark = False
 
 import torch.nn as nn
+from torchvision import models
 
 from tensorboardX import SummaryWriter
-import copy
+from copy import deepcopy
 
 # to add the parent "agents" folder to sys path and import models
 current = os.path.dirname(os.path.realpath(__file__))
@@ -25,7 +27,6 @@ sys.path.append(parent)
 
 from agent_utils.buffer import ReplayBuffer
 from networks.dqn_network import DQNNetwork
-from networks.resnet_backbone import ResNetBackbone
 
 CHECKPOINT_PATH = os.environ.get('CHECKPOINT_PATH', None)
 
@@ -44,7 +45,7 @@ class DQNModel():
 
             load_episode_number = self.db.get_evaluation_model_episode_number(self.evaluation_id)
             self.model_name = self.db.get_evaluation_model_name(self.evaluation_id)
-            checkpoint_dir = CHECKPOINT_PATH + 'models/' + self.model_name + "/"
+            self.checkpoint_dir = CHECKPOINT_PATH + 'models/' + self.model_name + "/"
             log_dir = CHECKPOINT_PATH + 'logs/' + self.model_name + "_model_ep_num_" + str(load_episode_number) + "_id_" + str(self.evaluation_id) + "/"
 
         else: #train
@@ -56,20 +57,22 @@ class DQNModel():
             self.debug = db.get_debug(self.training_id)
 
             self.model_name = self.db.get_model_name(self.training_id)
-            checkpoint_dir = CHECKPOINT_PATH + 'models/' + self.model_name + "/"
+            self.checkpoint_dir = CHECKPOINT_PATH + 'models/' + self.model_name + "/"
             log_dir = CHECKPOINT_PATH + 'logs/' + self.model_name + "/"
 
             self.epsilon_max = self.db.get_epsilon_max(self.training_id) # 1.0
             self.epsilon_decay = self.db.get_epsilon_decay(self.training_id) # 0.99
             self.epsilon_min = self.db.get_epsilon_min(self.training_id) # 0.02
 
-        if not os.path.exists(checkpoint_dir):
-            os.makedirs(checkpoint_dir)
+        if not os.path.exists(self.checkpoint_dir):
+            os.makedirs(self.checkpoint_dir)
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
 
-        print(f"models will be in {checkpoint_dir}")
+        print(f"models will be in {self.checkpoint_dir}")
         print(f"logs will be saved to {log_dir}")
+
+        self.checkpoint_dir_resnet = str(Path(self.checkpoint_dir).parent.absolute())
 
         if is_cpu:
             self.device = T.device('cpu')
@@ -81,12 +84,29 @@ class DQNModel():
         self.writer = SummaryWriter(logdir=log_dir, comment="_carla_model")
 
         # load pretrained ResNet
-        self.resnet_backbone = ResNetBackbone(device=self.device, checkpoint_dir=checkpoint_dir) # TODO: save weights to local and load
+        self.resnet50 = models.resnet50(pretrained=False)
+        self.load_resnet_weights()
 
-        self.dqn_network = DQNNetwork(device=self.device, state_size=self.state_size, n_actions=self.n_actions, name='dqn', checkpoint_dir=checkpoint_dir)
+        # freeze weights
+        for param in self.resnet50.parameters():
+            param.requires_grad = False
 
-        self.target_dqn_network = DQNNetwork(device=self.device, state_size=self.state_size, n_actions=self.n_actions, name='dqn_target', checkpoint_dir=checkpoint_dir)
-        self.target_dqn_network.load_state_dict(copy.deepcopy(self.dqn_network.state_dict()))
+        self.resnet50.eval()
+        self.resnet50.to(self.device)
+
+        self.dqn_network = DQNNetwork(state_size=self.state_size, n_actions=self.n_actions)
+
+        self.target_dqn_network = deepcopy(self.dqn_network)
+
+        self.dqn_network.to(self.device)
+        self.target_dqn_network.to(self.device)
+
+        for param in self.target_dqn_network.parameters():
+            param.requires_grad = False
+
+        if evaluate:
+            self.dqn_network.eval()
+            self.target_dqn_network.eval()
 
         if not self.evaluate:
             self.alpha = db.get_alpha(self.training_id)
@@ -105,6 +125,7 @@ class DQNModel():
             self.optimizer = T.optim.Adam(self.dqn_network.parameters(), lr=learning_rate) # TODO: should we define optimizer for the evaluate case too?
             self.l1 = nn.SmoothL1Loss().to(self.device) #Huber Loss
 
+
         if self.evaluate: #evaluate
             self.load_models(load_episode_number)
         else: #train
@@ -122,7 +143,8 @@ class DQNModel():
             return action
 
     def select_max_action(self, image_features, fused_input):
-        max_action = T.argmax(self.dqn_network(image_features, fused_input)).unsqueeze(0).unsqueeze(0).cpu().detach().numpy()[0]
+        with T.no_grad():
+            max_action = T.argmax(self.dqn_network(image_features, fused_input)).unsqueeze(0).unsqueeze(0).cpu().detach().numpy()[0]
         return max_action[0]
 
     def update(self, sample_batch):
@@ -154,32 +176,38 @@ class DQNModel():
         return loss.data.cpu().detach().numpy()
 
     def target_update(self):
-        self.target_dqn_network.load_state_dict(copy.deepcopy(self.dqn_network.state_dict()))
+        with T.no_grad():
+            self.target_dqn_network = deepcopy(self.dqn_network)
 
     def save_models(self, episode_number):
         print(f'.... saving models episode_number {episode_number} ....')
-        self.dqn_network.save_checkpoint(episode_number)
-        """
-        for name, param in self.dqn_network.named_parameters():
-            print(f"save weights for dqn_network {episode_number} {name} {param}")
-        """
 
-        self.target_dqn_network.save_checkpoint(episode_number)
-        """
+        checkpoint_file = os.path.join(self.checkpoint_dir, "dqn" + "-ep_" + str(episode_number))
+        T.save(self.dqn_network.state_dict(), checkpoint_file)
+        for name, param in self.dqn_network.named_parameters():
+            print (f"save_models dqn_network {name} {param.data}")
+
+        checkpoint_file = os.path.join(self.checkpoint_dir, "dqn_target" + "-ep_" + str(episode_number))
+        T.save(self.target_dqn_network.state_dict(), checkpoint_file)
         for name, param in self.target_dqn_network.named_parameters():
-            print(f"save weights for target_dqn_network {episode_number} {name} {param}")
-        """
+            print (f"save_models target_dqn_network {name} {param.data}")
 
     def load_models(self, episode_number):
         print(f'.... loading models episode_number {episode_number} ....')
-        self.dqn_network.load_checkpoint(episode_number)
-        """
-        for name, param in self.dqn_network.named_parameters():
-            print(f"load weights for dqn_network {episode_number} {name} {param}")
-        """
 
-        self.target_dqn_network.load_checkpoint(episode_number)
-        """
+        checkpoint_file = os.path.join(self.checkpoint_dir,  "dqn" + "-ep_" + str(episode_number))
+        self.dqn_network.load_state_dict(T.load(checkpoint_file))
+        for name, param in self.dqn_network.named_parameters():
+            print (f"load_models dqn_network {name} {param.data}")
+
+        checkpoint_file = os.path.join(self.checkpoint_dir,  "dqn_target" + "-ep_" + str(episode_number))
+        self.target_dqn_network.load_state_dict(T.load(checkpoint_file))
         for name, param in self.target_dqn_network.named_parameters():
-            print(f"load weights for target_dqn_network {episode_number} {name} {param}")
-        """
+            print (f"load_models target_dqn_network {name} {param.data}")
+
+    def load_resnet_weights(self):
+        print(f'.... loading resnet50 model ....')
+        checkpoint_file = os.path.join(self.checkpoint_dir_resnet, "resnet50")
+        self.resnet50.load_state_dict(T.load(checkpoint_file))
+        for name, param in self.resnet50.named_parameters():
+            print (f"load resnet50 {name} {param.data}")

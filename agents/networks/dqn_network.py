@@ -15,12 +15,10 @@ T.backends.cudnn.benchmark = False
 import torch.nn as nn
 
 class DQNNetwork(nn.Module):
-    def __init__(self, device, state_size, n_actions, name, checkpoint_dir):
+    def __init__(self, state_size, n_actions):
         super(DQNNetwork, self).__init__()
         
         self.n_actions = n_actions
-        self.name = name
-        self.checkpoint_dir = checkpoint_dir
         
         # fusion data layer
         self.fused_encoder = nn.Linear(3, 128, bias=True)
@@ -34,8 +32,6 @@ class DQNNetwork(nn.Module):
             nn.Linear(64, n_actions)
         )
 
-        self.to(device)
-
     def forward(self, image_features, fused_input):
         fused_features = T.relu(self.fused_encoder(fused_input))
 
@@ -45,11 +41,3 @@ class DQNNetwork(nn.Module):
         action_values = self.fc(concatenate_features)
 
         return action_values
-
-    def save_checkpoint(self, episode_number):
-        checkpoint_file = os.path.join(self.checkpoint_dir, self.name + "-ep_" + str(episode_number))
-        T.save(self.state_dict(), checkpoint_file)
-
-    def load_checkpoint(self, episode_number):
-        checkpoint_file = os.path.join(self.checkpoint_dir, self.name + "-ep_" + str(episode_number))
-        self.load_state_dict(T.load(checkpoint_file))

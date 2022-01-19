@@ -254,8 +254,9 @@ class DqnAgent(AutonomousAgent):
         fused_inputs_torch = T.from_numpy(fused_inputs.copy()).unsqueeze(0).to(self.device)
 
         # apply freezed pre-trained resnet model onto the image
-        image_features_torch = self.agent.resnet_backbone(dnn_input_image)
-        image_features = image_features_torch.cpu().detach().numpy()[0]
+        with T.no_grad():
+            image_features_torch = self.agent.resnet50(dnn_input_image)
+            image_features = image_features_torch.cpu().detach().numpy()[0]
 
         """
         print(f"dnn_input_image {T.sum(dnn_input_image)}")
@@ -326,7 +327,7 @@ class DqnAgent(AutonomousAgent):
                 if self.episode_total_reward > self.best_reward:
                     self.best_reward = self.episode_total_reward
                     self.agent.db.update_best_reward(self.best_reward, self.agent.training_id)
-                    self.agent.db.update_best_reward_episode_number(self.agent.db.get_global_episode_number(self.agent.training_id), self.agent.training_id)
+                    self.agent.db.update_best_reward_episode_number(self.agent.db.get_global_episode_number(self.agent.training_id), self.agent.training_id) # TODO: make sure that global episode number is correct
 
                     print("Best Episode Reward: ", self.best_reward)
 
@@ -371,7 +372,7 @@ class DqnAgent(AutonomousAgent):
         if any(x is not None for x in [is_light, is_walker, is_vehicle]): #is_stop     
             # accelerating while it should brake
             if throttle > 0.2: #throttle
-                print("[Penalty]: not braking !")
+                print("[Penalty]: not braking !") # TODO: if it passes red light, turn done True
                 reward -= ego_speed * throttle
 
             # braking as it should be

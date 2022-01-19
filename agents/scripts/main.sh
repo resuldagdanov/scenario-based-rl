@@ -4,8 +4,8 @@
 # global variables
 export imitation_learning=false # to evaluate imitation learning model make it true, to train or evaluate dqn model make it false
 export evaluate=true # true
-export model_name="Jan_19_2022-05_13_54" # only used if evaluate true, make sure it exists
-export load_episode_number=360 # only used if evaluate true, make sure it exists
+export model_name="Jan_19_2022-23_50_54" # only used if evaluate true, make sure it exists
+export load_episode_number=11 # only used if evaluate true, make sure it exists
 
 export repetitions=1
 export max_episode_batch_num=1

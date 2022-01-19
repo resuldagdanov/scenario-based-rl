@@ -47,8 +47,8 @@ parser.add_argument('--batch_size', type=int, default=64, help='batch size')
 parser.add_argument('--xml_file', type=str, help='xml file contains routes')
 parser.add_argument('--json_file', type=str, help='json_file contains scenarios')
 parser.add_argument('--epsilon_max', type=float, default=1.0, help='epsilon_max')
-parser.add_argument('--epsilon_decay', type=float, default=0.99, help='epsilon_decay')
-parser.add_argument('--epsilon_min', type=float, default=0.07, help='epsilon_min')
+parser.add_argument('--epsilon_decay', type=float, default=0.90, help='epsilon_decay')
+parser.add_argument('--epsilon_min', type=float, default=0.0, help='epsilon_min')
 parser.add_argument('--write_resnet', type=bool, default=False, help='if True, write resnet params') # be careful while turning this to True!!!
 
 args = parser.parse_args()
