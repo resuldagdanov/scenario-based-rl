@@ -53,7 +53,7 @@ parser.add_argument('--write_resnet', type=bool, default=False, help='if True, w
 
 args = parser.parse_args()
 
-#args.debug = True
+args.debug = True
 args.is_cpu = False #False
 args.n_actions = 6
 
