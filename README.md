@@ -2,15 +2,15 @@
 Implementation of Deep Reinforcement Learning Methods on Carla Simulation with Trainings Based on Scenarios
 
 ## version
-carla version 0.9.13
+carla version 0.9.10.1
 
-python 3.8.10
+python 3.7.11
 
-unreal engine 4.26.2
+unreal engine 4.24
 
-scenario_runner 0.9.12
+scenario_runner 0.9.9
 
-leaderboard ?
+leaderboard
 
 pygame 2.0.1
 
