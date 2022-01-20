@@ -2,11 +2,10 @@ from __future__ import print_function
 
 import os
 import sys
-import time
 import cv2
 import math
-import torch
 import carla
+import signal
 
 import torch as T
 import numpy as np
@@ -15,14 +14,15 @@ import random
 seed = 0
 T.manual_seed(seed)
 np.random.seed(seed)
-random.seed(seed) 
+random.seed(seed)
+
 # for cuda
 T.cuda.manual_seed_all(seed)
 T.backends.cudnn.deterministic = True
 T.backends.cudnn.benchmark = False
 
-
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
+from srunner.autoagents.autonomous_agent import AutonomousAgent
 
 # to add the parent "agents" folder to sys path and import models
 current = os.path.dirname(os.path.realpath(__file__))
@@ -33,53 +33,80 @@ from networks.brake_network import BrakeNetwork
 from agent_utils import base_utils
 from agent_utils.pid_controller import PIDController
 from agent_utils.planner import RoutePlanner
-from _scenario_runner.srunner.autoagents import autonomous_agent
+
+
+SENSOR_CONFIG = {
+            'width': 400,
+            'height': 300,
+            'fov': 100
+        }
 
 
 def get_entry_point():
     return 'BrakeAgent'
 
 
-class BrakeAgent(autonomous_agent.AutonomousAgent):
+class BrakeAgent(AutonomousAgent):
+    def init_dnn_agent(self):
+        input_dims = (3, SENSOR_CONFIG['height'], SENSOR_CONFIG['width'])
 
-    def setup(self, rl_model):
-        self.rl_model = rl_model
-        self.debug = self.rl_model.debug
-        self.writer = self.rl_model.writer
+        # initialize imitation learning model only
+        if self.run_imitation_agent:
+            self.device = T.device('cuda') #T.device('cuda' if T.cuda.is_available() else 'cpu')
+            print("device: ", self.device)
 
-        if not self.rl_model.evaluate:
-            self.best_reward = self.rl_model.db.get_best_reward(self.rl_model.training_id)
-            self.total_step_num = self.rl_model.db.get_total_step_num(self.rl_model.training_id)
-            print(f"training model_name {self.rl_model.model_name}   episode_number {self.rl_model.db.get_global_episode_number(self.rl_model.training_id)}   total_step_num {self.total_step_num}   latest_sample_id {self.rl_model.db.get_latest_sample_id(self.rl_model.training_id)}   best_reward {self.best_reward}   best_reward_episode_number {self.rl_model.db.get_best_reward_episode_number(self.rl_model.training_id)}")
+            # load pretrained policy network
+            self.policy = BrakeNetwork(pretrained=False)
+            self.policy.to(self.device)
+
+            model_name = "brake_agent_epoch_49.pth"
+            trained_policy_path = os.path.join(os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/models/"), model_name)
+            print(f"trained_policy_path {trained_policy_path}")
+            
+            self.policy.load_state_dict(T.load(trained_policy_path))
+            self.policy.eval()
         else:
-            self.best_reward = 0.0
-            self.total_step_num = self.rl_model.db.get_evaluation_total_step_num(self.rl_model.evaluation_id)
-            print(f"evaluation model_name {self.rl_model.model_name}   model_episode_number {self.rl_model.db.get_evaluation_model_episode_number(self.rl_model.evaluation_id)}   episode_number {self.rl_model.db.get_evaluation_global_episode_number(self.agent.evaluation_id)}   total_step_num {self.total_step_num}   average_evaluation_score {self.rl_model.db.get_evaluation_average_evaluation_score(self.rl_model.evaluation_id)}")
+            self.device = self.agent.device
 
-        self.device = self.rl_model.device
-        self.track = autonomous_agent.Track.SENSORS
-        
-        self.wall_start = time.time()
-        self.initialized = False
+    def init_auto_pilot(self):
+        self._turn_controller = PIDController(K_P=1.25, K_I=0.75, K_D=0.3, n=40)
+        self._speed_controller = PIDController(K_P=5.0, K_I=0.5, K_D=1.0, n=40)
 
-        self._sensor_data = {
-            'width': 400,
-            'height': 300,
-            'fov': 100
-        }
-
-        model_name = "brake_agent_epoch_49.pth"
-        self.model_path = os.path.join(os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/models/"), model_name)
-
-        # init agent (do not load resnet trained weights as model will be completely loaded)
-        self.agent = BrakeNetwork(pretrained=False)
-        self.agent.load_state_dict(torch.load(self.model_path))
-
-        self.agent.to(self.device)
-        self.agent.eval()
-
+    def init_privileged_agent(self):
         self.hero_vehicle = CarlaDataProvider.get_hero_actor()
         self.world = self.hero_vehicle.get_world()
+
+        self.collision_intensity = 0.0
+        self.is_collision = False
+        self.is_lane_invasion = False
+
+        if not self.run_imitation_agent:
+            self.privileged_sensors()
+
+    def setup(self, rl_model):
+        rl_model = None
+        if rl_model is None:
+            self.run_imitation_agent = True
+            self.debug = True
+        else:
+            self.run_imitation_agent = False
+
+            self.agent = rl_model
+            self.debug = self.agent.debug
+            self.writer = self.agent.writer
+
+        if not self.run_imitation_agent:
+            if not self.agent.evaluate:
+                self.best_reward = self.agent.db.get_best_reward(self.agent.training_id)
+                self.total_step_num = self.agent.db.get_total_step_num(self.agent.training_id)
+                print(f"training model_name {self.agent.model_name}   episode_number {self.agent.db.get_global_episode_number(self.agent.training_id)}   total_step_num {self.total_step_num}   latest_sample_id {self.agent.db.get_latest_sample_id(self.agent.training_id)}   best_reward {self.best_reward}   best_reward_episode_number {self.agent.db.get_best_reward_episode_number(self.agent.training_id)}")
+            else:
+                self.best_reward = 0.0
+                self.total_step_num = self.agent.db.get_evaluation_total_step_num(self.agent.evaluation_id)
+                print(f"evaluation model_name {self.agent.model_name}   model_episode_number {self.agent.db.get_evaluation_model_episode_number(self.agent.evaluation_id)}   episode_number {self.agent.db.get_evaluation_global_episode_number(self.agent.evaluation_id)}   total_step_num {self.total_step_num}   average_evaluation_score {self.agent.db.get_evaluation_average_evaluation_score(self.agent.evaluation_id)}")
+
+        self.initialized = False
+        self._sensor_data = SENSOR_CONFIG
         
     def set_global_plan(self, global_plan_gps, global_plan_world_coord):
         super().set_global_plan(global_plan_gps, global_plan_world_coord)
@@ -94,23 +121,32 @@ class BrakeAgent(autonomous_agent.AutonomousAgent):
         self._route_planner.set_route(self._plan_gps_HACK, True)
         self._command_planner.set_route(self._global_plan, True)
 
-        self._init_auto_pilot()
+        self.init_dnn_agent()
+        self.init_auto_pilot()
+        self.init_privileged_agent()
+
+        if not self.run_imitation_agent:
+            self.collision_sensor = None
+            self.lane_invasion_sensor = None
 
         self.initialized = True
 
-        self.next_state = []
-
         self.step_number = 1
         self.episode_total_reward = 0.0
-        self.count_vehicle_stop = 0
-        self.n_updates = 0
-        self.total_loss_pi = 0.0
-        self.total_loss_q = 0.0
+        
+        # do not initialize if only imitation agent is evaluated
+        if not self.run_imitation_agent:
+            self.push_buffer = False
+            self.next_state = []
+            self.count_vehicle_stop = 0
+            self.n_updates = 0
+            self.total_loss_pi = 0.0
+            self.total_loss_q = 0.0
 
         if self.debug:
-            cv2.namedWindow("rgb-front")
+            cv2.namedWindow("IL-rgb-front")
 
-    def _get_position(self, tick_data):
+    def get_position(self, tick_data):
         gps = tick_data['gps']
         gps = (gps - self._route_planner.mean) * self._route_planner.scale
 
@@ -139,7 +175,7 @@ class BrakeAgent(autonomous_agent.AutonomousAgent):
                     'sensor_tick': 0.05,
                     'id': 'imu'
                     }
-                ]   
+                ] 
     
     def tick(self, input_data):
         rgb_front = input_data['rgb_front'][1][:, :, :3]
@@ -162,7 +198,7 @@ class BrakeAgent(autonomous_agent.AutonomousAgent):
             self._init()
 
         data = self.tick(input_data)
-        gps = self._get_position(data)
+        gps = self.get_position(data)
         speed = data['speed']
         compass = data['compass']
 
@@ -183,7 +219,6 @@ class BrakeAgent(autonomous_agent.AutonomousAgent):
             cv2.imshow("rgb-front", disp_front_image)
             cv2.waitKey(1)
         
-        # TODO : left here (define state space for RL) (put self.agent inside dqn.py and freeze network in dqn file)
         dnn_agent_brake = self.agent.inference(cv_image, fused_inputs)
 
         if float(dnn_agent_brake) > 0.5:
@@ -201,15 +236,17 @@ class BrakeAgent(autonomous_agent.AutonomousAgent):
         return applied_control
 
     def destroy(self):
-        del self.agent
-
-    def _init_auto_pilot(self):
-        # pid controllers of auto_pilot
-        self._turn_controller = PIDController(K_P=1.25, K_I=0.75, K_D=0.3, n=40)
-        self._speed_controller = PIDController(K_P=5.0, K_I=0.5, K_D=1.0, n=40)
+        if not self.run_imitation_agent:
+            if self.collision_sensor is not None:
+                self.collision_sensor.stop()
+            if self.lane_invasion_sensor is not None:
+                self.lane_invasion_sensor.stop()
+        
+        # terminate and go to another eposide
+        os.kill(os.getpid(), signal.SIGINT)
 
     def _get_control(self, target, far_target, tick_data, brake):
-        pos = self._get_position(tick_data)
+        pos = self.get_position(tick_data)
 
         theta = tick_data['compass']
         speed = tick_data['speed']
