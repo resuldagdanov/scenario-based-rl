@@ -410,14 +410,13 @@ class LeaderboardEvaluator(object):
             self.statistics_manager.clear_record(args.checkpoint)
             route_indexer.save_state(args.checkpoint)
 
-        from agent_utils.db import DB
-        db = DB()
-
         if args.imitation_learning:
             model = None
         else:
-            from rl_training.dqn import DQNModel
+            from agent_utils.db import DB
+            db = DB()
 
+            from rl_training.dqn import DQNModel
             model = DQNModel(db, args.evaluate)
 
         while route_indexer.peek():
@@ -444,8 +443,6 @@ class LeaderboardEvaluator(object):
                 # training
                 else:
                     db.increment_and_update_global_episode_number(model.training_id)
-                
-            print("\n")
 
             route_indexer.save_state(args.checkpoint)
 
@@ -455,8 +452,8 @@ class LeaderboardEvaluator(object):
                 # save after training is completed for batch of episodes
                 model.save_models(db.get_global_episode_number(model.training_id))
         
-        # close DB connection after training is over
-        db.close()
+            # close DB connection after training is over
+            db.close()
 
         # save global statistics
         print("\033[1m> Registering the global statistics\033[0m")
@@ -469,30 +466,18 @@ def main():
 
     # general parameters
     parser = argparse.ArgumentParser(description=description, formatter_class=RawTextHelpFormatter)
-    parser.add_argument('--host', default='localhost',
-                        help='IP of the host server (default: localhost)')
+    parser.add_argument('--host', default='localhost', help='IP of the host server (default: localhost)')
     parser.add_argument('--port', default='2000', help='TCP port to listen to (default: 2000)')
-    parser.add_argument('--trafficManagerPort', default='8000',
-                        help='Port to use for the TrafficManager (default: 8000)')
-    parser.add_argument('--trafficManagerSeed', default='0',
-                        help='Seed used by the TrafficManager (default: 0)')
+    parser.add_argument('--trafficManagerPort', default='8000', help='Port to use for the TrafficManager (default: 8000)')
+    parser.add_argument('--trafficManagerSeed', default='0', help='Seed used by the TrafficManager (default: 0)')
     parser.add_argument('--debug', type=int, help='Run with debug output', default=0)
-    parser.add_argument('--record', type=str, default='',
-                        help='Use CARLA recording feature to create a recording of the scenario')
-    parser.add_argument('--timeout', default="60.0",
-                        help='Set the CARLA client timeout value in seconds')
+    parser.add_argument('--record', type=str, default='', help='Use CARLA recording feature to create a recording of the scenario')
+    parser.add_argument('--timeout', default="60.0", help='Set the CARLA client timeout value in seconds')
 
     # simulation setup
-    parser.add_argument('--routes',
-                        help='Name of the route to be executed. Point to the route_xml_file to be executed.',
-                        required=True)
-    parser.add_argument('--scenarios',
-                        help='Name of the scenario annotation file to be mixed with the route.',
-                        required=True)
-    parser.add_argument('--repetitions',
-                        type=int,
-                        default=1,
-                        help='Number of repetitions per route.')
+    parser.add_argument('--routes', help='Name of the route to be executed. Point to the route_xml_file to be executed.', required=True)
+    parser.add_argument('--scenarios', help='Name of the scenario annotation file to be mixed with the route.', required=True)
+    parser.add_argument('--repetitions', type=int, default=1, help='Number of repetitions per route.')
 
     # agent-related options
     parser.add_argument("-a", "--agent", type=str, help="Path to Agent's py file to evaluate", required=True)
@@ -500,9 +485,7 @@ def main():
 
     parser.add_argument("--track", type=str, default='SENSORS', help="Participation track: SENSORS, MAP")
     parser.add_argument('--resume', type=bool, default=False, help='Resume execution from last checkpoint?')
-    parser.add_argument("--checkpoint", type=str,
-                        default='./simulation_results.json',
-                        help="Path to checkpoint used for saving statistics and resuming")
+    parser.add_argument("--checkpoint", type=str, default='./simulation_results.json', help="Path to checkpoint used for saving statistics and resuming")
     parser.add_argument('--evaluate', action="store_true", help='RL Model Evaluate(True) Train(False)')
     parser.add_argument('--imitation_learning', action="store_true", help='Imitation Learning Model (True), RL Model (False)')
 
