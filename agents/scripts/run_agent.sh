@@ -1,4 +1,5 @@
 #!/bin/bash
+
 pkill -9 python
 
 while getopts e:r:x:j:i: flag
@@ -30,7 +31,14 @@ export TEAM_CONFIG=${BASE_CODE_PATH}
 
 export ROUTES=${BASE_CODE_PATH}/data/routes/${xml_file}
 export SCENARIOS=${BASE_CODE_PATH}/data/scenarios/${json_file}
-export CHECKPOINT_ENDPOINT=${BASE_CODE_PATH}/x.json
+
+now=`date +"%Y_%m_%d_%H_%M_%S"`
+json=".json"
+CHECKPOINT_ENDPOINT_FILE_NAME="${now}${json}"
+echo $CHECKPOINT_ENDPOINT_FILE_NAME
+
+export CHECKPOINT_ENDPOINT=${BASE_CODE_PATH}/${CHECKPOINT_ENDPOINT_FILE_NAME}
+echo $CHECKPOINT_ENDPOINT
 export CHECKPOINT_PATH=${BASE_CODE_PATH}/checkpoint/
 
 export CHALLENGE_TRACK_CODENAME=SENSORS
@@ -40,7 +48,6 @@ export RESUME=False
 if ${imitation_learning}; then # use offset agent (imitation learning model)
     export TEAM_AGENT=${BASE_CODE_PATH}/agents/rl_training/imitation_learning_agent.py #offset_agent.py
     if ${evaluate}; then # evaluate
-        echo "imitation learning eval"
         python3 ${LEADERBOARD_ROOT}/leaderboard/leaderboard_evaluator.py \
             --scenarios=${SCENARIOS}  \
             --routes=${ROUTES} \

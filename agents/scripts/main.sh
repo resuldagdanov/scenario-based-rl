@@ -1,13 +1,15 @@
 #!/bin/bash
 
+SECONDS=0
+
 # TODO: this can be given from command prompt as well
 # global variables
 export imitation_learning=false # to evaluate imitation learning model make it true, to train or evaluate dqn model make it false
-export evaluate=false # true
-export model_name="Jan_19_2022-23_50_54" # only used if evaluate true, make sure it exists
-export load_episode_number=11 # only used if evaluate true, make sure it exists
+export evaluate=true # true
+export model_name="Jan_20_2022-16_25_23" # only used if evaluate true, make sure it exists
+export load_episode_number=71 # only used if evaluate true, make sure it exists
 
-export repetitions=1000
+export repetitions=5
 export max_episode_batch_num=1
 export json_file="all_towns_traffic_scenarios_WOR.json" #"town05_all_scenarios.json" #
 export xml_file="failed_routes/town05_long/stuck_vehicle_1.xml" #"failed_routes/town01_short/red_light_18.xml" #"original_routes/routes_town01_short.xml" #"failed_routes/town05_short/collision_vehicle_1.xml" #"failed_routes/town01_short/collisions_layout_5.xml" #"failed_routes/town05_long/stuck_vehicle_1.xml"
@@ -21,12 +23,12 @@ echo "xml_file: $xml_file";
 echo "json_file: $json_file";
 echo "imitation_learning: $imitation_learning";
 
+
 if ${evaluate}; then # evaluate
     python3 init_training_parameters.py --evaluate --model_name $model_name --load_episode_number $load_episode_number --xml_file $xml_file --json_file $json_file
 else # train
     python3 init_training_parameters.py --xml_file $xml_file --json_file $json_file
 fi
-
 
 #export CUBLAS_WORKSPACE_CONFIG=:16:8 # to run with CUDA while using pytorch deterministic algorithms (e.g. torch.set_deterministic(True))
 

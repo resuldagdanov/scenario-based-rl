@@ -103,6 +103,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         self.step_number = 1
         self.episode_total_reward = 0.0
         self.count_vehicle_stop = 0
+        self.count_is_seen = 0
         self.n_updates = 0
         self.total_loss = 0.0
 
@@ -266,17 +267,16 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             print("[Action]: high_level_action: {:d}, throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(dnn_agent_action, throttle, steer, brake, speed, reward, self.step_number, self.total_step_num))
 
         if not self.agent.evaluate:
-            if self.total_step_num % 50 == 0:  # TODO: Make this hyperparam
-                self.epsilon *= self.agent.epsilon_decay
-                self.epsilon = max(self.epsilon, self.agent.epsilon_min)
-                self.agent.db.update_epsilon(self.epsilon, self.agent.training_id)
-
             if self.total_step_num % 1000 == 0: # TODO: Make this hyperparam
                 self.agent.target_update()
 
         # terminate an episode
         if done:
             if not self.agent.evaluate: #training
+                self.epsilon *= self.agent.epsilon_decay
+                self.epsilon = max(self.epsilon, self.agent.epsilon_min)
+                self.agent.db.update_epsilon(self.epsilon, self.agent.training_id)
+
                 self.agent.db.update_latest_sample_id(self.agent.memory.id, self.agent.training_id)
                 self.agent.db.update_total_step_num(self.total_step_num, self.agent.training_id)
 
@@ -359,7 +359,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
         return throttle, steer, brake, angle
 
-    #TODO: if you change the reward, save the snippet and save the id of it to DB
+    """
     def calculate_reward(self, throttle, ego_speed, ego_gps, goal_point, angle):
         reward = -0.1
         done = 0
@@ -417,6 +417,96 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             done = 1
 
         if self.step_number > 2000: # TODO: make this hyperparam
+            done = 1
+
+        return reward, done
+
+    """
+
+    #TODO: if you change the reward, save the snippet and save the id of it to DB
+    def calculate_reward(self, throttle, ego_speed, ego_gps, goal_point, angle):
+        reward = -0.1
+        done = 0
+
+        if abs(angle) > 0.03:
+            absolute_value_angle = abs(angle)
+        else:
+            absolute_value_angle = 0.0
+
+        reward -= 25 * absolute_value_angle
+
+        # distance to each far distance goal points in meters
+        distance = np.linalg.norm(goal_point - ego_gps)
+
+        # if any of the following is not None, then the agent should brake
+        is_light, is_walker, is_vehicle, is_stop = self.traffic_data() # TODO: try with giving them as inputs (e.g. append them to state information)
+
+        print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle, " stop-", is_stop) # TODO: make sure light is not becoming red when it is too far
+
+        # give penalty if ego vehicle is not braking where it should brake
+        if any(x is not None for x in [is_light]): #is_stop     
+            # accelerating while it should brake
+            if throttle > 0.2: #throttle
+                print("[Penalty]: not braking !") # TODO: if it passes red light, turn done True
+                reward -= ego_speed * throttle
+
+            # braking as it should be
+            else:
+                print("[Reward]: correctly braking !")
+                reward += 50
+
+            self.count_vehicle_stop = 0
+
+        elif any(x is not None for x in [is_walker, is_vehicle]): #is_stop
+            self.count_is_seen += 1
+            if self.count_is_seen > 200: # throttle desired after too much waiting around vehicle or walker
+                # accelerating while it should brake
+                if throttle > 0.2: #throttle
+                    print("[Reward]: not braking !")
+                    reward += ego_speed * throttle
+
+                    self.count_is_seen -= 1
+                else:
+                    print("[Penalty]: too much stopping when there is a vehicle or walker around !")
+                    reward -= 50
+
+            else: # braking desired
+                # accelerating while it should brake
+                if throttle > 0.2: #throttle
+                    print("[Penalty]: not braking !") # TODO: if it passes red light, turn done True
+                    reward -= ego_speed * throttle
+                else:
+                    print("[Reward]: correctly braking !")
+                    reward += 50
+
+            self.count_vehicle_stop = 0
+                
+        # terminate if vehicle is not moving for too long steps
+        else:
+            self.count_is_seen = 0
+
+            if ego_speed <= 0.5:
+                self.count_vehicle_stop += 1
+            else:
+                self.count_vehicle_stop = 0
+
+            if self.count_vehicle_stop > 100:
+                print("[Penalty]: too long stopping !")
+                reward -= 20
+                done = 1
+            else:
+                reward += 5 * ego_speed # TODO: try with different rewards
+
+        # negative reward for collision or lane invasion
+        #if self.is_lane_invasion:
+        #    print("[Penalty]: lane invasion !")
+        #    reward -= 50
+        if self.is_collision:
+            print(f"[Penalty]: collision !")
+            reward -= 100
+            done = 1
+
+        if self.step_number > 1500: # TODO: make this hyperparam
             done = 1
 
         return reward, done

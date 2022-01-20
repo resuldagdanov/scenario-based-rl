@@ -457,7 +457,7 @@ class RouteScenario(BasicScenario):
             num_veh = randint(60, 150)
         else:
             num_veh = 120
-        print("town is ranomized with ", num_veh, " vehicles!")
+        print("town is randomized with ", num_veh, " vehicles!")
         town_amount = {
             'Town01': 120,
             'Town02': 100,
