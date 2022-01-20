@@ -13,6 +13,8 @@ regains control and corrects it's course.
 """
 
 import numpy.random as random
+seed = 0
+random.seed(seed) 
 import py_trees
 import carla
 

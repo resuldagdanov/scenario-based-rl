@@ -30,7 +30,7 @@ sys.path.append(parent)
 from agent_utils import base_utils
 from agent_utils.pid_controller import PIDController
 from agent_utils.planner import RoutePlanner
-from srunner.autoagents.autonomous_agent import AutonomousAgent
+from leaderboard.autoagents import autonomous_agent 
 
  #TODO: SENSOR configs can be put to DB
 
@@ -40,29 +40,13 @@ SENSOR_CONFIG = {
             'fov': 100
         }
 
-class DqnAgent(AutonomousAgent):
+def get_entry_point():
+    return 'DqnAgent' 
 
-    def init_dnn_agent(self):
-        input_dims = (3, SENSOR_CONFIG['height'], SENSOR_CONFIG['width'])
-        #print(f"input_dims: {input_dims}")
+class DqnAgent(autonomous_agent.AutonomousAgent):
+    def setup(self,  path_to_conf_file, route_id, rl_model):
+        self.track = autonomous_agent.Track.SENSORS 
 
-        self.device = self.agent.device
-
-    def init_auto_pilot(self):
-        self._turn_controller = PIDController(K_P=1.25, K_I=0.75, K_D=0.3, n=40)
-        self._speed_controller = PIDController(K_P=5.0, K_I=0.5, K_D=1.0, n=40)
-
-    def init_privileged_agent(self):
-        self.hero_vehicle = CarlaDataProvider.get_hero_actor()
-        self.world = self.hero_vehicle.get_world()
-
-        self.collision_intensity = 0.0
-        self.is_collision = False
-        self.is_lane_invasion = False
-
-        self.privileged_sensors()
-
-    def setup(self, rl_model):
         self.agent = rl_model
 
         self.debug = self.agent.debug
@@ -81,6 +65,17 @@ class DqnAgent(AutonomousAgent):
         self.initialized = False
         self._sensor_data = SENSOR_CONFIG
 
+
+    def init_dnn_agent(self):
+        input_dims = (3, SENSOR_CONFIG['height'], SENSOR_CONFIG['width'])
+        #print(f"input_dims: {input_dims}")
+
+        self.device = self.agent.device
+
+    def init_auto_pilot(self):
+        self._turn_controller = PIDController(K_P=1.25, K_I=0.75, K_D=0.3, n=40)
+        self._speed_controller = PIDController(K_P=5.0, K_I=0.5, K_D=1.0, n=40)
+
     def set_global_plan(self, global_plan_gps, global_plan_world_coord):
         super().set_global_plan(global_plan_gps, global_plan_world_coord)
 
@@ -96,9 +91,8 @@ class DqnAgent(AutonomousAgent):
 
         self.init_dnn_agent()
         self.init_auto_pilot()
-        print(f"before privileged agent")
+        
         self.init_privileged_agent()
-        print(f"after privileged agent")
 
         self.initialized = True
         self.push_buffer = False
@@ -120,6 +114,16 @@ class DqnAgent(AutonomousAgent):
         gps = (gps - self._route_planner.mean) * self._route_planner.scale
 
         return gps
+
+    def init_privileged_agent(self):
+        self.hero_vehicle = CarlaDataProvider.get_hero_actor()
+        self.world = self.hero_vehicle.get_world()
+
+        self.collision_intensity = 0.0
+        self.is_collision = False
+        #self.is_lane_invasion = False
+
+        self.privileged_sensors()
 
     def sensors(self):
         return [
@@ -143,6 +147,11 @@ class DqnAgent(AutonomousAgent):
                     'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0,
                     'sensor_tick': 0.05,
                     'id': 'imu'
+                    },
+                {
+                    'type': 'sensor.speedometer',
+                    'reading_frequency': 20,
+                    'id': 'speed'
                     }
                 ]   
     
@@ -152,69 +161,14 @@ class DqnAgent(AutonomousAgent):
         gps = input_data['gps'][1][:2]
         compass = input_data['imu'][1][-1]
 
-        speed = self.hero_vehicle.get_velocity()
-        speed_kmh = 3.6 * math.sqrt(speed.x**2 + speed.y**2 + speed.z**2) # km/h
+        speed = input_data['speed'][1]['speed']
 
         return {
                 'rgb_front': rgb_front,
                 'gps': gps,
-                'speed': speed_kmh,
+                'speed': speed,
                 'compass': compass
                 }
-
-    def shift_point(self, ego_compass, ego_gps, near_node, offset_amount):
-        # rotation matrix
-        R = np.array([
-            [np.cos(np.pi / 2 + ego_compass), -np.sin(np.pi / 2 + ego_compass)],
-            [np.sin(np.pi / 2 + ego_compass), np.cos(np.pi / 2 + ego_compass)]
-        ])
-
-        # transpose of rotation matrix
-        trans_R = R.T
-
-        local_command_point = np.array([near_node[0] - ego_gps[0], near_node[1] - ego_gps[1]])
-        local_command_point = trans_R.dot(local_command_point)
-
-        # positive offset shifts near node to right; negative offset shifts near node to left
-        local_command_point[0] += offset_amount
-        local_command_point[1] += 0
-
-        new_near_node = np.linalg.inv(trans_R).dot(local_command_point)
-
-        new_near_node[0] += ego_gps[0]
-        new_near_node[1] += ego_gps[1]
-
-        return new_near_node
-
-    def calculate_high_level_action(self, high_level_action, compass, gps, near_node, far_node, data):
-        #0 brake - steer left
-        #1 brake - no steer
-        #2 brake - steer right
-        #3 no brake - steer left
-        #4 no brake - no steer
-        #5 no brake - steer right
-
-        if high_level_action == 0 or high_level_action == 3: # steer left
-            offset = -3.5
-            new_near_node = self.shift_point(ego_compass=compass, ego_gps=gps, near_node=near_node, offset_amount=offset)
-        elif high_level_action == 2 or high_level_action == 5: # steer right
-            offset = 3.5
-            new_near_node = self.shift_point(ego_compass=compass, ego_gps=gps, near_node=near_node, offset_amount=offset)
-        else: # no steer - keep lane
-            offset = 0.0
-            new_near_node = near_node
-
-        # get auto-pilot actions
-        steer, throttle, target_speed, angle = self.get_control(new_near_node, far_node, data)
-
-        if high_level_action == 0 or high_level_action == 1 or high_level_action == 2: # brake
-            throttle = 0.0
-            brake = 1.0
-        else: # no brake
-            throttle = throttle
-            brake = 0.0
-
-        return throttle, steer, brake, angle
 
     def run_step(self, input_data, timestamp):
         if not self.initialized:
@@ -235,7 +189,7 @@ class DqnAgent(AutonomousAgent):
 
         fused_inputs = np.zeros(3, dtype=np.float32)
 
-        fused_inputs[0] = speed / 3.6 # m/s
+        fused_inputs[0] = speed
         fused_inputs[1] = far_node[0] - gps[0]
         fused_inputs[2] = far_node[1] - gps[1]
 
@@ -274,14 +228,14 @@ class DqnAgent(AutonomousAgent):
 
         throttle, steer, brake, angle = self.calculate_high_level_action(dnn_agent_action, compass, gps, near_node, far_node, data)
         applied_control = carla.VehicleControl()
-        applied_control.throttle = 0.5 #throttle
+        applied_control.throttle = throttle
         applied_control.steer = steer
-        applied_control.brake = 0.0 #brake
+        applied_control.brake = brake
 
         # compute step reward and deside for termination
         reward, done = self.calculate_reward(throttle=throttle, ego_speed=speed, ego_gps=gps, goal_point=far_node, angle=angle)
 
-        self.is_lane_invasion = False
+        #self.is_lane_invasion = False
         self.is_collision = False
 
         loss = None
@@ -350,6 +304,61 @@ class DqnAgent(AutonomousAgent):
 
         return applied_control
 
+
+    def shift_point(self, ego_compass, ego_gps, near_node, offset_amount):
+        # rotation matrix
+        R = np.array([
+            [np.cos(np.pi / 2 + ego_compass), -np.sin(np.pi / 2 + ego_compass)],
+            [np.sin(np.pi / 2 + ego_compass), np.cos(np.pi / 2 + ego_compass)]
+        ])
+
+        # transpose of rotation matrix
+        trans_R = R.T
+
+        local_command_point = np.array([near_node[0] - ego_gps[0], near_node[1] - ego_gps[1]])
+        local_command_point = trans_R.dot(local_command_point)
+
+        # positive offset shifts near node to right; negative offset shifts near node to left
+        local_command_point[0] += offset_amount
+        local_command_point[1] += 0
+
+        new_near_node = np.linalg.inv(trans_R).dot(local_command_point)
+
+        new_near_node[0] += ego_gps[0]
+        new_near_node[1] += ego_gps[1]
+
+        return new_near_node
+
+    def calculate_high_level_action(self, high_level_action, compass, gps, near_node, far_node, data):
+        #0 brake - steer left
+        #1 brake - no steer
+        #2 brake - steer right
+        #3 no brake - steer left
+        #4 no brake - no steer
+        #5 no brake - steer right
+
+        if high_level_action == 0 or high_level_action == 3: # steer left
+            offset = -3.5
+            new_near_node = self.shift_point(ego_compass=compass, ego_gps=gps, near_node=near_node, offset_amount=offset)
+        elif high_level_action == 2 or high_level_action == 5: # steer right
+            offset = 3.5
+            new_near_node = self.shift_point(ego_compass=compass, ego_gps=gps, near_node=near_node, offset_amount=offset)
+        else: # no steer - keep lane
+            offset = 0.0
+            new_near_node = near_node
+
+        # get auto-pilot actions
+        steer, throttle, target_speed, angle = self.get_control(new_near_node, far_node, data)
+
+        if high_level_action == 0 or high_level_action == 1 or high_level_action == 2: # brake
+            throttle = 0.0
+            brake = 1.0
+        else: # no brake
+            throttle = throttle
+            brake = 0.0
+
+        return throttle, steer, brake, angle
+
     #TODO: if you change the reward, save the snippet and save the id of it to DB
     def calculate_reward(self, throttle, ego_speed, ego_gps, goal_point, angle):
         reward = -0.1
@@ -417,17 +426,15 @@ class DqnAgent(AutonomousAgent):
 
         # get blueprint of the sensors
         bp_collision = blueprint.find('sensor.other.collision')
-        bp_lane_invasion = blueprint.find('sensor.other.lane_invasion')
+        #bp_lane_invasion = blueprint.find('sensor.other.lane_invasion')
 
-        print(f"enter priviliged sensors")
         # attach sensors to the ego vehicle
         self.collision_sensor = self.world.spawn_actor(bp_collision, carla.Transform(), attach_to=self.hero_vehicle)
-        self.lane_invasion_sensor = self.world.spawn_actor(bp_lane_invasion, carla.Transform(), attach_to=self.hero_vehicle)
+        #self.lane_invasion_sensor = self.world.spawn_actor(bp_lane_invasion, carla.Transform(), attach_to=self.hero_vehicle)
 
         # create sensor event callbacks
         self.collision_sensor.listen(lambda event: DqnAgent._on_collision(weakref.ref(self), event))
-        self.lane_invasion_sensor.listen(lambda event: DqnAgent._on_lane_invasion(weakref.ref(self), event))
-        print(f"end priviliged sensors")
+        #self.lane_invasion_sensor.listen(lambda event: DqnAgent._on_lane_invasion(weakref.ref(self), event))
 
     def traffic_data(self):
         all_actors = self.world.get_actors()
@@ -592,11 +599,14 @@ class DqnAgent(AutonomousAgent):
         self.is_lane_invasion = True  
 
     def destroy(self):
+        #del self.agent
+        #print(f"agent is destroyed")
+
         if self.collision_sensor is not None:
             self.collision_sensor.stop()
 
-        if self.lane_invasion_sensor is not None:
-            self.lane_invasion_sensor.stop()
+        #if self.lane_invasion_sensor is not None:
+        #    self.lane_invasion_sensor.stop()
         
         # terminate and go to another episode
         os.kill(os.getpid(), signal.SIGINT)

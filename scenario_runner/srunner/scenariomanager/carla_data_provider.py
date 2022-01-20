@@ -15,6 +15,10 @@ from __future__ import print_function
 import math
 import re
 import numpy.random as random
+
+seed = 0
+random.seed(seed) 
+
 from six import iteritems
 
 import carla
@@ -790,5 +794,7 @@ class CarlaDataProvider(object):  # pylint: disable=too-many-public-methods
         CarlaDataProvider._spawn_points = None
         CarlaDataProvider._spawn_index = 0
         from random import randint
+        seed = 0
+        random.seed(seed) 
         seed = randint(1, 2000)
         CarlaDataProvider._rng = random.RandomState(seed)

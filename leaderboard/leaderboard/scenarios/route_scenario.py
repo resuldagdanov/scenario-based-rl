@@ -14,6 +14,8 @@ from __future__ import print_function
 import math
 import xml.etree.ElementTree as ET
 import numpy.random as random
+seed = 0
+random.seed(seed) 
 
 import py_trees
 
@@ -450,6 +452,8 @@ class RouteScenario(BasicScenario):
         RANDOMENV = True
         if RANDOMENV:
             from random import randint
+            seed = 0
+            random.seed(seed) 
             num_veh = randint(60, 150)
         else:
             num_veh = 120

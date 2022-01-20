@@ -10,6 +10,11 @@ import torch
 import carla
 import math
 import numpy as np
+
+seed = 0
+np.random.seed(0)
+random.seed(seed) 
+
 from PIL import Image
 from collections import deque
 from leaderboard.autoagents import autonomous_agent

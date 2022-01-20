@@ -410,14 +410,53 @@ class LeaderboardEvaluator(object):
             self.statistics_manager.clear_record(args.checkpoint)
             route_indexer.save_state(args.checkpoint)
 
+        from agent_utils.db import DB
+        db = DB()
+
+        if args.imitation_learning:
+            model = None
+        else:
+            from rl_training.dqn import DQNModel
+
+            model = DQNModel(db, args.evaluate)
+
         while route_indexer.peek():
             # setup
             config = route_indexer.next()
 
+            # run database structure only when rl model is defined, not during imitation learning model evaluation
+            if not args.imitation_learning:
+                # evaluation
+                if args.evaluate:
+                    print("\n--- next episode ---  #:", db.get_evaluation_global_episode_number(model.evaluation_id))
+                # training
+                else:
+                    print("\n--- next episode ---  #:", db.get_global_episode_number(model.training_id))
+
             # run
-            self._load_and_run_scenario(args, config)
+            self._load_and_run_scenario(args, config, model)
+            self._cleanup()
+
+            if not args.imitation_learning:
+                # evaluation
+                if args.evaluate:
+                    db.increment_and_update_evaluation_global_episode_number(model.evaluation_id)
+                # training
+                else:
+                    db.increment_and_update_global_episode_number(model.training_id)
+                
+            print("\n")
 
             route_indexer.save_state(args.checkpoint)
+
+        if not args.imitation_learning:
+            # training
+            if not args.evaluate:
+                # save after training is completed for batch of episodes
+                model.save_models(db.get_global_episode_number(model.training_id))
+        
+        # close DB connection after training is over
+        db.close()
 
         # save global statistics
         print("\033[1m> Registering the global statistics\033[0m")
@@ -464,6 +503,8 @@ def main():
     parser.add_argument("--checkpoint", type=str,
                         default='./simulation_results.json',
                         help="Path to checkpoint used for saving statistics and resuming")
+    parser.add_argument('--evaluate', action="store_true", help='RL Model Evaluate(True) Train(False)')
+    parser.add_argument('--imitation_learning', action="store_true", help='Imitation Learning Model (True), RL Model (False)')
 
     arguments = parser.parse_args()
 

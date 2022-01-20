@@ -48,10 +48,9 @@ def get_entry_point():
     return 'ImitationLearningAgent' 
 
 class ImitationLearningAgent(autonomous_agent.AutonomousAgent):
-    def setup(self,rl_model):
+    def setup(self, path_to_conf_file, route_id, rl_model=None):
         self.track = autonomous_agent.Track.SENSORS 
 
-        rl_model = None
         if rl_model is None:
             self.run_imitation_agent = True
             self.debug = True

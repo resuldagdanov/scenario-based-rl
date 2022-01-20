@@ -7,7 +7,7 @@ export evaluate=false # true
 export model_name="Jan_19_2022-23_50_54" # only used if evaluate true, make sure it exists
 export load_episode_number=11 # only used if evaluate true, make sure it exists
 
-export repetitions=1
+export repetitions=1000
 export max_episode_batch_num=1
 export json_file="all_towns_traffic_scenarios_WOR.json" #"town05_all_scenarios.json" #
 export xml_file="failed_routes/town05_long/stuck_vehicle_1.xml" #"failed_routes/town01_short/red_light_18.xml" #"original_routes/routes_town01_short.xml" #"failed_routes/town05_short/collision_vehicle_1.xml" #"failed_routes/town01_short/collisions_layout_5.xml" #"failed_routes/town05_long/stuck_vehicle_1.xml"

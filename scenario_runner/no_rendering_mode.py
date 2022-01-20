@@ -60,6 +60,9 @@ import weakref
 import math
 import random
 
+seed = 0
+random.seed(seed) 
+
 try:
     import pygame
     from pygame.locals import KMOD_CTRL
