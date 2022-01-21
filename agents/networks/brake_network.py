@@ -22,10 +22,10 @@ class BrakeNetwork(nn.Module):
         self.device = T.device('cuda' if T.cuda.is_available() else 'cpu')
 
         # for RGB part import ResNet-50
-        self.rgb_backbone = torchvision.models.resnet50(pretrained=pretrained)
+        self.front_rgb_backbone = torchvision.models.resnet50(pretrained=pretrained)
 
         # remove last layer of ResNet-50
-        self.rgb_backbone.fc = nn.Linear(2048, 512, bias=True)
+        self.front_rgb_backbone.fc = nn.Linear(2048, 512, bias=True)
 
         # encoder for fused inputs
         self.fused_encoder = nn.Linear(3, 128, bias=True)
@@ -48,9 +48,9 @@ class BrakeNetwork(nn.Module):
         return x
 
     def forward(self, rgb, fused_input):
-        rgb_features = T.relu(self.rgb_backbone(rgb))
+        rgb_features = T.relu(self.front_rgb_backbone(rgb))
         
-        fused_features = T.relu(self.fused_encoder(fused_input))
+        fused_features = T.relu(self.fused_encoder(fused_input.float()))
 
         mid_features = T.cat((rgb_features, fused_features), dim=1)
 
@@ -74,7 +74,7 @@ class BrakeNetwork(nn.Module):
         image_torch = T.from_numpy(image.copy()).unsqueeze(0)
         
         # normalize input image
-        image_torch = self.model.normalize_rgb(image_torch)
+        image_torch = self.normalize_rgb(image_torch)
         image_torch = image_torch.to(self.device)
 
         # fused inputs to torch
