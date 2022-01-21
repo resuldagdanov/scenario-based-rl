@@ -6,6 +6,7 @@ import carla
 import torch
 import random
 import cv2
+import json
 
 seed = 0
 torch.manual_seed(seed)
@@ -47,6 +48,8 @@ class BrakeAgent(autonomous_agent.AutonomousAgent):
         self.step = -1
         self.initialized = False
         self.route_id = route_id
+
+        self.dataset_save_path = os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/dataset/" + os.environ.get('SAVE_DATASET_NAME') + "/")
         
         model_folder = "Jan_11_2022-14_27_28/"
         model_name = "epoch_50.pth"
@@ -74,6 +77,7 @@ class BrakeAgent(autonomous_agent.AutonomousAgent):
         self._route_planner.set_route(self._plan_gps_HACK, True)
         self._command_planner.set_route(self._global_plan, True)
 
+        self.init_dataset(output_dir=self.dataset_save_path)
         self.init_auto_pilot()
         self.init_privileged_agent()
 
@@ -83,6 +87,20 @@ class BrakeAgent(autonomous_agent.AutonomousAgent):
 
         if self.debug:
             cv2.namedWindow("rgb-front")
+    
+    def init_dataset(self, output_dir):
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        self.subfolder_paths = []
+        self.data_count = 0
+
+        subfolders = ["rgb_front", "measurements"]
+
+        for subfolder in subfolders:
+            self.subfolder_paths.append(os.path.join(output_dir, subfolder))
+            if not os.path.exists(self.subfolder_paths[-1]):
+                os.makedirs(self.subfolder_paths[-1])
 
     def init_auto_pilot(self):
         self._turn_controller = PIDController(K_P=1.25, K_I=0.75, K_D=0.3, n=40)
@@ -147,6 +165,12 @@ class BrakeAgent(autonomous_agent.AutonomousAgent):
         speed = data['speed']
         compass = data['compass']
 
+        # fix for theta=nan in some measurements
+        if np.isnan(data['compass']):
+            ego_theta = 0.0
+        else:
+            ego_theta = compass
+
         near_node, near_command = self._route_planner.run_step(gps)
         far_node, far_command = self._command_planner.run_step(gps)
 
@@ -172,10 +196,10 @@ class BrakeAgent(autonomous_agent.AutonomousAgent):
         else:
             brake = float(0)
 
-        steer, throttle, brake, target_speed, angle = self.get_control(near_node, far_node, data, brake)
+        steer, throttle, brake, target_speed, angle = self.get_control(target=near_node, far_target=far_node, tick_data=data, brake=brake)
 
         # compute step reward and deside for termination
-        reward, done = self.calculate_reward(throttle=throttle, ego_speed=speed, ego_gps=gps, goal_point=far_node, angle=angle)
+        reward, done = self.calculate_reward(throttle=throttle, ego_speed=speed*3.6, ego_gps=gps, goal_point=far_node, angle=angle)
 
         self.is_collision = False
 
@@ -185,6 +209,43 @@ class BrakeAgent(autonomous_agent.AutonomousAgent):
         applied_control.brake = brake
 
         print("[Action]:", throttle, steer, brake, " [Reward]:", reward, " [Done]:", done)
+
+        measurement_data = {
+            'x': gps[0],
+            'y': gps[1],
+
+            'speed': speed,
+            'theta': ego_theta,
+
+            'x_command': far_node[0],
+            'y_command': far_node[1],
+            'far_command': far_command.value,
+
+            'near_node_x': near_node[0],
+            'near_node_y': near_node[1],
+            'near_command': near_command.value,
+
+            'steer': applied_control.steer,
+            'throttle': applied_control.throttle,
+            'brake': applied_control.brake,
+
+            'should_slow': self.should_slow,
+            'should_brake': self.should_brake,
+
+            'angle': self.angle,
+            'angle_unnorm': self.angle_unnorm,
+            'angle_far_unnorm': self.angle_far_unnorm,
+
+            'is_vehicle_present': self.is_vehicle_present,
+            'is_pedestrian_present': self.is_pedestrian_present,
+            'is_red_light_present': self.is_red_light_present,
+
+            'reward': reward,
+            'done': done
+            }
+
+        if self.step % 10 == 0:
+            self.save_data(image=front_cv_image, data=measurement_data)
         
         return applied_control
 
@@ -267,6 +328,10 @@ class BrakeAgent(autonomous_agent.AutonomousAgent):
         light = self.is_light_red(traffic_lights)
         walker = self.is_walker_hazard(walkers_list)
         vehicle = self.is_vehicle_hazard(vehicle_list)
+
+        self.is_vehicle_present = 1 if vehicle is not None else 0
+        self.is_red_light_present = 1 if light is not None else 0
+        self.is_pedestrian_present = 1 if walker is not None else 0
         
         if len(stops) == 0:
             stop = None
@@ -347,12 +412,15 @@ class BrakeAgent(autonomous_agent.AutonomousAgent):
                 done = 1
             else:
                 reward += 5 * ego_speed # TODO: try with different rewards
+                done = 0
 
         # negative reward for collision
         if self.is_collision:
             print(f"[Penalty]: collision !")
             reward -= 100
             done = 1
+        else:
+            done = 0
 
         return reward, done
 
@@ -410,6 +478,14 @@ class BrakeAgent(autonomous_agent.AutonomousAgent):
                 continue
             return target_vehicle
         return None
+
+    def save_data(self, image, data):
+        cv2.imwrite(os.path.join(self.subfolder_paths[0], "%04i.png" % self.data_count), image)
+
+        with open(os.path.join(self.subfolder_paths[1], "%04i.json" % self.data_count), 'w+', encoding='utf-8') as f:
+            json.dump(data, f,  ensure_ascii=False, indent=4)
+        
+        self.data_count += 1
     
     @staticmethod
     def _on_collision(weak_self, event):
