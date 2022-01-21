@@ -153,7 +153,8 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
         speed = data['speed']
         compass = data['compass']
 
-        self.speed_sequence.append(speed)
+        if self.step % 10 == 0:
+            self.speed_sequence.append(speed)
 
         # fix for theta=nan in some measurements
         if np.isnan(data['compass']):
@@ -234,7 +235,7 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
             'reward': reward,
             'done': done,
 
-            'speed_sequence': np.array(self.speed_sequence)
+            'speed_sequence': np.array(self.speed_sequence).tolist()
             }
 
         if self.step % 10 == 0:
