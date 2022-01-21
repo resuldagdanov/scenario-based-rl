@@ -4,7 +4,7 @@ pkill -9 python
 pkill -9 python
 pkill -9 python
 
-export xml_file="failed_routes/town05_long/stuck_vehicle_1.xml"
+export xml_file="original_routes/routes_town01_short.xml"
 export json_file="all_towns_traffic_scenarios_WOR.json"
 
 export BASE_CODE_PATH="$(dirname $(dirname "$(pwd)"))"
@@ -35,7 +35,7 @@ export CHALLENGE_TRACK_CODENAME=SENSORS
 export DEBUG_CHALLENGE=0
 export RESUME=False
 
-export TEAM_AGENT=${BASE_CODE_PATH}/agents/imitation_training/il_brake_agent.py
+export TEAM_AGENT=${BASE_CODE_PATH}/agents/imitation_training/autopilot_agent.py
 
 python3 ${LEADERBOARD_ROOT}/leaderboard/leaderboard_evaluator.py \
             --scenarios=${SCENARIOS}  \
