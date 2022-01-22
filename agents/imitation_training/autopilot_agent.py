@@ -200,7 +200,7 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
         applied_control.steer = steer
         applied_control.brake = brake
 
-        print("[Action]:", throttle, steer, brake, " [Reward]:", reward, " [Done]:", done)
+        print("[Action]:", throttle, steer, brake, " [Reward]:", reward, " [Done]:", done, "[Waypoint]:", near_node)
 
         measurement_data = {
             'x': gps[0],
@@ -361,7 +361,7 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
             self.count_is_seen += 1
             
             # throttle desired after too much waiting around vehicle or walker
-            if self.count_is_seen > 200:
+            if self.count_is_seen > 1200:
 
                 # accelerating while it should brake
                 if throttle > 0.2:
@@ -413,9 +413,12 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
         return reward, done
 
     def is_light_red(self, traffic_lights):
-        for light in traffic_lights:
-            if light.get_state() == carla.TrafficLightState.Red:
-                return True
+        if self.hero_vehicle.get_traffic_light_state() != carla.libcarla.TrafficLightState.Green:
+            affecting = self.hero_vehicle.get_traffic_light()
+
+            for light in traffic_lights:
+                if light.id == affecting.id:
+                    return affecting
         return None
 
     def is_walker_hazard(self, walkers_list):
