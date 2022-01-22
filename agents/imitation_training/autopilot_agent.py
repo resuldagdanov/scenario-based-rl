@@ -13,6 +13,7 @@ torch.manual_seed(seed)
 np.random.seed(seed)
 random.seed(seed) 
 
+from datetime import datetime
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 from leaderboard.autoagents import autonomous_agent 
 
@@ -50,7 +51,16 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
         self.initialized = False
         self.route_id = route_id
 
-        self.dataset_save_path = os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/dataset/" + os.environ.get('SAVE_DATASET_NAME') + "/")
+        today = datetime.today() # month - date - year
+        now = datetime.now() # hours - minutes - seconds
+
+        current_date = str(today.strftime("%b_%d_%Y"))
+        current_time = str(now.strftime("%H_%M_%S"))
+
+        # month_date_year-hour_minute_second
+        time_info = "/" + current_date + "-" + current_time + "/"
+
+        self.dataset_save_path = os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/dataset/" + os.environ.get('SAVE_DATASET_NAME') + time_info)
 
     def set_global_plan(self, global_plan_gps, global_plan_world_coord):
         super().set_global_plan(global_plan_gps, global_plan_world_coord)
