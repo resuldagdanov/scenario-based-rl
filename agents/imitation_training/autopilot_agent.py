@@ -35,6 +35,30 @@ SENSOR_CONFIG = {
     'fov': 100
 }
 
+WEATHERS = {
+        'ClearNoon': carla.WeatherParameters.ClearNoon,
+        'ClearSunset': carla.WeatherParameters.ClearSunset,
+
+        'CloudyNoon': carla.WeatherParameters.CloudyNoon,
+        'CloudySunset': carla.WeatherParameters.CloudySunset,
+
+        'WetNoon': carla.WeatherParameters.WetNoon,
+        'WetSunset': carla.WeatherParameters.WetSunset,
+
+        'MidRainyNoon': carla.WeatherParameters.MidRainyNoon,
+        'MidRainSunset': carla.WeatherParameters.MidRainSunset,
+
+        'WetCloudyNoon': carla.WeatherParameters.WetCloudyNoon,
+        'WetCloudySunset': carla.WeatherParameters.WetCloudySunset,
+
+        'HardRainNoon': carla.WeatherParameters.HardRainNoon,
+        'HardRainSunset': carla.WeatherParameters.HardRainSunset,
+
+        'SoftRainNoon': carla.WeatherParameters.SoftRainNoon,
+        'SoftRainSunset': carla.WeatherParameters.SoftRainSunset,
+}
+WEATHERS_IDS = list(WEATHERS)
+
 
 def get_entry_point():
     return 'AutopilotAgent'
@@ -50,6 +74,7 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
         self.data_count = 0
         self.initialized = False
         self.route_id = route_id
+        self.weather_id = WEATHERS_IDS[0]
 
         today = datetime.today() # month - date - year
         now = datetime.now() # hours - minutes - seconds
@@ -177,6 +202,9 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
         speed = data['speed']
         compass = data['compass']
 
+        if self.step % 20 == 0:
+            self.change_weather()
+
         if self.step % 10 == 0:
             self.speed_sequence.append(speed)
 
@@ -259,6 +287,8 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
             'is_vehicle_present': self.is_vehicle_present,
             'is_pedestrian_present': self.is_pedestrian_present,
             'is_red_light_present': self.is_red_light_present,
+
+            'weather_id': self.weather_id,
 
             'reward': reward,
             'done': done,
@@ -515,6 +545,11 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
             json.dump(data, f,  ensure_ascii=False, indent=4)
         
         self.data_count += 1
+    
+    def change_weather(self):
+        index = random.choice(range(len(WEATHERS)))
+        self.weather_id = WEATHERS_IDS[index]
+        self.world.set_weather(WEATHERS[WEATHERS_IDS[index]])
     
     @staticmethod
     def _on_collision(weak_self, event):
