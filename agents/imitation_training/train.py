@@ -1,4 +1,5 @@
 import os
+import sys
 import config
 
 import torch
@@ -9,7 +10,13 @@ from tqdm import tqdm
 
 from torch.utils.tensorboard import SummaryWriter
 from data import DatasetLoader
-from ..networks.switch_network import SwitchNetwork
+
+# to add the parent "agents" folder to sys path and import models
+current = os.path.dirname(os.path.realpath(__file__))
+parent = os.path.dirname(current)
+sys.path.append(parent)
+
+from networks.switch_network import SwitchNetwork
 
 
 # TODO: compare and calculate loss with measured reward and threshold
@@ -32,11 +39,20 @@ def trainer(writer_counter):
 
         measured_reward = data['reward'].to(device)
         control_input = data['control'].to(device)
+
+        print("data['target_point'] : ", data['target_point'])
+        print("data['speed_sequence'] : ", data['speed_sequence'])
+
         target_point = torch.stack(data['target_point'], dim=1).to(device)
+
+        print("target_point : ", target_point)
+
         speed_list = torch.stack(data['speed_sequence'], dim=1).to(device)
 
+        print("speed_list : ", speed_list)
+
         # forward propagation
-        dnn_brake = network(front_images=rgb_input, waypoint_input=target_point, speed_sequence=speed_list)
+        dnn_brake, dnn_switch = network(front_images=rgb_input, waypoint_input=target_point, speed_sequence=speed_list)
 
         optimizer.zero_grad()
 

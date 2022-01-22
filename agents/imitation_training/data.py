@@ -53,7 +53,7 @@ class DatasetLoader(Dataset):
             "velocity": np.array([meas_json['speed']], np.float32),
             "control": np.array([meas_json['throttle'], meas_json['steer'], meas_json['brake']], np.float32),
             "target_point": tuple(local_command_point),
-            "speed_sequence": np.array(meas_json['speed_sequence'], np.float32),
-            "reward": np.array[meas_json['reward'], np.float32]
+            "speed_sequence": tuple(np.array(meas_json['speed_sequence'], np.float32)),
+            "reward": np.array([meas_json['reward']], np.float32)
         }
         return sample
