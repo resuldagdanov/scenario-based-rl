@@ -83,7 +83,7 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
         self.subfolder_paths = []
         self.data_count = 0
 
-        subfolders = ["rgb_front", "measurements"]
+        subfolders = ["rgb_front", "rgb_front_60", "rgb_rear", "measurements"]
 
         for subfolder in subfolders:
             self.subfolder_paths.append(os.path.join(output_dir, subfolder))
@@ -123,6 +123,20 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
                     'width': self._sensor_data['width'], 'height': self._sensor_data['height'], 'fov': self._sensor_data['fov'],
                     'id': 'rgb_front'
                     },
+                {
+                    'type': 'sensor.camera.rgb',
+                    'x': 1.3, 'y': 0.0, 'z': 2.3,
+                    'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0,
+                    'width': self._sensor_data['width'], 'height': self._sensor_data['height'], 'fov': 60,
+                    'id': 'rgb_front_60'
+                    },
+                {
+					'type': 'sensor.camera.rgb',
+					'x': -1.3, 'y': 0.0, 'z':2.3,
+					'roll': 0.0, 'pitch': 0.0, 'yaw': -180.0,
+					'width': self._sensor_data['width'], 'height': self._sensor_data['height'], 'fov': self._sensor_data['fov'],
+					'id': 'rgb_rear'
+					},
                 {
                     'type': 'sensor.other.gnss',
                     'x': 0.0, 'y': 0.0, 'z': 0.0,
@@ -168,6 +182,10 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
         # front image
         rgb_front_image = data['rgb_front']
         front_cv_image = rgb_front_image[:, :, ::-1]
+        rgb_front_60_image = data['rgb_front_60']
+        front_60_cv_image = rgb_front_60_image[:, :, ::-1]
+        rgb_rear_image = data['rgb_rear']
+        rear_cv_image = rgb_rear_image[:, :, ::-1]
 
         fused_inputs = np.zeros(3, dtype=np.float32)
 
@@ -239,7 +257,7 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
             }
 
         if self.step % 10 == 0:
-            self.save_data(image=front_cv_image, data=measurement_data)
+            self.save_data(image_front=front_cv_image, image_front_60=front_60_cv_image, image_rear=rear_cv_image, data=measurement_data)
         
         return applied_control
 
@@ -248,12 +266,21 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
 
         rgb_front = input_data['rgb_front'][1][:, :, :3]
         rgb_front = rgb_front[:, :, ::-1]
+        
+        rgb_front_60 = input_data['rgb_front_60'][1][:, :, :3]
+        rgb_front_60 = rgb_front_60[:, :, ::-1]
+        
+        rgb_rear = input_data['rgb_rear'][1][:, :, :3]
+        rgb_rear = rgb_rear[:, :, ::-1]
+        
         gps = input_data['gps'][1][:2]
         speed = input_data['speed'][1]['speed']
         compass = input_data['imu'][1][-1]
 
         return {
             'rgb_front': rgb_front,
+            'rgb_front_60': rgb_front_60,
+            'rgb_rear': rgb_rear,
             'gps': gps,
             'speed': speed,
             'compass': compass
@@ -470,10 +497,12 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
             return target_vehicle
         return None
 
-    def save_data(self, image, data):
-        cv2.imwrite(os.path.join(self.subfolder_paths[0], "%04i.png" % self.data_count), image)
+    def save_data(self, image_front, image_front_60, image_rear, data):
+        cv2.imwrite(os.path.join(self.subfolder_paths[0], "%04i.png" % self.data_count), image_front)
+        cv2.imwrite(os.path.join(self.subfolder_paths[1], "%04i.png" % self.data_count), image_front_60)
+        cv2.imwrite(os.path.join(self.subfolder_paths[2], "%04i.png" % self.data_count), image_rear)
 
-        with open(os.path.join(self.subfolder_paths[1], "%04i.json" % self.data_count), 'w+', encoding='utf-8') as f:
+        with open(os.path.join(self.subfolder_paths[3], "%04i.json" % self.data_count), 'w+', encoding='utf-8') as f:
             json.dump(data, f,  ensure_ascii=False, indent=4)
         
         self.data_count += 1
