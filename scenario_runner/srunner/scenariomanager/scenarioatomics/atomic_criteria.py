@@ -488,8 +488,8 @@ class ActorSpeedAboveThresholdTest(Criterion):
                     # record event
                     vehicle_location = CarlaDataProvider.get_location(self._actor)
                     blocked_event = TrafficEvent(event_type=TrafficEventType.VEHICLE_BLOCKED)
-                    ActorSpeedAboveThresholdTest._set_event_message(blocked_event, vehicle_location)
-                    ActorSpeedAboveThresholdTest._set_event_dict(blocked_event, vehicle_location)
+                    #ActorSpeedAboveThresholdTest._set_event_message(blocked_event, vehicle_location)
+                    #ActorSpeedAboveThresholdTest._set_event_dict(blocked_event, vehicle_location)
                     self.list_traffic_events.append(blocked_event)
             else:
                 self._time_last_valid_state = GameTime.get_time()

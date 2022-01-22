@@ -203,7 +203,7 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
         print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle, " stop-", is_stop)
 
         # by using priviledged information determine braking
-        is_brake = any(x is not None for x in [is_light, is_walker, is_vehicle, is_stop])
+        is_brake = any(x is not None for x in [is_light, is_walker, is_vehicle])
 
         # apply pid controllers
         steer, throttle, brake, target_speed, angle = self.get_control(target=near_node, far_target=far_node, tick_data=data, brake=is_brake)
@@ -450,14 +450,14 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
 
     def is_walker_hazard(self, walkers_list):
         p1 = base_utils._numpy(self.hero_vehicle.get_location())
-        v1 = 13.0 * base_utils._orientation(self.hero_vehicle.get_transform().rotation.yaw)
+        v1 = 10.0 * base_utils._orientation(self.hero_vehicle.get_transform().rotation.yaw)
         for walker in walkers_list:
             v2_hat = base_utils._orientation(walker.get_transform().rotation.yaw)
             s2 = np.linalg.norm(base_utils._numpy(walker.get_velocity()))
             if s2 < 0.05:
                 v2_hat *= s2
             p2 = -3.0 * v2_hat + base_utils._numpy(walker.get_location())
-            v2 = 10.0 * v2_hat
+            v2 = 8.0 * v2_hat
             collides, collision_point = base_utils.get_collision(p1, v1, p2, v2)
             if collides:
                 return walker
@@ -466,8 +466,7 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
     def is_vehicle_hazard(self, vehicle_list):
         o1 = base_utils._orientation(self.hero_vehicle.get_transform().rotation.yaw)
         p1 = base_utils._numpy(self.hero_vehicle.get_location())
-        s1 = max(10, 5.0 * np.linalg.norm(base_utils._numpy(self.hero_vehicle.get_velocity()))) # increases the threshold distance
-        s2 = max(20, 5.0 * np.linalg.norm(base_utils._numpy(self.hero_vehicle.get_velocity()))) # increases the threshold distance
+        s1 = max(10, 3.0 * np.linalg.norm(base_utils._numpy(self.hero_vehicle.get_velocity()))) # increases the threshold distance
         v1_hat = o1
         v1 = s1 * v1_hat
         for target_vehicle in vehicle_list:
@@ -475,7 +474,7 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
                 continue
             o2 = base_utils._orientation(target_vehicle.get_transform().rotation.yaw)
             p2 = base_utils._numpy(target_vehicle.get_location())
-            s2 = max(6.0, 4.0 * np.linalg.norm(base_utils._numpy(target_vehicle.get_velocity())))
+            s2 = max(5.0, 2.0 * np.linalg.norm(base_utils._numpy(target_vehicle.get_velocity())))
             v2_hat = o2
             v2 = s2 * v2_hat
             p2_p1 = p2 - p1
