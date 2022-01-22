@@ -46,6 +46,7 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
         self.config_path = path_to_conf_file
         self.debug = DEBUG
         self.step = -1
+        self.data_count = 0
         self.initialized = False
         self.route_id = route_id
 
@@ -81,7 +82,6 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
             os.makedirs(output_dir)
 
         self.subfolder_paths = []
-        self.data_count = 0
 
         subfolders = ["rgb_front", "rgb_front_60", "rgb_rear", "measurements"]
 
