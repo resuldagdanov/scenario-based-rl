@@ -2074,7 +2074,14 @@ class RunningStopTest(Criterion):
         """
         new_status = py_trees.common.Status.RUNNING
 
-        location = self._actor.get_location()
+        try:
+            location = self._actor.get_location()
+        except:
+            location = None
+            self._terminate_on_failure
+            self.test_status == "FAILURE"
+            new_status = py_trees.common.Status.FAILURE
+
         if location is None:
             return new_status
 
