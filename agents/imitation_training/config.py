@@ -51,6 +51,7 @@ min_milestone = 10
 max_milestone = 20
 max_number_of_epochs = 300
 loss_print_interval = 32
+speed_input_size = 120
 
 # model saving frequency
 save_every_n_epoch = 10

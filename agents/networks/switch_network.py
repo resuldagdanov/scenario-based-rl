@@ -69,7 +69,9 @@ class SwitchNetwork(nn.Module):
         waypoint_features = self.waypoint_encoder(waypoint_input.float())
 
         # ego speed list to lstm network
-        speed_features = self.speed_lstm(speed_sequence.float())
+        # input shape : (sequence length, batch size, input size)
+        speed_features, (h_n, c_n) = self.speed_lstm(speed_sequence)
+        speed_features = speed_features[-1, :, :]
 
         # concatenate rgb and fused features
         mixed_features = torch.cat((front_rgb_features, waypoint_features, speed_features), dim=1)

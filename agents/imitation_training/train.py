@@ -1,5 +1,6 @@
 import os
 import sys
+
 import config
 
 import torch
@@ -19,10 +20,9 @@ sys.path.append(parent)
 from networks.switch_network import SwitchNetwork
 
 
-# TODO: compare and calculate loss with measured reward and threshold
-def calculate_loss(brake, reward, gt_control, gt_reward, criterion_brake, criterion_switch):
+def calculate_loss(brake, switch, gt_control, gt_switch, criterion_brake, criterion_switch):
     brake_loss = criterion_brake(brake, gt_control[:, 2].view(-1, 1))
-    switch_loss = criterion_switch(reward, gt_reward.view(-1, 1))
+    switch_loss = criterion_switch(switch, gt_switch.view(-1, 1))
     return brake_loss + switch_loss
 
 
@@ -40,24 +40,26 @@ def trainer(writer_counter):
         measured_reward = data['reward'].to(device)
         control_input = data['control'].to(device)
 
-        print("data['target_point'] : ", data['target_point'])
-        print("data['speed_sequence'] : ", data['speed_sequence'])
-
         target_point = torch.stack(data['target_point'], dim=1).to(device)
-
-        print("target_point : ", target_point)
-
         speed_list = torch.stack(data['speed_sequence'], dim=1).to(device)
 
-        print("speed_list : ", speed_list)
+        speed_list = speed_list.view(-1, config.batch_size, config.speed_input_size)
 
         # forward propagation
         dnn_brake, dnn_switch = network(front_images=rgb_input, waypoint_input=target_point, speed_sequence=speed_list)
 
         optimizer.zero_grad()
 
-        # TODO: change reward threshold
-        total_loss = calculate_loss(brake=dnn_brake, reward=measured_reward, gt_control=control_input, gt_reward=measured_reward, criterion_brake=criterion_brake)
+        # 0: positive reward    1: negative reward
+        switch_or_not = ((measured_reward <= 0.0).clone().detach()).type(torch.FloatTensor)
+
+        total_loss = calculate_loss(
+            brake=dnn_brake,
+            switch=dnn_switch,
+            gt_control=control_input,
+            gt_switch=switch_or_not,
+            criterion_brake=criterion_brake,
+            criterion_switch=criterion_switch)
         
         total_loss.backward()
 
@@ -91,15 +93,27 @@ def validator():
         
         measured_reward = data['reward'].to(device)
         control_input = data['control'].to(device)
+
         target_point = torch.stack(data['target_point'], dim=1).to(device)
         speed_list = torch.stack(data['speed_sequence'], dim=1).to(device)
 
-        dnn_brake = network(front_images=rgb_input, waypoint_input=target_point, speed_sequence=speed_list)
+        speed_list = speed_list.view(-1, config.batch_size, config.speed_input_size)
+
+        dnn_brake, dnn_switch = network(front_images=rgb_input, waypoint_input=target_point, speed_sequence=speed_list)
 
         optimizer.zero_grad()
         
-        total_loss = calculate_loss(brake=dnn_brake, reward=measured_reward, gt_control=control_input, gt_reward=measured_reward, criterion_brake=criterion_brake)
-        
+        # 0: positive reward    1: negative reward
+        switch_or_not = ((measured_reward <= 0.0).clone().detach()).type(torch.FloatTensor)
+
+        total_loss = calculate_loss(
+            brake=dnn_brake,
+            switch=dnn_switch,
+            gt_control=control_input,
+            gt_switch=switch_or_not,
+            criterion_brake=criterion_brake,
+            criterion_switch=criterion_switch)
+            
         total_loss.backward()
 
         optimizer.step()
