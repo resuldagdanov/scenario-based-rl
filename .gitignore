@@ -29,3 +29,6 @@ agents/models/
 
 *.json
 *.png
+
+*.pth
+*.zip

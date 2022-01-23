@@ -43,6 +43,10 @@ def trainer(writer_counter):
         target_point = torch.stack(data['target_point'], dim=1).to(device)
         speed_list = torch.stack(data['speed_sequence'], dim=1).to(device)
 
+        # do not train dataset with amount of data being less than a batch size
+        if speed_list.shape[0] != config.batch_size:
+            continue
+
         speed_list = speed_list.view(-1, config.batch_size, config.speed_input_size)
 
         # forward propagation
@@ -96,6 +100,9 @@ def validator():
 
         target_point = torch.stack(data['target_point'], dim=1).to(device)
         speed_list = torch.stack(data['speed_sequence'], dim=1).to(device)
+
+        if speed_list.shape[0] != config.batch_size:
+            continue
 
         speed_list = speed_list.view(-1, config.batch_size, config.speed_input_size)
 
@@ -220,7 +227,7 @@ if __name__ == "__main__":
             torch.save(network.state_dict(), os.path.join(config.model_save_path, "epoch_%d.pth"%(epoch)))
             
         # validate model periodically on unseen dataset
-        if epoch % config.validate_per_n:
+        if epoch % config.validate_per_n == 0:
             epoch_loss_validation = validator()
 
         writer.add_scalar("training-dataset-epoch-loss", epoch_loss_train / float(len(total_training_data)), epoch)
