@@ -1,11 +1,14 @@
 import torch
 import torch.nn as nn
 import torchvision
+import numpy as np
 
 
 class SwitchNetwork(nn.Module):
     def __init__(self):
         super().__init__()
+
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         # front RGB part import ResNet-50
         self.front_rgb_backbone = torchvision.models.resnet50(pretrained=True)
@@ -83,3 +86,40 @@ class SwitchNetwork(nn.Module):
         switch = self.switch_network(mlp_out)
 
         return brake, switch
+    
+    def inference(self, front_images, waypoint_input, speed_sequence):
+        # convert width height channel to channel width height
+        front_images = np.array(front_images.transpose((2, 0, 1)), np.float32)
+        
+        # BGRA to BGR
+        front_images = front_images[:3, :, :]
+        # BGR to RGB
+        front_images = front_images[::-1, :, :]
+        
+        # normalize to 0 - 1
+        front_images = front_images / 255
+        # to tensor and unsquueze for batch dimension
+        front_images_torch = torch.from_numpy(front_images.copy()).unsqueeze(0)
+        
+        # normalize input image
+        front_images_torch = self.normalize_rgb(front_images_torch)
+        front_images_torch = front_images_torch.to(self.device)
+
+        # fused waypoint inputs to torch
+        waypoint_input = np.array(waypoint_input, np.float32)
+        waypoint_input_torch = torch.from_numpy(waypoint_input.copy()).unsqueeze(0).to(self.device)
+
+        # convert list of sequenced speed data to torch
+        speed_sequence = np.array(speed_sequence, np.float32)
+        speed_sequence_torch = torch.from_numpy(speed_sequence.copy()).unsqueeze(0).to(self.device)
+        speed_sequence_torch = speed_sequence_torch.view(len(speed_sequence_torch), 1, -1).to(self.device)
+
+        # inference
+        with torch.no_grad():
+            brake_torch, switch_or_not_torch = self.forward(front_images=front_images_torch, waypoint_input=waypoint_input_torch, speed_sequence=speed_sequence_torch)
+        
+        # torch control and switch decision to CPU numpy array
+        brake = brake_torch.squeeze(0).cpu().detach().numpy()
+        switch_or_not = switch_or_not_torch.squeeze(0).cpu().detach().numpy()
+
+        return brake, switch_or_not
