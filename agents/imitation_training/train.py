@@ -47,7 +47,7 @@ def trainer(writer_counter):
         if speed_list.shape[0] != config.batch_size:
             continue
 
-        speed_list = speed_list.view(-1, config.batch_size, config.speed_input_size)
+        speed_list = speed_list.view(-1, config.batch_size, config.speed_input_size).to(device)
 
         # forward propagation
         dnn_brake, dnn_switch = network(front_images=rgb_input, waypoint_input=target_point, speed_sequence=speed_list)
@@ -55,7 +55,7 @@ def trainer(writer_counter):
         optimizer.zero_grad()
 
         # 0: positive reward    1: negative reward
-        switch_or_not = ((measured_reward <= 0.0).clone().detach()).type(torch.FloatTensor)
+        switch_or_not = ((measured_reward <= 0.0).clone().detach()).type(torch.FloatTensor).to(device)
 
         total_loss = calculate_loss(
             brake=dnn_brake,
@@ -104,14 +104,14 @@ def validator():
         if speed_list.shape[0] != config.batch_size:
             continue
 
-        speed_list = speed_list.view(-1, config.batch_size, config.speed_input_size)
+        speed_list = speed_list.view(-1, config.batch_size, config.speed_input_size).to(device)
 
         dnn_brake, dnn_switch = network(front_images=rgb_input, waypoint_input=target_point, speed_sequence=speed_list)
 
         optimizer.zero_grad()
         
         # 0: positive reward    1: negative reward
-        switch_or_not = ((measured_reward <= 0.0).clone().detach()).type(torch.FloatTensor)
+        switch_or_not = ((measured_reward <= 0.0).clone().detach()).type(torch.FloatTensor).to(device)
 
         total_loss = calculate_loss(
             brake=dnn_brake,
