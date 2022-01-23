@@ -157,21 +157,6 @@ if __name__ == "__main__":
             constructed_dataset = DatasetLoader(training_path_temp)
             training_dataset.append(constructed_dataset)
 
-    # get dagger training set
-    if config.use_dagger_data:
-        if not os.path.exists(config.dagger_data_path):
-            os.makedirs(config.dagger_data_path)
-        
-        # get all aggregated data folders from different evaluations
-        dagger_subdirs = os.listdir(config.dagger_data_path)
-
-        for i, subdir in enumerate(dagger_subdirs):
-            dagger_path_temp = os.path.join(config.dagger_data_path, subdir)
-            print(str(i) + "-dagger dataset: ", dagger_path_temp)
-            
-            constructed_dataset = DatasetLoader(dagger_path_temp)
-            training_dataset.append(constructed_dataset)
-
     # get validation set
     for validation_town in config.validation_towns:
         print("Validation Town: ", validation_town)

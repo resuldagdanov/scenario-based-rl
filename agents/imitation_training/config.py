@@ -33,9 +33,6 @@ model_save_path = base_path + "/checkpoint/results/" + time_info + "/"
 # latest trained model
 trained_model_path = base_path + "/checkpoint/" + best_model_date + "/" + best_model_name
 
-# aggregated data path. will be concatenated with training dataset
-dagger_data_path = base_path + "/dataset/dagger/"
-
 # training hyperparameters
 batch_size = 32
 learning_rate = 1e-2
@@ -55,6 +52,6 @@ validate_per_n = 1
 
 train_towns = [ "town01_long", "town01_short", "town01_tiny",
                 "town05_long", "town05_short", "town05_tiny",
-                "town03_short"]
+                "town03_long", "town03_tiny"]
 
-validation_towns = ["town03_long"]
+validation_towns = ["town03_short"]
