@@ -11,15 +11,15 @@ time_info = current_date + "-" + current_time
 
 # path of main repository
 base_path = "/home/resul/Research/Codes/Carla/scenario-based-rl" # Local
-# base_path = "/cta/eatron/CarlaChallenge/ea202101001_platooning_demo/carla_ws" # WorkStation
+# base_path = "/cta/users/eatron/adas/carla_challenge/IV22" # WorkStation
 
 # dataset for imitation learning (training)
 training_data_path = base_path + "/checkpoint/dataset/dataset_4_workstation/" # Local
-# training_data_path = "/cta/eatron/CarlaChallenge/TransFuser/data/14_weathers_data/" # WorkStation
+# training_data_path = "/cta/eatron/CarlaDatasets/IV22/" # WorkStation
 
 # dataset for imitation learning (validation)
 validation_data_path = base_path + "/checkpoint/dataset/dataset_4_workstation/" # Local
-# validation_data_path = "/cta/eatron/CarlaChallenge/TransFuser/data/14_weathers_data/" # WorkStation
+# validation_data_path = "/cta/eatron/CarlaDatasets/IV22/" # WorkStation
 
 best_model_date = "Nov_07_2021-15_32_09"
 best_model_name = "epoch_290.pth"
@@ -28,7 +28,7 @@ best_model_name = "epoch_290.pth"
 pretrained = False
 
 # location of all trained and saved models
-model_save_path = base_path + "/checkpoint/results/" + time_info + "/"
+model_save_path = base_path + "/checkpoint/" + time_info + "/"
 
 # latest trained model
 trained_model_path = base_path + "/checkpoint/" + best_model_date + "/" + best_model_name
