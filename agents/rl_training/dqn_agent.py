@@ -330,27 +330,25 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         return new_near_node
 
     def calculate_high_level_action(self, high_level_action, compass, gps, near_node, far_node, data):
-        #0 brake - steer left
-        #1 brake - no steer
-        #2 brake - steer right
-        #3 no brake - steer left
-        #4 no brake - no steer
-        #5 no brake - steer right
+        #0 brake
+        #1 no brake - go to left lane of next_waypoint
+        #2 no brake - keep lane (stay at next_waypoint's lane)
+        #3 no brake - go to right lane of next_waypoint
 
-        if high_level_action == 0 or high_level_action == 3: # steer left
+        if high_level_action == 1: # left
             offset = -3.5
             new_near_node = self.shift_point(ego_compass=compass, ego_gps=gps, near_node=near_node, offset_amount=offset)
-        elif high_level_action == 2 or high_level_action == 5: # steer right
+        elif high_level_action == 3: # right
             offset = 3.5
             new_near_node = self.shift_point(ego_compass=compass, ego_gps=gps, near_node=near_node, offset_amount=offset)
-        else: # no steer - keep lane
+        else: # keep lane
             offset = 0.0
             new_near_node = near_node
 
         # get auto-pilot actions
         steer, throttle, target_speed, angle = self.get_control(new_near_node, far_node, data)
 
-        if high_level_action == 0 or high_level_action == 1 or high_level_action == 2: # brake
+        if high_level_action == 0: # brake
             throttle = 0.0
             brake = 1.0
         else: # no brake
@@ -371,6 +369,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             absolute_value_angle = 0.0
 
         reward -= 25 * absolute_value_angle
+        print(f"[Penalty]: angle change {reward} !")
 
         # distance to each far distance goal points in meters
         distance = np.linalg.norm(goal_point - ego_gps)
@@ -382,8 +381,6 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
         # give penalty if ego vehicle is not braking where it should brake
         if any(x is not None for x in [is_light]): #is_stop
-            self.count_is_seen = 0
-
             # accelerating while it should brake
             if throttle > 0.2: #throttle
                 print("[Penalty]: not braking !") # TODO: if it passes red light, turn done True
@@ -393,46 +390,11 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             else:
                 print("[Reward]: correctly braking !")
                 reward += 50
-
-            self.count_vehicle_stop = 0
-
-        elif any(x is not None for x in [is_walker, is_vehicle]): #is_stop
-            self.count_is_seen += 1
-            if self.count_is_seen > 1200: # throttle desired after too much waiting around vehicle or walker
-                # accelerating while it should brake
-                if throttle > 0.2: #throttle
-                    print("[Reward]: not braking !")
-                    reward += ego_speed * throttle
-                else:
-                    print("[Penalty]: too much stopping when there is a vehicle or walker around !")
-                    reward -= 50
-
-            else: # braking desired
-                # accelerating while it should brake
-                if throttle > 0.2: #throttle
-                    print("[Penalty]: not braking !") # TODO: if it passes red light, turn done True
-                    reward -= ego_speed * throttle
-                else:
-                    print("[Reward]: correctly braking !")
-                    reward += 50
-
-            self.count_vehicle_stop = 0
-                
-        # terminate if vehicle is not moving for too long steps
         else:
-            self.count_is_seen = 0
-
-            if ego_speed <= 0.5:
-                self.count_vehicle_stop += 1
+            if ego_speed < 0.01:
+                reward -= 1
             else:
-                self.count_vehicle_stop = 0
-
-            if self.count_vehicle_stop > 100:
-                print("[Penalty]: too long stopping !")
-                reward -= 20
-                done = 1
-            else:
-                reward += ego_speed # TODO: try with different rewards
+                reward += ego_speed
 
         # negative reward for collision or lane invasion
         #if self.is_lane_invasion:
@@ -443,7 +405,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             reward -= 100
             done = 1
 
-        if self.step_number > 1500: # TODO: make this hyperparam
+        if self.step_number > 1000: # TODO: make this hyperparam
             done = 1
 
         return reward, done
