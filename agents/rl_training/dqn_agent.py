@@ -122,7 +122,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
         self.collision_intensity = 0.0
         self.is_collision = False
-        #self.is_lane_invasion = False
+        self.is_lane_invasion = False
 
         self.privileged_sensors()
 
@@ -236,7 +236,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         # compute step reward and deside for termination
         reward, done = self.calculate_reward(throttle=throttle, ego_speed=speed * 3.6, ego_gps=gps, goal_point=far_node, angle=angle)
 
-        #self.is_lane_invasion = False
+        self.is_lane_invasion = False
         self.is_collision = False
 
         loss = None
@@ -368,6 +368,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         reward = -0.1
         done = 0
 
+        """
         if abs(angle) > 0.03:
             absolute_value_angle = abs(angle)
         else:
@@ -375,6 +376,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
         reward -= 25 * absolute_value_angle
         print(f"[Penalty]: angle change {reward} !")
+        """
 
         # distance to each far distance goal points in meters
         distance = np.linalg.norm(goal_point - ego_gps)
@@ -402,9 +404,10 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
                 reward += ego_speed
 
         # negative reward for collision or lane invasion
-        #if self.is_lane_invasion:
-        #    print("[Penalty]: lane invasion !")
-        #    reward -= 50
+        print(f"self.is_lane_invasion {self.is_lane_invasion}")
+        if self.is_lane_invasion:
+            print("[Penalty]: lane invasion !")
+            reward -= 50
         if self.is_collision:
             print(f"[Penalty]: collision !")
             reward -= 100
@@ -420,15 +423,15 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
         # get blueprint of the sensors
         bp_collision = blueprint.find('sensor.other.collision')
-        #bp_lane_invasion = blueprint.find('sensor.other.lane_invasion')
+        bp_lane_invasion = blueprint.find('sensor.other.lane_invasion')
 
         # attach sensors to the ego vehicle
         self.collision_sensor = self.world.spawn_actor(bp_collision, carla.Transform(), attach_to=self.hero_vehicle)
-        #self.lane_invasion_sensor = self.world.spawn_actor(bp_lane_invasion, carla.Transform(), attach_to=self.hero_vehicle)
+        self.lane_invasion_sensor = self.world.spawn_actor(bp_lane_invasion, carla.Transform(), attach_to=self.hero_vehicle)
 
         # create sensor event callbacks
         self.collision_sensor.listen(lambda event: DqnAgent._on_collision(weakref.ref(self), event))
-        #self.lane_invasion_sensor.listen(lambda event: DqnAgent._on_lane_invasion(weakref.ref(self), event))
+        self.lane_invasion_sensor.listen(lambda event: DqnAgent._on_lane_invasion(weakref.ref(self), event))
 
     def traffic_data(self):
         all_actors = self.world.get_actors()
@@ -599,8 +602,8 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         if self.collision_sensor is not None:
             self.collision_sensor.stop()
 
-        #if self.lane_invasion_sensor is not None:
-        #    self.lane_invasion_sensor.stop()
+        if self.lane_invasion_sensor is not None:
+            self.lane_invasion_sensor.stop()
         
         # terminate and go to another episode
         os.kill(os.getpid(), signal.SIGINT)
