@@ -24,6 +24,8 @@ class DB:
             DROP TABLE IF EXISTS BUFFER_TABLE;
             DROP TABLE IF EXISTS TRAINING_TABLE;
             DROP TABLE IF EXISTS EVALUATION_TABLE;
+            DROP TABLE IF EXISTS REWARD_TABLE;
+            DROP TABLE IF EXISTS LOSS_TABLE;
             ''')
         print("Tables dropped!")
 
@@ -93,6 +95,30 @@ class DB:
             CREATE INDEX ON BUFFER_TABLE (model_name, id);
             ''')
 
+    def create_reward_table(self):
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS REWARD_TABLE (
+                model_name VARCHAR(45) NOT NULL,
+                episode_num INTEGER,
+                step_num INTEGER,
+                reward FLOAT8,
+                PRIMARY KEY(model_name, episode_num, step_num)
+                );
+            CREATE INDEX ON REWARD_TABLE (model_name, episode_num, step_num);
+            ''')
+
+    def create_loss_table(self):
+        self.cursor.execute('''
+            CREATE TABLE IF NOT EXISTS LOSS_TABLE (
+                model_name VARCHAR(45) NOT NULL,
+                episode_num INTEGER,
+                step_num INTEGER,
+                loss FLOAT8,
+                PRIMARY KEY(model_name, episode_num, step_num)
+                );
+            CREATE INDEX ON LOSS_TABLE (model_name, episode_num, step_num);
+            ''')
+
     def insert_data_to_training_table(self, args, total_step_num=1, global_episode_number=0, best_reward=0.0, latest_sample_id=0, best_reward_episode_number=0):
         insert_command = """
             INSERT INTO TRAINING_TABLE (model_name, is_cpu, debug, n_actions, state_size, random_seed, buffer_size, lrpolicy, lrvalue, tau, alpha, gamma, batch_size, xml_file, json_file, epsilon_max, epsilon_decay, epsilon_min, epsilon, total_step_num, global_episode_number, best_reward, latest_sample_id, best_reward_episode_number)
@@ -106,6 +132,20 @@ class DB:
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
         self.cursor.execute(insert_command, (args.model_name, args.is_cpu, args.debug, args.n_actions, args.state_size, args.xml_file, args.json_file, args.load_episode_number, total_step_num, global_episode_number, average_evaluation_score))
+
+    def insert_data_to_reward_table(self, model_name, episode_num, step_num, reward):
+        insert_command = """
+            INSERT INTO REWARD_TABLE (model_name, episode_num, step_num, reward)
+            VALUES (%s, %s, %s, %s)
+            """
+        self.cursor.execute(insert_command, (model_name, episode_num, step_num, reward))
+
+    def insert_data_to_loss_table(self, model_name, episode_num, step_num, loss):
+        insert_command = """
+            INSERT INTO LOSS_TABLE (model_name, episode_num, step_num, loss)
+            VALUES (%s, %s, %s, %s)
+            """
+        self.cursor.execute(insert_command, (model_name, episode_num, step_num, loss))
 
     def get_model_name(self, id):
         self.cursor.execute(
@@ -565,6 +605,31 @@ class DB:
         state_size = self.cursor.fetchone()
 
         return state_size[0]
+
+    def get_running_average(self, model_name):
+        count = 100
+        self.cursor.execute(
+            """
+            SELECT
+                reward, episode_num, step_num
+            FROM REWARD_TABLE
+            WHERE model_name=%s
+            ORDER BY episode_num DESC, step_num DESC
+            LIMIT %s
+            """,
+            (model_name, count,)
+        )
+        raw_data_list = self.cursor.fetchall()
+        
+        reward_array = np.empty((count))
+
+        i = 0
+        for raw_data in raw_data_list:
+            reward_array[i] = raw_data[0]
+            i += 1
+
+        running_average = np.mean(reward_array)
+        return running_average
 
     def increment_and_update_global_episode_number(self, id):
         global_episode_number = self.get_global_episode_number(id)

@@ -47,7 +47,7 @@ parser.add_argument('--batch_size', type=int, default=64, help='batch size')
 parser.add_argument('--xml_file', type=str, help='xml file contains routes')
 parser.add_argument('--json_file', type=str, help='json_file contains scenarios')
 parser.add_argument('--epsilon_max', type=float, default=1.0, help='epsilon_max')
-parser.add_argument('--epsilon_decay', type=float, default=0.9977, help='epsilon_decay')
+parser.add_argument('--epsilon_decay', type=float, default=0.9955, help='epsilon_decay')
 parser.add_argument('--epsilon_min', type=float, default=0.01, help='epsilon_min')
 parser.add_argument('--write_resnet', type=bool, default=False, help='if True, write resnet params') # be careful while turning this to True!!!
 
@@ -65,6 +65,8 @@ db = DB()
 db.create_training_table()
 db.create_evaluation_table()
 db.create_buffer_table()
+db.create_reward_table()
+db.create_loss_table()
 
 if not args.evaluate:
     args.model_name = base_utils.get_time_info() # create new model name with current time

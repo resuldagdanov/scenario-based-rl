@@ -116,3 +116,6 @@ def tensorboard_writer_with_one_loss(writer, eps, episode_total_reward, best_rew
 
 def tensorboard_writer_evaluation(writer, eps, episode_total_reward):
     writer.add_scalar("episode total reward - episode", episode_total_reward, eps)
+
+def tensorboard_writer_running_average(writer, total_step_num, running_average):
+    writer.add_scalar("running average (100 steps) - total step number", running_average, total_step_num)
