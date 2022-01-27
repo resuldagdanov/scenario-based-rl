@@ -107,6 +107,9 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         self.n_updates = 0
         self.total_loss = 0.0
 
+        self.is_autopilot = True
+        self.autopilot_counter = 0
+
         if self.debug:
             cv2.namedWindow("RL-rgb-front")
 
@@ -175,6 +178,8 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         if not self.initialized:
             self._init()
 
+        self.autopilot_counter += 1
+
         data = self.tick(input_data)
         gps = self.get_position(data)
         speed = data['speed']
@@ -227,7 +232,18 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         else: # training
             dnn_agent_action = np.array(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch, epsilon=self.epsilon)) # 1 dimensional for DQN
 
+        if self.autopilot_counter > 250:
+            self.is_autopilot = False
+
+        if self.autopilot_counter > 115 and self.is_autopilot is True:
+            dnn_agent_action = 0
+        elif self.autopilot_counter <= 115 and self.is_autopilot is True:
+            dnn_agent_action = 2
+        else:
+            dnn_agent_action = dnn_agent_action
+
         throttle, steer, brake, angle = self.calculate_high_level_action(dnn_agent_action, compass, gps, near_node, far_node, data)
+        
         applied_control = carla.VehicleControl()
         applied_control.throttle = throttle
         applied_control.steer = steer
@@ -239,62 +255,64 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         self.is_lane_invasion = False
         self.is_collision = False
 
-        loss = None
-        if self.push_buffer and not self.agent.evaluate:
-            self.agent.memory.push(image_features, fused_inputs, dnn_agent_action, reward, self.next_image_features, self.next_fused_inputs, done)
+        if self.is_autopilot is False:
+            loss = None
+            if self.push_buffer and not self.agent.evaluate:
+                self.agent.memory.push(image_features, fused_inputs, dnn_agent_action, reward, self.next_image_features, self.next_fused_inputs, done)
 
-            if self.agent.memory.filled_size > self.agent.batch_size:
-                sample_batch = self.agent.memory.sample(self.agent.batch_size)
+                if self.agent.memory.filled_size > self.agent.batch_size:
+                    sample_batch = self.agent.memory.sample(self.agent.batch_size)
 
-                loss = self.agent.update(sample_batch)
+                    loss = self.agent.update(sample_batch)
+                
+                    self.n_updates += 1 #number of updates in one episode
+                    self.total_loss += loss #episodic loss
+
+            self.next_image_features = image_features
+            self.next_fused_inputs = fused_inputs
             
-                self.n_updates += 1 #number of updates in one episode
-                self.total_loss += loss #episodic loss
+            self.push_buffer = True
 
-        self.next_image_features = image_features
-        self.next_fused_inputs = fused_inputs
-        
-        self.push_buffer = True
+            self.episode_total_reward += reward
 
-        self.episode_total_reward += reward
+            if not self.agent.evaluate: #training
+                self.agent.db.insert_data_to_reward_table(self.agent.db.get_model_name(self.agent.training_id), self.agent.db.get_global_episode_number(self.agent.training_id), self.step_number, reward)
+                running_average = self.agent.db.get_running_average(self.agent.db.get_model_name(self.agent.training_id))
+                base_utils.tensorboard_writer_running_average(self.writer, self.total_step_num, running_average)
 
-        if not self.agent.evaluate: #training
-            self.agent.db.insert_data_to_reward_table(self.agent.db.get_model_name(self.agent.training_id), self.agent.db.get_global_episode_number(self.agent.training_id), self.step_number, reward)
-            running_average = self.agent.db.get_running_average(self.agent.db.get_model_name(self.agent.training_id))
-            base_utils.tensorboard_writer_running_average(self.writer, self.total_step_num, running_average)
+                if loss is not None:
+                    print("[Action]: epsilon: {:.2f}, high_level_action: {:d}, throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, loss: {:.2f}, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(self.epsilon, dnn_agent_action, throttle, steer, brake, speed * 3.6, loss, reward, self.step_number, self.total_step_num))
+                    self.agent.db.insert_data_to_loss_table(self.agent.db.get_model_name(self.agent.training_id), self.agent.db.get_global_episode_number(self.agent.training_id), self.step_number, float(loss))
+                else:
+                    print("[Action]: epsilon: {:.2f}, high_level_action: {:d}, throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(self.epsilon, dnn_agent_action, throttle, steer, brake, speed * 3.6, reward, self.step_number, self.total_step_num))
+            else: #evaluation
+                print("[Action]: high_level_action: {:d}, throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(dnn_agent_action, throttle, steer, brake, speed * 3.6, reward, self.step_number, self.total_step_num))
 
-            if loss is not None:
-                print("[Action]: epsilon: {:.2f}, high_level_action: {:d}, throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, loss: {:.2f}, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(self.epsilon, dnn_agent_action, throttle, steer, brake, speed * 3.6, loss, reward, self.step_number, self.total_step_num))
-                self.agent.db.insert_data_to_loss_table(self.agent.db.get_model_name(self.agent.training_id), self.agent.db.get_global_episode_number(self.agent.training_id), self.step_number, float(loss))
-            else:
-                print("[Action]: epsilon: {:.2f}, high_level_action: {:d}, throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(self.epsilon, dnn_agent_action, throttle, steer, brake, speed * 3.6, reward, self.step_number, self.total_step_num))
-        else: #evaluation
-            print("[Action]: high_level_action: {:d}, throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(dnn_agent_action, throttle, steer, brake, speed * 3.6, reward, self.step_number, self.total_step_num))
-
-        if not self.agent.evaluate:
-            if self.total_step_num % 1000 == 0: # TODO: Make this hyperparam
-                self.agent.target_update()
+            if not self.agent.evaluate:
+                if self.total_step_num % 1000 == 0: # TODO: Make this hyperparam
+                    self.agent.target_update()
 
         # terminate an episode
         if done:
             if not self.agent.evaluate: #training
-                self.epsilon *= self.agent.epsilon_decay
-                self.epsilon = max(self.epsilon, self.agent.epsilon_min)
-                self.agent.db.update_epsilon(self.epsilon, self.agent.training_id)
+                if self.is_autopilot is False:
+                    self.epsilon *= self.agent.epsilon_decay
+                    self.epsilon = max(self.epsilon, self.agent.epsilon_min)
+                    self.agent.db.update_epsilon(self.epsilon, self.agent.training_id)
 
-                self.agent.db.update_latest_sample_id(self.agent.memory.id, self.agent.training_id)
-                self.agent.db.update_total_step_num(self.total_step_num, self.agent.training_id)
+                    self.agent.db.update_latest_sample_id(self.agent.memory.id, self.agent.training_id)
+                    self.agent.db.update_total_step_num(self.total_step_num, self.agent.training_id)
 
-                if self.episode_total_reward > self.best_reward:
-                    self.best_reward = self.episode_total_reward
-                    self.agent.db.update_best_reward(self.best_reward, self.agent.training_id)
-                    self.agent.db.update_best_reward_episode_number(self.agent.db.get_global_episode_number(self.agent.training_id), self.agent.training_id) # TODO: make sure that global episode number is correct
+                    if self.episode_total_reward > self.best_reward:
+                        self.best_reward = self.episode_total_reward
+                        self.agent.db.update_best_reward(self.best_reward, self.agent.training_id)
+                        self.agent.db.update_best_reward_episode_number(self.agent.db.get_global_episode_number(self.agent.training_id), self.agent.training_id) # TODO: make sure that global episode number is correct
 
-                    print("Best Episode Reward: ", self.best_reward)
+                        print("Best Episode Reward: ", self.best_reward)
 
-                    self.agent.save_models(self.agent.db.get_global_episode_number(self.agent.training_id))
+                        self.agent.save_models(self.agent.db.get_global_episode_number(self.agent.training_id))
 
-                base_utils.tensorboard_writer_with_one_loss(self.writer, self.agent.db.get_global_episode_number(self.agent.training_id), self.episode_total_reward, self.best_reward, self.total_loss, self.n_updates)            
+                    base_utils.tensorboard_writer_with_one_loss(self.writer, self.agent.db.get_global_episode_number(self.agent.training_id), self.episode_total_reward, self.best_reward, self.total_loss, self.n_updates)            
             else: #evaluation
                 self.agent.db.update_evaluation_total_step_num(self.total_step_num, self.agent.evaluation_id)
                 self.agent.db.update_evaluation_average_evaluation_score(self.episode_total_reward, self.agent.evaluation_id)
@@ -305,7 +323,8 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             self.destroy()
 
         self.step_number += 1
-        self.total_step_num += 1
+        if self.is_autopilot is False:
+            self.total_step_num += 1
 
         return applied_control
 
@@ -413,7 +432,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             reward -= 100
             done = 1
 
-        if self.step_number > 500: # TODO: make this hyperparam
+        if self.step_number > 1500: # TODO: make this hyperparam
             done = 1
 
         return reward, done
