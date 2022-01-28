@@ -125,7 +125,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
         self.collision_intensity = 0.0
         self.is_collision = False
-        self.is_lane_invasion = False
+        #self.is_lane_invasion = False
 
         self.privileged_sensors()
 
@@ -185,6 +185,8 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         speed = data['speed']
         compass = data['compass']
 
+        #print(f"compass {compass}")
+
         near_node, near_command = self._route_planner.run_step(gps)
         far_node, far_command = self._command_planner.run_step(gps)
 
@@ -209,6 +211,9 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         print(f"front_cv_image.shape {front_cv_image.shape}")
         print(f"front_cv_image {np.sum(front_cv_image)}")
         """
+        #print(f"front_cv_image {front_cv_image}")
+        #print(f"fused_inputs {fused_inputs}")
+        #print(f"speed {speed}")
         dnn_input_image = self.image_to_dnn_input(image=front_cv_image)
 
         # fused inputs to torch
@@ -228,10 +233,10 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
         # get action from value network
         if self.agent.evaluate: # evaluation
-            dnn_agent_action = np.array(self.agent.select_max_action(image_features=image_features_torch, fused_input=fused_inputs_torch)) # 1 dimensional for DQN            
+            dnn_agent_action = int(self.agent.select_max_action(image_features=image_features_torch, fused_input=fused_inputs_torch)) # 1 dimensional for DQN            
         else: # training
-            dnn_agent_action = np.array(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch, epsilon=self.epsilon)) # 1 dimensional for DQN
-
+            dnn_agent_action = int(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch, epsilon=self.epsilon)) # 1 dimensional for DQN
+        
         if self.autopilot_counter > 250:
             self.is_autopilot = False
 
@@ -241,7 +246,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             dnn_agent_action = 2
         else:
             dnn_agent_action = dnn_agent_action
-
+        
         throttle, steer, brake, angle = self.calculate_high_level_action(dnn_agent_action, compass, gps, near_node, far_node, data)
         
         applied_control = carla.VehicleControl()
@@ -250,9 +255,10 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         applied_control.brake = brake
 
         # compute step reward and deside for termination
-        reward, done = self.calculate_reward(throttle=throttle, ego_speed=speed * 3.6, ego_gps=gps, goal_point=far_node, angle=angle)
+        if self.is_autopilot is False:
+            reward, done = self.calculate_reward(throttle=throttle, ego_speed=speed * 3.6, ego_gps=gps, goal_point=far_node, angle=angle)
 
-        self.is_lane_invasion = False
+        #self.is_lane_invasion = False
         self.is_collision = False
 
         if self.is_autopilot is False:
@@ -277,8 +283,8 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
             if not self.agent.evaluate: #training
                 self.agent.db.insert_data_to_reward_table(self.agent.db.get_model_name(self.agent.training_id), self.agent.db.get_global_episode_number(self.agent.training_id), self.step_number, reward)
-                running_average = self.agent.db.get_running_average(self.agent.db.get_model_name(self.agent.training_id))
-                base_utils.tensorboard_writer_running_average(self.writer, self.total_step_num, running_average)
+                #running_average = self.agent.db.get_running_average(self.agent.db.get_model_name(self.agent.training_id))
+                #base_utils.tensorboard_writer_running_average(self.writer, self.total_step_num, running_average)
 
                 if loss is not None:
                     print("[Action]: epsilon: {:.2f}, high_level_action: {:d}, throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, loss: {:.2f}, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(self.epsilon, dnn_agent_action, throttle, steer, brake, speed * 3.6, loss, reward, self.step_number, self.total_step_num))
@@ -292,10 +298,9 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
                 if self.total_step_num % 1000 == 0: # TODO: Make this hyperparam
                     self.agent.target_update()
 
-        # terminate an episode
-        if done:
-            if not self.agent.evaluate: #training
-                if self.is_autopilot is False:
+            # terminate an episode
+            if done:
+                if not self.agent.evaluate: #training
                     self.epsilon *= self.agent.epsilon_decay
                     self.epsilon = max(self.epsilon, self.agent.epsilon_min)
                     self.agent.db.update_epsilon(self.epsilon, self.agent.training_id)
@@ -313,17 +318,17 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
                         self.agent.save_models(self.agent.db.get_global_episode_number(self.agent.training_id))
 
                     base_utils.tensorboard_writer_with_one_loss(self.writer, self.agent.db.get_global_episode_number(self.agent.training_id), self.episode_total_reward, self.best_reward, self.total_loss, self.n_updates)            
-            else: #evaluation
-                self.agent.db.update_evaluation_total_step_num(self.total_step_num, self.agent.evaluation_id)
-                self.agent.db.update_evaluation_average_evaluation_score(self.episode_total_reward, self.agent.evaluation_id)
-                base_utils.tensorboard_writer_evaluation(self.writer, self.agent.db.get_evaluation_global_episode_number(self.agent.evaluation_id), self.episode_total_reward)
+                else: #evaluation
+                    self.agent.db.update_evaluation_total_step_num(self.total_step_num, self.agent.evaluation_id)
+                    self.agent.db.update_evaluation_average_evaluation_score(self.episode_total_reward, self.agent.evaluation_id)
+                    base_utils.tensorboard_writer_evaluation(self.writer, self.agent.db.get_evaluation_global_episode_number(self.agent.evaluation_id), self.episode_total_reward)
 
-            print("------------ Terminating! ------------")
-            print("Episode Total Reward: ", round(self.episode_total_reward, 3))
-            self.destroy()
-
-        self.step_number += 1
+                print("------------ Terminating! ------------")
+                print("Episode Total Reward: ", round(self.episode_total_reward, 3))
+                self.destroy()
+        
         if self.is_autopilot is False:
+            self.step_number += 1
             self.total_step_num += 1
 
         return applied_control
@@ -399,6 +404,12 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
         # distance to each far distance goal points in meters
         distance = np.linalg.norm(goal_point - ego_gps)
+        distance_reward = 1.0 - (distance / 28.0)
+        distance_reward = max(0.0, distance_reward)
+        distance_reward = min(1.0, distance_reward)
+
+        print(f"[Reward]: distance_reward {10 * distance_reward}")
+        reward += 10 * distance_reward
 
         # if any of the following is not None, then the agent should brake
         is_light, is_walker, is_vehicle, is_stop = self.traffic_data() # TODO: try with giving them as inputs (e.g. append them to state information)
@@ -418,21 +429,23 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
                 reward += 50
         else:
             if ego_speed < 0.01:
-                reward -= 1
+                reward -= 5
             else:
                 reward += ego_speed
 
         # negative reward for collision or lane invasion
+        """
         print(f"self.is_lane_invasion {self.is_lane_invasion}")
         if self.is_lane_invasion:
             print("[Penalty]: lane invasion !")
             reward -= 50
+        """
         if self.is_collision:
             print(f"[Penalty]: collision !")
             reward -= 100
             done = 1
 
-        if self.step_number > 1500: # TODO: make this hyperparam
+        if self.step_number > 1000: # TODO: make this hyperparam
             done = 1
 
         return reward, done
@@ -442,15 +455,15 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
         # get blueprint of the sensors
         bp_collision = blueprint.find('sensor.other.collision')
-        bp_lane_invasion = blueprint.find('sensor.other.lane_invasion')
+        #bp_lane_invasion = blueprint.find('sensor.other.lane_invasion')
 
         # attach sensors to the ego vehicle
         self.collision_sensor = self.world.spawn_actor(bp_collision, carla.Transform(), attach_to=self.hero_vehicle)
-        self.lane_invasion_sensor = self.world.spawn_actor(bp_lane_invasion, carla.Transform(), attach_to=self.hero_vehicle)
+        #self.lane_invasion_sensor = self.world.spawn_actor(bp_lane_invasion, carla.Transform(), attach_to=self.hero_vehicle)
 
         # create sensor event callbacks
         self.collision_sensor.listen(lambda event: DqnAgent._on_collision(weakref.ref(self), event))
-        self.lane_invasion_sensor.listen(lambda event: DqnAgent._on_lane_invasion(weakref.ref(self), event))
+        #self.lane_invasion_sensor.listen(lambda event: DqnAgent._on_lane_invasion(weakref.ref(self), event))
 
     def traffic_data(self):
         all_actors = self.world.get_actors()
@@ -606,13 +619,15 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         impulse = event.normal_impulse
         self.collision_intensity = math.sqrt(impulse.x ** 2 + impulse.y ** 2 + impulse.z ** 2)
 
+    """
     @staticmethod
     def _on_lane_invasion(weak_self, event):
         self = weak_self()
         if not self:
             return
 
-        self.is_lane_invasion = True  
+        self.is_lane_invasion = True 
+    """
 
     def destroy(self):
         #del self.agent
@@ -621,8 +636,8 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         if self.collision_sensor is not None:
             self.collision_sensor.stop()
 
-        if self.lane_invasion_sensor is not None:
-            self.lane_invasion_sensor.stop()
+        #if self.lane_invasion_sensor is not None:
+        #    self.lane_invasion_sensor.stop()
         
         # terminate and go to another episode
         os.kill(os.getpid(), signal.SIGINT)
