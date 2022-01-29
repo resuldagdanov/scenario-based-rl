@@ -301,7 +301,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             # terminate an episode
             if done:
                 if not self.agent.evaluate: #training
-                    self.epsilon *= self.agent.epsilon_decay
+                    self.epsilon = self.agent.epsilon_max - self.agent.epsilon_decay * self.agent.db.get_global_episode_number(self.agent.training_id) # linear decay
                     self.epsilon = max(self.epsilon, self.agent.epsilon_min)
                     self.agent.db.update_epsilon(self.epsilon, self.agent.training_id)
 

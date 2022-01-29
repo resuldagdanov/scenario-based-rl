@@ -157,13 +157,13 @@ class DQNModel():
         rewards = T.unsqueeze(T.tensor(rewards, dtype=T.float32), dim=1).to(self.device)
         next_image_features = T.tensor(next_image_features, dtype=T.float32).to(self.device)
         next_fused_inputs = T.tensor(next_fused_inputs, dtype=T.float32).to(self.device)
-        dones = T.tensor(dones, dtype=T.uint8).to(self.device)
+        dones = T.tensor(dones, dtype=T.uint8).to(self.device)        
 
         dones_mask = (dones == 1) # True for terminal states, False for others
 
         max_next_state_action_value = self.target_dqn_network(next_image_features, next_fused_inputs).max(1).values.unsqueeze(1)
         max_next_state_action_value[dones_mask] = 0.0
-    
+        
         target = rewards + self.gamma * max_next_state_action_value
         current = self.dqn_network(image_features, fused_inputs).gather(1, actions)
 
@@ -171,6 +171,8 @@ class DQNModel():
         loss = self.l1(current, target)
         self.optimizer.zero_grad()
         loss.backward() # compute gradients
+        for param in self.dqn_network.parameters():
+            param.grad.data.clamp_(-1, 1)
         self.optimizer.step() # backpropagate errors
 
         return loss.data.cpu().detach().numpy()
