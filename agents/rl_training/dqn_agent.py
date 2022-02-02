@@ -109,6 +109,8 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         self.n_updates = 0
         self.total_loss = 0.0
 
+        self.initial_gps = 0.0
+
         self.is_autopilot = True
         self.autopilot_counter = 0
 
@@ -239,7 +241,6 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         else: # training
             dnn_agent_action = int(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch, epsilon=self.epsilon)) # 1 dimensional for DQN
         
-        """
         if self.autopilot_counter > 150:
             self.is_autopilot = False
 
@@ -249,8 +250,8 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             dnn_agent_action = 2
         else:
             dnn_agent_action = dnn_agent_action
-        """
-        self.is_autopilot = False
+
+        #self.is_autopilot = False
         
         throttle, steer, brake, angle = self.calculate_high_level_action(dnn_agent_action, compass, gps, near_node, far_node, data)
         
@@ -394,7 +395,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
     #TODO: if you change the reward, save the snippet and save the id of it to DB
     def calculate_reward(self, throttle, ego_speed, ego_gps, goal_point, angle):
-        reward = -0.1
+        reward = 0.0 #-0.1
         done = 0
 
         """
@@ -407,6 +408,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         print(f"[Penalty]: angle change {reward} !")
         """
 
+        """
         # distance to each far distance goal points in meters
         distance = np.linalg.norm(goal_point - ego_gps)
         distance_reward = 1.0 - (distance / 28.0)
@@ -415,18 +417,19 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
         print(f"[Reward]: distance_reward {10 * distance_reward}")
         reward += 10 * distance_reward
+        """
 
         # if any of the following is not None, then the agent should brake
-        is_light, is_walker, is_vehicle, is_stop = self.traffic_data() # TODO: try with giving them as inputs (e.g. append them to state information)
+        is_light, is_walker, is_vehicle, _ = self.traffic_data() # TODO: try with giving them as inputs (e.g. append them to state information)
 
-        print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle, " stop-", is_stop) # TODO: make sure light is not becoming red when it is too far
+        print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle) # TODO: make sure light is not becoming red when it is too far
 
         # give penalty if ego vehicle is not braking where it should brake
         if any(x is not None for x in [is_light]): #is_stop
             # accelerating while it should brake
             if throttle > 0.2: #throttle
                 print("[Penalty]: not braking !") # TODO: if it passes red light, turn done True
-                reward -= ego_speed * throttle
+                reward -= 50
 
             # braking as it should be
             else:
@@ -436,7 +439,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             if ego_speed < 0.01:
                 reward -= 5
             else:
-                reward += ego_speed
+                reward += 1            
 
         # negative reward for collision or lane invasion
         """
@@ -447,11 +450,19 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         """
         if self.is_collision:
             print(f"[Penalty]: collision !")
-            reward -= 100
+            reward -= 1000
             done = 1
 
-        if self.step_number > 1000: # TODO: make this hyperparam
+        if self.step_number == 1:
+            self.initial_gps = ego_gps
+
+        if self.step_number > 500: # TODO: make this hyperparam
             done = 1
+
+        if done == 1:
+            diff_gps = np.linalg.norm(ego_gps - self.initial_gps) 
+            print(f"diff_gps {diff_gps}")
+            reward += 5 * diff_gps
 
         return reward, done
     
@@ -479,7 +490,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         stop_list = all_actors.filter('*stop*')
 
         traffic_lights = base_utils.get_nearby_lights(self.hero_vehicle, lights_list)
-        stops = base_utils.get_nearby_lights(self.hero_vehicle, stop_list) # TODO: if you need different radius, write new function
+        stops = base_utils.get_nearby_stops(self.hero_vehicle, stop_list) # TODO: if you need different radius, write new function
 
         light = self.is_light_red(traffic_lights)
         walker = self.is_walker_hazard(walkers_list)
