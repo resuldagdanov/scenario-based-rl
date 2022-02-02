@@ -7,6 +7,7 @@ import random
 import torch as T
 from torchvision import models
 
+"""
 seed = 0
 T.manual_seed(seed)
 np.random.seed(seed)
@@ -15,6 +16,7 @@ random.seed(seed)
 T.cuda.manual_seed_all(seed)
 T.backends.cudnn.deterministic = True
 T.backends.cudnn.benchmark = False
+"""
 
 # to add the parent "agents" folder to sys path and import models
 current = os.path.dirname(os.path.realpath(__file__))
@@ -36,7 +38,7 @@ parser.add_argument('--is_cpu', type=bool, default=False, help='CPU(True) GPU(Fa
 parser.add_argument('--debug', type=bool, default=False, help='debug(True) no_debug(False) (Default is False)')
 parser.add_argument('--n_actions', type=int, default=2, help='number of actions') #For DQN Agent this is 4, for SAC and DDPG it is 2
 parser.add_argument('--state_size', type=int, default=1000, help='resnet output size (state_size))')
-parser.add_argument('--random_seed', type=int, default=0, help='random package seed') # TODO: check this
+parser.add_argument('--random_seed', type=int, default=0, help='random package seed') # is not used
 parser.add_argument('--buffer_size', type=int, default=200_000, help='buffer size')
 parser.add_argument('--lrpolicy', type=float, default=0.0001, help='learning rate of policy network') #actor
 parser.add_argument('--lrvalue', type=float, default=0.0005, help='learning rate of value network') #critic
@@ -47,14 +49,14 @@ parser.add_argument('--batch_size', type=int, default=64, help='batch size')
 parser.add_argument('--xml_file', type=str, help='xml file contains routes')
 parser.add_argument('--json_file', type=str, help='json_file contains scenarios')
 parser.add_argument('--epsilon_max', type=float, default=1.0, help='epsilon_max')
-parser.add_argument('--epsilon_decay', type=float, default=0.00066, help='epsilon_decay')
+parser.add_argument('--epsilon_decay', type=float, default=0.9955, help='epsilon_decay')
 parser.add_argument('--epsilon_min', type=float, default=0.01, help='epsilon_min')
 parser.add_argument('--write_resnet', type=bool, default=False, help='if True, write resnet params') # be careful while turning this to True!!!
 
 args = parser.parse_args()
 
 #args.debug = True
-args.is_cpu = False #False
+args.is_cpu = True #False
 args.n_actions = 4
 
 for arg in vars(args):

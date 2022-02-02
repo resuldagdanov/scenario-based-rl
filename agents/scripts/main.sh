@@ -6,13 +6,13 @@ SECONDS=0
 # global variables
 export imitation_learning=false # to evaluate imitation learning model make it true, to train or evaluate dqn model make it false
 export evaluate=false # true
-export model_name="Jan_28_2022-04_32_19" # only used if evaluate true, make sure it exists
-export load_episode_number=1984 # only used if evaluate true, make sure it exists
+export model_name="Jan_31_2022-07_02_40" # only used if evaluate true, make sure it exists
+export load_episode_number=200 # only used if evaluate true, make sure it exists
 
 export repetitions=1
-export max_episode_batch_num=2000
+export max_episode_batch_num=1
 export json_file="all_towns_traffic_scenarios_WOR.json" #"town05_all_scenarios.json" #
-export xml_file="failed_routes/town05_long/stuck_vehicle_1.xml" #"failed_routes/town01_short/red_light_18.xml" #"original_routes/routes_town01_short.xml" #"failed_routes/town05_short/collision_vehicle_1.xml" #"failed_routes/town01_short/collisions_layout_5.xml" #"failed_routes/town05_long/stuck_vehicle_1.xml"
+export xml_file="failed_routes/town05_long/stuck_vehicle_1.xml" #"failed_routes/town01_short/red_light_1.xml" #"failed_routes/town01_short/red_light_18.xml" #"original_routes/routes_town01_short.xml" #"failed_routes/town05_short/collision_vehicle_1.xml" #"failed_routes/town01_short/collisions_layout_5.xml" #"failed_routes/town05_long/stuck_vehicle_1.xml"
 
 max_episode_num=`expr $repetitions \* $max_episode_batch_num`
 
@@ -36,7 +36,7 @@ train () {
     working_dir=$(pwd)
 
     cd $CARLA_ROOT
-    ./CarlaUE4.sh /prefernvidia &
+    ./CarlaUE4.sh -ResX=100 -ResY=100 &
     sleep 15
     export pid_carla=$(ps -elf | grep "CarlaUE4/Binaries/Linux" | grep -v grep | awk '{print $4}')
     
