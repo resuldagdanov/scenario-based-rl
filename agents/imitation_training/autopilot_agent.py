@@ -72,6 +72,8 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
         self.config_path = path_to_conf_file
         self.debug = DEBUG
         self.step = -1
+        self.stop_step = 0
+        self.not_brake_step = 0
         self.data_count = 0
         self.initialized = False
         self.route_id = route_id
@@ -194,6 +196,19 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
                     }
                 ]
 
+    def stop_function(self, is_stop):
+        if self.stop_step < 200 and is_stop is not None:
+            self.stop_step += 1
+            self.not_brake_step = 0
+            return True
+        else:
+            if self.not_brake_step < 300:
+                self.not_brake_step += 1 
+            else:
+                self.stop_step = 0
+            
+            return None
+
     def run_step(self, input_data, timestamp):
         if not self.initialized:
             self._init()
@@ -239,10 +254,11 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
 
         # if any of the following is not None, then the agent should brake
         is_light, is_walker, is_vehicle, is_stop = self.traffic_data()
+        is_stop = self.stop_function(is_stop)
         print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle, " stop-", is_stop)
 
         # by using priviledged information determine braking
-        is_brake = any(x is not None for x in [is_light, is_walker, is_vehicle])
+        is_brake = any(x is not None for x in [is_light, is_walker, is_vehicle, is_stop])
 
         # apply pid controllers
         steer, throttle, brake, target_speed, angle = self.get_control(target=near_node, far_target=far_node, tick_data=data, brake=is_brake)
@@ -383,7 +399,8 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
         stop_list = all_actors.filter('*stop*')
 
         traffic_lights = base_utils.get_nearby_lights(self.hero_vehicle, lights_list)
-        stops = base_utils.get_nearby_lights(self.hero_vehicle, stop_list)
+        stops = base_utils.get_nearby_stops(self.hero_vehicle, stop_list)
+        print(f"stops {stops}")
 
         light = self.is_light_red(traffic_lights)
         walker = self.is_walker_hazard(walkers_list)

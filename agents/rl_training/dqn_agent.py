@@ -450,7 +450,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             reward -= 100
             done = 1
 
-        if self.step_number > 500: # TODO: make this hyperparam
+        if self.step_number > 1000: # TODO: make this hyperparam
             done = 1
 
         return reward, done
@@ -560,6 +560,8 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
     def is_light_red(self, traffic_lights):
         for light in traffic_lights:
             if light.get_state() == carla.TrafficLightState.Red:
+                return True
+            elif light.get_state() == carla.TrafficLightState.Yellow:
                 return True
         
         return None
