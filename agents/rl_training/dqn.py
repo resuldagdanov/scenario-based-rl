@@ -5,6 +5,7 @@ import numpy as np
 import random
 from pathlib import Path
 
+"""
 seed = 0
 T.manual_seed(seed)
 np.random.seed(seed)
@@ -13,6 +14,7 @@ random.seed(seed)
 T.cuda.manual_seed_all(seed)
 T.backends.cudnn.deterministic = True
 T.backends.cudnn.benchmark = False
+"""
 
 import torch.nn as nn
 from torchvision import models
@@ -120,7 +122,7 @@ class DQNModel():
             learning_rate = db.get_lrvalue(self.training_id)
 
             self.memory = ReplayBuffer(self.db, buffer_size=buffer_size, seed=self.random_seed)
-            random.seed(self.random_seed)
+            #random.seed(self.random_seed)
 
             self.optimizer = T.optim.Adam(self.dqn_network.parameters(), lr=learning_rate) # TODO: should we define optimizer for the evaluate case too?
             self.l1 = nn.SmoothL1Loss().to(self.device) #Huber Loss

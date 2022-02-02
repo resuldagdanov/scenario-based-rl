@@ -6,6 +6,7 @@ import torch as T
 import numpy as np
 import random
 
+"""
 seed = 0
 T.manual_seed(seed)
 np.random.seed(seed)
@@ -14,6 +15,7 @@ random.seed(seed)
 T.cuda.manual_seed_all(seed)
 T.backends.cudnn.deterministic = True
 T.backends.cudnn.benchmark = False
+"""
 
 from tensorboardX import SummaryWriter
 

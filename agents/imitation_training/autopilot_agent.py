@@ -7,11 +7,12 @@ import torch
 import random
 import cv2
 import json
-
+"""
 seed = 0
 torch.manual_seed(seed)
 np.random.seed(seed)
-random.seed(seed) 
+random.seed(seed)
+"""
 
 from datetime import datetime
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider

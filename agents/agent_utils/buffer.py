@@ -3,7 +3,7 @@ import random
 
 class ReplayBuffer:
     def __init__(self, db, buffer_size, seed):
-        random.seed(seed)
+        #random.seed(seed)
 
         self.db = db
         self.buffer_size = buffer_size

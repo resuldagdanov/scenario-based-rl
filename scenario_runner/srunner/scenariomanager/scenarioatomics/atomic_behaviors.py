@@ -24,9 +24,11 @@ import time
 import subprocess
 
 import numpy as np
+"""
 seed = 0
 np.random.seed(seed)
 random.seed(seed) 
+"""
 
 import py_trees
 from py_trees.blackboard import Blackboard

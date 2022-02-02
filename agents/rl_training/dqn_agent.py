@@ -11,6 +11,7 @@ import math
 import weakref
 import random
 
+"""
 seed = 0
 T.manual_seed(seed)
 np.random.seed(seed)
@@ -19,6 +20,7 @@ random.seed(seed)
 T.cuda.manual_seed_all(seed)
 T.backends.cudnn.deterministic = True
 T.backends.cudnn.benchmark = False
+"""
 
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 
@@ -237,12 +239,12 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         else: # training
             dnn_agent_action = int(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch, epsilon=self.epsilon)) # 1 dimensional for DQN
         
-        if self.autopilot_counter > 250:
+        if self.autopilot_counter > 150:
             self.is_autopilot = False
 
-        if self.autopilot_counter > 115 and self.is_autopilot is True:
+        if self.autopilot_counter > 100 and self.is_autopilot is True:
             dnn_agent_action = 0
-        elif self.autopilot_counter <= 115 and self.is_autopilot is True:
+        elif self.autopilot_counter <= 100 and self.is_autopilot is True:
             dnn_agent_action = 2
         else:
             dnn_agent_action = dnn_agent_action
@@ -301,7 +303,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             # terminate an episode
             if done:
                 if not self.agent.evaluate: #training
-                    self.epsilon = self.agent.epsilon_max - self.agent.epsilon_decay * self.agent.db.get_global_episode_number(self.agent.training_id) # linear decay
+                    self.epsilon *= self.agent.epsilon_decay # exponential decay
                     self.epsilon = max(self.epsilon, self.agent.epsilon_min)
                     self.agent.db.update_epsilon(self.epsilon, self.agent.training_id)
 
