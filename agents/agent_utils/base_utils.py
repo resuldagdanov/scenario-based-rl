@@ -93,7 +93,7 @@ def get_nearby_lights(vehicle, lights, pixels_per_meter=5.5, size=512, radius=5)
                 vehicle.bounding_box.extent.z ** 2)
 
         total = a + b
-        threshold = 0.5
+        threshold = 1.0
         if dist + threshold > total:
             continue
 
