@@ -481,12 +481,12 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
         return reward, done
 
     def is_light_red(self, traffic_lights):
-        if self.hero_vehicle.get_traffic_light_state() != carla.libcarla.TrafficLightState.Green:
-            affecting = self.hero_vehicle.get_traffic_light()
-
-            for light in traffic_lights:
-                if light.id == affecting.id:
-                    return affecting
+        for light in traffic_lights:
+            if light.get_state() == carla.TrafficLightState.Red:
+                return True
+            elif light.get_state() == carla.TrafficLightState.Yellow:
+                return True
+        
         return None
 
     def is_walker_hazard(self, walkers_list):

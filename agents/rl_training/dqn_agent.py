@@ -239,6 +239,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         else: # training
             dnn_agent_action = int(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch, epsilon=self.epsilon)) # 1 dimensional for DQN
         
+        """
         if self.autopilot_counter > 150:
             self.is_autopilot = False
 
@@ -248,6 +249,8 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             dnn_agent_action = 2
         else:
             dnn_agent_action = dnn_agent_action
+        """
+        self.is_autopilot = False
         
         throttle, steer, brake, angle = self.calculate_high_level_action(dnn_agent_action, compass, gps, near_node, far_node, data)
         

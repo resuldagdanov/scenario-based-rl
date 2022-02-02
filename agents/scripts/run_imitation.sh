@@ -4,7 +4,7 @@ pkill -9 python
 pkill -9 python
 pkill -9 python
 
-export xml_file="original_routes/routes_town03_tiny.xml"
+export xml_file="original_routes/routes_town01_short.xml"
 export json_file="all_towns_traffic_scenarios_WOR.json"
 
 export BASE_CODE_PATH="$(dirname $(dirname "$(pwd)"))"
