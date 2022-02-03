@@ -110,4 +110,4 @@ class ImitationNetwork(nn.Module):
         
         # torch control and switch decision to CPU numpy array
         brake = brake_torch.squeeze(0).cpu().detach().numpy()
-        return brake
+        return int(brake)

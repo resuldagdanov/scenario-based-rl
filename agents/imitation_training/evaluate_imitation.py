@@ -3,6 +3,7 @@ import sys
 import weakref
 import numpy as np
 import carla
+import torch
 import random
 import cv2
 import json
@@ -20,8 +21,10 @@ from collections import deque
 from agent_utils import base_utils
 from agent_utils.pid_controller import PIDController
 from agent_utils.planner import RoutePlanner
+from networks.imitation_network import ImitationNetwork
 
 
+DAGGER = False
 DEBUG = False
 
 SENSOR_CONFIG = {
@@ -56,10 +59,10 @@ WEATHERS_IDS = list(WEATHERS)
 
 
 def get_entry_point():
-    return 'AutopilotAgent'
+    return 'ImitationAgent'
     
 
-class AutopilotAgent(autonomous_agent.AutonomousAgent):
+class ImitationAgent(autonomous_agent.AutonomousAgent):
     def setup(self, path_to_conf_file, route_id, rl_model=None):
         self.track = autonomous_agent.Track.SENSORS
         self._sensor_data = SENSOR_CONFIG
@@ -83,6 +86,18 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
         time_info = "/" + current_date + "-" + current_time + "/"
 
         self.dataset_save_path = os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/dataset/" + os.environ.get('SAVE_DATASET_NAME') + time_info)
+
+        model_folder = "Feb_03_2022-16_47_45_imitation_0/"
+        model_name = "epoch_19.pth"
+        model_path = os.path.join(os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/models/" + model_folder), model_name)
+
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print("device: ", self.device)
+
+        self.agent = ImitationNetwork()
+        self.agent.to(self.device)
+        self.agent.load_state_dict(torch.load(model_path))
+        self.agent.eval()
 
     def set_global_plan(self, global_plan_gps, global_plan_world_coord):
         super().set_global_plan(global_plan_gps, global_plan_world_coord)
@@ -114,7 +129,6 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
             os.makedirs(output_dir)
 
         self.subfolder_paths = []
-
         subfolders = ["rgb_front", "rgb_front_60", "rgb_rear", "measurements"]
 
         for subfolder in subfolders:
@@ -144,7 +158,7 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
         self.collision_sensor = self.world.spawn_actor(bp_collision, carla.Transform(), attach_to=self.hero_vehicle)
 
         # create sensor event callbacks
-        self.collision_sensor.listen(lambda event: AutopilotAgent._on_collision(weakref.ref(self), event))
+        self.collision_sensor.listen(lambda event: ImitationAgent._on_collision(weakref.ref(self), event))
 
     def sensors(self):
         return [
@@ -203,6 +217,12 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
                 self.stop_step = 0
             return None
 
+    def check_daggerity(self, autopilot_brake, model_brake):
+        if abs(autopilot_brake - model_brake) > 0.5:
+            return True
+        else:
+            return False
+
     def run_step(self, input_data, timestamp):
         if not self.initialized:
             self._init()
@@ -235,11 +255,9 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
         rgb_rear_image = data['rgb_rear']
         rear_cv_image = rgb_rear_image[:, :, ::-1]
 
-        fused_inputs = np.zeros(3, dtype=np.float32)
-
-        fused_inputs[0] = speed
-        fused_inputs[1] = near_node[0] - gps[0]
-        fused_inputs[2] = near_node[1] - gps[1]
+        fused_inputs = np.zeros(2, dtype=np.float32)
+        fused_inputs[0] = near_node[0] - gps[0]
+        fused_inputs[1] = near_node[1] - gps[1]
 
         if self.debug:
             disp_front_image = cv2.UMat(front_cv_image)
@@ -254,8 +272,17 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
         # by using priviledged information determine braking
         is_brake = any(x is not None for x in [is_light, is_walker, is_vehicle, is_stop])
 
+        dnn_agent_brake = self.agent.inference(front_images=front_cv_image, waypoint_input=fused_inputs, speed_sequence=np.array(self.speed_sequence))
+
+        if self.check_daggerity(autopilot_brake=is_brake, model_brake=int(dnn_agent_brake)) and DAGGER:
+            save_dagger = True
+            applied_brake = is_brake
+        else:
+            save_dagger = False
+            applied_brake = dnn_agent_brake
+
         # apply pid controllers
-        steer, throttle, brake, target_speed, angle = self.get_control(target=near_node, far_target=far_node, tick_data=data, brake=is_brake)
+        steer, throttle, brake, target_speed, angle = self.get_control(target=near_node, far_target=far_node, tick_data=data, brake=applied_brake)
 
         # compute step reward and deside for termination
         reward, done = self.calculate_reward(throttle=throttle, ego_speed=speed*3.6, angle=angle, is_light=is_light, is_vehicle=is_vehicle, is_walker=is_walker, is_stop=is_stop)
@@ -311,7 +338,7 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
             'label': label
             }
 
-        if self.step % 10 == 0:
+        if self.step % 10 == 0 and save_dagger:
             self.save_data(image_front=front_cv_image, image_front_60=front_60_cv_image, image_rear=rear_cv_image, data=measurement_data)
         
         return applied_control
@@ -385,6 +412,8 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
         return steer, throttle, brake, target_speed, angle
 
     def destroy(self):
+        del self.agent
+
         if self.collision_sensor is not None:
             self.collision_sensor.stop()
 
