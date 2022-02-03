@@ -141,8 +141,9 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         self.autopilot_counter = 0
         self.is_autopilot = True
         self.constant_action = None
+
         self.autopilot_step = random.randint(98, 128)
-        print("\nRandom Autopilot Time: ", self.autopilot_step)
+        print("\nRandom Autopilot Step: ", self.autopilot_step)
 
         if self.debug:
             cv2.namedWindow("RL-rgb-front")
@@ -462,17 +463,17 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             # accelerating while it should brake
             if throttle > 0.2: #throttle
                 print("[Penalty]: not braking !") # TODO: if it passes red light, turn done True
-                reward -= 50
+                reward -= 1
 
             # braking as it should be
             else:
                 print("[Reward]: correctly braking !")
-                reward += 50
+                reward += 0.5
         else:
             if ego_speed < 0.01:
-                reward -= 5
+                reward -= 0.5
             else:
-                reward += 1            
+                reward += 0.5
 
         # negative reward for collision or lane invasion
         """
@@ -481,20 +482,20 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             print("[Penalty]: lane invasion !")
             reward -= 50
         """
-        if self.is_collision and not self.is_autopilot:
+        if self.is_collision:
             print("[Penalty]: collision !")
-            reward -= 1000
+            reward -= 10
             done = 1
 
         if self.step_number == 1:
             self.initial_gps = ego_gps
 
-        if self.step_number > 500: # TODO: make this hyperparam
+        if self.step_number > 250: # TODO: make this hyperparam
             done = 1
 
-        if done == 1:
+        if done == 1 and not self.is_collision:
             diff_gps = np.linalg.norm(ego_gps - self.initial_gps)
-            reward += 5 * diff_gps
+            reward += 0.5 * diff_gps
 
         return reward, done
     
@@ -522,7 +523,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         stop_list = all_actors.filter('*stop*')
 
         traffic_lights = base_utils.get_nearby_lights(self.hero_vehicle, lights_list)
-        stops = base_utils.get_nearby_stops(self.hero_vehicle, stop_list) # TODO: if you need different radius, write new function
+        stops = base_utils.get_nearby_lights(self.hero_vehicle, stop_list) # TODO: if you need different radius, write new function
 
         light = self.is_light_red(traffic_lights)
         walker = self.is_walker_hazard(walkers_list)

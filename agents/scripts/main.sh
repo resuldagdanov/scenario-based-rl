@@ -5,14 +5,14 @@ SECONDS=0
 # TODO: this can be given from command prompt as well
 # global variables
 export imitation_learning=false # to evaluate imitation learning model make it true, to train or evaluate dqn model make it false
-export evaluate=false # true
-export model_name="Jan_31_2022-07_02_40" # only used if evaluate true, make sure it exists
-export load_episode_number=200 # only used if evaluate true, make sure it exists
+export evaluate=true # true
+export model_name="Feb_03_2022-01_50_23" # only used if evaluate true, make sure it exists
+export load_episode_number=1550 # only used if evaluate true, make sure it exists
 
-export repetitions=1
+export repetitions=5
 export max_episode_batch_num=1
 export json_file="all_towns_traffic_scenarios_WOR.json" #"town05_all_scenarios.json" #
-export xml_file="failed_routes/town05_short/traffic_light_3.xml" #"failed_routes/town05_long/stuck_vehicle_1.xml"
+export xml_file="failed_routes/town05_short/traffic_light_4.xml" #"failed_routes/town05_long/stuck_vehicle_1.xml"
 
 max_episode_num=`expr $repetitions \* $max_episode_batch_num`
 
@@ -36,7 +36,7 @@ train () {
     working_dir=$(pwd)
 
     cd $CARLA_ROOT
-    ./CarlaUE4.sh & #-ResX=100 -ResY=100
+    ./CarlaUE4.sh -prefernvidia & #-ResX=100 -ResY=100
     sleep 15
     export pid_carla=$(ps -elf | grep "CarlaUE4/Binaries/Linux" | grep -v grep | awk '{print $4}')
     
