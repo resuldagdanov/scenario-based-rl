@@ -141,8 +141,8 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         self.autopilot_counter = 0
         self.is_autopilot = True
         self.constant_action = None
-        self.autopilot_time = random.randint(140, 160) #random.randint(98, 128)
-        print("\nRandom Autopilot Time: ", self.autopilot_time)
+        self.autopilot_step = random.randint(98, 128)
+        print("\nRandom Autopilot Time: ", self.autopilot_step)
 
         if self.debug:
             cv2.namedWindow("RL-rgb-front")
@@ -274,17 +274,15 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         else: # training
             dnn_agent_action = int(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch, epsilon=self.epsilon)) # 1 dimensional for DQN
         
-        if self.autopilot_counter > 150:
+        if self.autopilot_counter > self.autopilot_step + 50:
             self.is_autopilot = False
 
-        if self.autopilot_counter > 100 and self.is_autopilot is True:
+        if self.autopilot_counter > self.autopilot_step and self.is_autopilot is True:
             dnn_agent_action = 0
-        elif self.autopilot_counter <= 100 and self.is_autopilot is True:
+        elif self.autopilot_counter <= self.autopilot_step and self.is_autopilot is True:
             dnn_agent_action = 2
         else:
             dnn_agent_action = dnn_agent_action
-
-        #self.is_autopilot = False
         
         throttle, steer, brake, angle = self.calculate_high_level_action(dnn_agent_action, compass, gps, near_node, far_node, data)
         
@@ -459,8 +457,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle) # TODO: make sure light is not becoming red when it is too far
 
         # give penalty if ego vehicle is not braking where it should brake
-        if any(x is not None for x in [is_light, is_vehicle]): #is_stop
-            self.autopilot_counter -= 1
+        if any(x is not None for x in [is_light]): #is_stop
 
             # accelerating while it should brake
             if throttle > 0.2: #throttle
@@ -485,7 +482,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             reward -= 50
         """
         if self.is_collision and not self.is_autopilot:
-            print(f"[Penalty]: collision !")
+            print("[Penalty]: collision !")
             reward -= 1000
             done = 1
 
@@ -496,8 +493,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             done = 1
 
         if done == 1:
-            diff_gps = np.linalg.norm(ego_gps - self.initial_gps) 
-            print(f"diff_gps {diff_gps}")
+            diff_gps = np.linalg.norm(ego_gps - self.initial_gps)
             reward += 5 * diff_gps
 
         return reward, done
