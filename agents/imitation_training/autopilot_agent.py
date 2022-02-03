@@ -390,14 +390,20 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
             self.collision_sensor.stop()
 
     def define_classifier_label(self, reward):
+        label = 0
         if reward < 0.0:
-
             if self.is_red_light_present:
                 label = 1
-
+            elif self.is_stops_present:
+                label = 2
+            elif self.is_vehicle_present:
+                label = 3
+            elif self.is_pedestrian_present:
+                label = 4
+            else:
+                label = 5
         else:
             label = 0
-
         return label
 
     def traffic_data(self):
@@ -486,7 +492,6 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
                 return True
             elif light.get_state() == carla.TrafficLightState.Yellow:
                 return True
-        
         return None
 
     def is_walker_hazard(self, walkers_list):
