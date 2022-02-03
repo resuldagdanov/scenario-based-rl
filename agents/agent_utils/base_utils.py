@@ -58,49 +58,6 @@ def get_collision(p1, v1, p2, v2):
 
     return collides, p1 + x[0] * v1
 
-def get_nearby_stops(vehicle, stops, pixels_per_meter=5.5, size=512, radius=5):
-    result = list()
-
-    transform = vehicle.get_transform()
-    pos = transform.location
-    theta = np.radians(90 + transform.rotation.yaw)
-    R = np.array([
-        [np.cos(theta), -np.sin(theta)],
-        [np.sin(theta),  np.cos(theta)],
-        ])
-
-    for stop in stops:
-        delta = stop.get_transform().location - pos
-
-        target = R.T.dot([delta.x, delta.y])
-        target *= pixels_per_meter
-        target += size // 2
-
-        if min(target) < 0 or max(target) >= size:
-            continue
-
-        trigger = stop.trigger_volume
-        stop.get_transform().transform(trigger.location)
-        dist = trigger.location.distance(vehicle.get_location())
-        a = np.sqrt(
-                trigger.extent.x ** 2 +
-                trigger.extent.y ** 2 +
-                trigger.extent.z ** 2)
-        b = np.sqrt(
-                vehicle.bounding_box.extent.x ** 2 +
-                vehicle.bounding_box.extent.y ** 2 +
-                vehicle.bounding_box.extent.z ** 2)
-
-        total = a + b
-        threshold = 1.0
-        if dist + threshold > total:
-            continue
-
-        result.append(stop)
-
-    return result
-
-
 def get_nearby_lights(vehicle, lights, pixels_per_meter=5.5, size=512, radius=5):
     result = list()
 

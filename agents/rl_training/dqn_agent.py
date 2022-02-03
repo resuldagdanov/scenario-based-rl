@@ -135,12 +135,9 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         self.n_updates = 0
         self.total_loss = 0.0
 
-<<<<<<< HEAD
-=======
         self.initial_gps = 0.0
 
         self.is_autopilot = True
->>>>>>> 317ae20003c39883cec78ae635279d30da4c1639
         self.autopilot_counter = 0
         self.is_autopilot = True
         self.constant_action = None
@@ -277,16 +274,6 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         else: # training
             dnn_agent_action = int(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch, epsilon=self.epsilon)) # 1 dimensional for DQN
         
-<<<<<<< HEAD
-        if self.autopilot_counter > self.autopilot_time:
-            self.is_autopilot = False
-
-        if self.is_autopilot is True:
-            dnn_agent_action = 2
-        else:
-            pass
-
-=======
         if self.autopilot_counter > 150:
             self.is_autopilot = False
 
@@ -299,7 +286,6 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
         #self.is_autopilot = False
         
->>>>>>> 317ae20003c39883cec78ae635279d30da4c1639
         throttle, steer, brake, angle = self.calculate_high_level_action(dnn_agent_action, compass, gps, near_node, far_node, data)
         
         applied_control = carla.VehicleControl()
@@ -500,12 +486,6 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         """
         if self.is_collision and not self.is_autopilot:
             print(f"[Penalty]: collision !")
-<<<<<<< HEAD
-            reward -= 500
-            done = 1
-
-        if self.autopilot_counter > 250: # TODO: make this hyperparam
-=======
             reward -= 1000
             done = 1
 
@@ -513,7 +493,6 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             self.initial_gps = ego_gps
 
         if self.step_number > 500: # TODO: make this hyperparam
->>>>>>> 317ae20003c39883cec78ae635279d30da4c1639
             done = 1
 
         if done == 1:

@@ -7,12 +7,6 @@ import torch
 import random
 import cv2
 import json
-"""
-seed = 0
-torch.manual_seed(seed)
-np.random.seed(seed)
-random.seed(seed)
-"""
 
 from datetime import datetime
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
@@ -30,6 +24,7 @@ from agent_utils.planner import RoutePlanner
 
 
 DEBUG = False
+
 SENSOR_CONFIG = {
     'width': 400,
     'height': 300,
@@ -201,12 +196,12 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
             self.stop_step += 1
             self.not_brake_step = 0
             return True
+       
         else:
             if self.not_brake_step < 300:
                 self.not_brake_step += 1 
             else:
                 self.stop_step = 0
-            
             return None
 
     def run_step(self, input_data, timestamp):
@@ -254,7 +249,7 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
 
         # if any of the following is not None, then the agent should brake
         is_light, is_walker, is_vehicle, is_stop = self.traffic_data()
-        is_stop = self.stop_function(is_stop)
+
         print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle, " stop-", is_stop)
 
         # by using priviledged information determine braking
@@ -264,7 +259,7 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
         steer, throttle, brake, target_speed, angle = self.get_control(target=near_node, far_target=far_node, tick_data=data, brake=is_brake)
 
         # compute step reward and deside for termination
-        reward, done = self.calculate_reward(throttle=throttle, ego_speed=speed*3.6, angle=angle, is_light=is_light, is_vehicle=is_vehicle, is_walker=is_walker)
+        reward, done = self.calculate_reward(throttle=throttle, ego_speed=speed*3.6, angle=angle, is_light=is_light, is_vehicle=is_vehicle, is_walker=is_walker, is_stop=is_stop)
 
         self.is_collision = False
 
@@ -274,6 +269,8 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
         applied_control.brake = brake
 
         print("[Action]:", throttle, steer, brake, " [Reward]:", reward, " [Done]:", done, "[Waypoint]:", near_node)
+
+        label = self.define_classifier_label(reward)
 
         measurement_data = {
             'x': gps[0],
@@ -304,13 +301,15 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
             'is_vehicle_present': self.is_vehicle_present,
             'is_pedestrian_present': self.is_pedestrian_present,
             'is_red_light_present': self.is_red_light_present,
+            'is_stops_present': self.is_stops_present,
 
             'weather_id': self.weather_id,
 
             'reward': reward,
             'done': done,
 
-            'speed_sequence': np.array(self.speed_sequence).tolist()
+            'speed_sequence': np.array(self.speed_sequence).tolist(),
+            'label': label
             }
 
         if self.step % 10 == 0:
@@ -390,6 +389,17 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
         if self.collision_sensor is not None:
             self.collision_sensor.stop()
 
+    def define_classifier_label(self, reward):
+        if reward < 0.0:
+
+            if self.is_red_light_present:
+                label = 1
+
+        else:
+            label = 0
+
+        return label
+
     def traffic_data(self):
         all_actors = self.world.get_actors()
 
@@ -399,71 +409,44 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
         stop_list = all_actors.filter('*stop*')
 
         traffic_lights = base_utils.get_nearby_lights(self.hero_vehicle, lights_list)
-        stops = base_utils.get_nearby_stops(self.hero_vehicle, stop_list)
-        print(f"stops {stops}")
+        stops = base_utils.get_nearby_lights(self.hero_vehicle, stop_list)
 
-        light = self.is_light_red(traffic_lights)
-        walker = self.is_walker_hazard(walkers_list)
-        vehicle = self.is_vehicle_hazard(vehicle_list)
-
-        self.is_vehicle_present = 1 if vehicle is not None else 0
-        self.is_red_light_present = 1 if light is not None else 0
-        self.is_pedestrian_present = 1 if walker is not None else 0
-        
         if len(stops) == 0:
             stop = None
         else:
             stop = stops
 
+        light = self.is_light_red(traffic_lights)
+        walker = self.is_walker_hazard(walkers_list)
+        vehicle = self.is_vehicle_hazard(vehicle_list)
+        stop = self.stop_function(stop)
+
+        self.is_vehicle_present = 1 if vehicle is not None else 0
+        self.is_red_light_present = 1 if light is not None else 0
+        self.is_pedestrian_present = 1 if walker is not None else 0
+        self.is_stops_present = 1 if stop is not None else 0
+
         return light, walker, vehicle, stop
 
-    def calculate_reward(self, throttle, ego_speed, angle, is_light, is_vehicle, is_walker):
-        reward = -0.1
+    def calculate_reward(self, throttle, ego_speed, angle, is_light, is_vehicle, is_walker, is_stop):
+        reward = 0.0
         done = 0
 
-        if abs(angle) > 0.03:
-            absolute_value_angle = abs(angle)
-        else:
-            absolute_value_angle = 0.0
-
-        reward -= 25 * absolute_value_angle
-
         # give penalty if ego vehicle is not braking where it should brake
-        if any(x is not None for x in [is_light]):  
-            # accelerating while it should brake
-            if throttle > 0.2:
-                print("[Penalty]: not braking !")
-                reward -= ego_speed * throttle
-
-            # braking as it should be
-            else:
-                print("[Reward]: correctly braking !")
-                reward += 50
-
-            self.count_vehicle_stop = 0
-
-        elif any(x is not None for x in [is_walker, is_vehicle]):
+        if any(x is not None for x in [is_light, is_walker, is_vehicle, is_stop]):
             self.count_is_seen += 1
             
             # throttle desired after too much waiting around vehicle or walker
             if self.count_is_seen > 1200:
-
-                # accelerating while it should brake
-                if throttle > 0.2:
-                    print("[Reward]: not braking !")
-                    reward += ego_speed * throttle
-
-                    self.count_is_seen -= 1
-                else:
-                    print("[Penalty]: too much stopping when there is a vehicle or walker around !")
-                    reward -= 50
+                print("[Penalty]: too much stopping when there is a vehicle or walker or stop sign or traffic light around !")
+                reward -= 100
 
             # braking desired
             else:
                 # accelerating while it should brake
                 if throttle > 0.2:
                     print("[Penalty]: not braking !")
-                    reward -= ego_speed * throttle
+                    reward -= 50
                 else:
                     print("[Reward]: correctly braking !")
                     reward += 50
@@ -489,8 +472,8 @@ class AutopilotAgent(autonomous_agent.AutonomousAgent):
 
         # negative reward for collision
         if self.is_collision:
-            print(f"[Penalty]: collision !")
-            reward -= 100
+            print("[Penalty]: collision !")
+            reward -= 1000
             done = 1
         else:
             done = 0
