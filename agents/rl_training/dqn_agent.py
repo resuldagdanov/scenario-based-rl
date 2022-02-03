@@ -30,7 +30,7 @@ sys.path.append(parent)
 from agent_utils import base_utils
 from agent_utils.pid_controller import PIDController
 from agent_utils.planner import RoutePlanner
-from leaderboard.autoagents import autonomous_agent 
+from leaderboard.autoagents import autonomous_agent
 
  #TODO: SENSOR configs can be put to DB
 
@@ -40,8 +40,34 @@ SENSOR_CONFIG = {
             'fov': 100
         }
 
+WEATHERS = {
+        'ClearNoon': carla.WeatherParameters.ClearNoon,
+        'ClearSunset': carla.WeatherParameters.ClearSunset,
+
+        'CloudyNoon': carla.WeatherParameters.CloudyNoon,
+        'CloudySunset': carla.WeatherParameters.CloudySunset,
+
+        'WetNoon': carla.WeatherParameters.WetNoon,
+        'WetSunset': carla.WeatherParameters.WetSunset,
+
+        'MidRainyNoon': carla.WeatherParameters.MidRainyNoon,
+        'MidRainSunset': carla.WeatherParameters.MidRainSunset,
+
+        'WetCloudyNoon': carla.WeatherParameters.WetCloudyNoon,
+        'WetCloudySunset': carla.WeatherParameters.WetCloudySunset,
+
+        'HardRainNoon': carla.WeatherParameters.HardRainNoon,
+        'HardRainSunset': carla.WeatherParameters.HardRainSunset,
+
+        'SoftRainNoon': carla.WeatherParameters.SoftRainNoon,
+        'SoftRainSunset': carla.WeatherParameters.SoftRainSunset,
+}
+WEATHERS_IDS = list(WEATHERS)
+
+
 def get_entry_point():
     return 'DqnAgent' 
+
 
 class DqnAgent(autonomous_agent.AutonomousAgent):
     def setup(self,  path_to_conf_file, route_id, rl_model):
@@ -64,7 +90,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
         self.initialized = False
         self._sensor_data = SENSOR_CONFIG
-
+        self.weather_id = WEATHERS_IDS[0]
 
     def init_dnn_agent(self):
         input_dims = (3, SENSOR_CONFIG['height'], SENSOR_CONFIG['width'])
@@ -107,8 +133,11 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         self.n_updates = 0
         self.total_loss = 0.0
 
-        self.is_autopilot = True
         self.autopilot_counter = 0
+        self.is_autopilot = True
+        self.constant_action = None
+        self.autopilot_time = random.randint(140, 160) #random.randint(98, 128)
+        print("\nRandom Autopilot Time: ", self.autopilot_time)
 
         if self.debug:
             cv2.namedWindow("RL-rgb-front")
@@ -180,6 +209,9 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
         self.autopilot_counter += 1
 
+        if self.autopilot_counter % 10 == 0 and not self.agent.evaluate:
+            self.change_weather()
+
         data = self.tick(input_data)
         gps = self.get_position(data)
         speed = data['speed']
@@ -237,16 +269,14 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         else: # training
             dnn_agent_action = int(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch, epsilon=self.epsilon)) # 1 dimensional for DQN
         
-        if self.autopilot_counter > 250:
+        if self.autopilot_counter > self.autopilot_time:
             self.is_autopilot = False
 
-        if self.autopilot_counter > 115 and self.is_autopilot is True:
-            dnn_agent_action = 0
-        elif self.autopilot_counter <= 115 and self.is_autopilot is True:
+        if self.is_autopilot is True:
             dnn_agent_action = 2
         else:
-            dnn_agent_action = dnn_agent_action
-        
+            pass
+
         throttle, steer, brake, angle = self.calculate_high_level_action(dnn_agent_action, compass, gps, near_node, far_node, data)
         
         applied_control = carla.VehicleControl()
@@ -265,6 +295,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             loss = None
             if self.push_buffer and not self.agent.evaluate:
                 self.agent.memory.push(image_features, fused_inputs, dnn_agent_action, reward, self.next_image_features, self.next_fused_inputs, done)
+                #self.agent.memory.push(image_features, dnn_agent_action, reward, self.next_image_features, done)
 
                 if self.agent.memory.filled_size > self.agent.batch_size:
                     sample_batch = self.agent.memory.sample(self.agent.batch_size)
@@ -417,11 +448,13 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle, " stop-", is_stop) # TODO: make sure light is not becoming red when it is too far
 
         # give penalty if ego vehicle is not braking where it should brake
-        if any(x is not None for x in [is_light]): #is_stop
+        if any(x is not None for x in [is_light, is_vehicle]): #is_stop
+            self.autopilot_counter -= 1
+
             # accelerating while it should brake
             if throttle > 0.2: #throttle
                 print("[Penalty]: not braking !") # TODO: if it passes red light, turn done True
-                reward -= ego_speed * throttle
+                reward -= 50
 
             # braking as it should be
             else:
@@ -440,12 +473,12 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             print("[Penalty]: lane invasion !")
             reward -= 50
         """
-        if self.is_collision:
+        if self.is_collision and not self.is_autopilot:
             print(f"[Penalty]: collision !")
-            reward -= 100
+            reward -= 500
             done = 1
 
-        if self.step_number > 500: # TODO: make this hyperparam
+        if self.autopilot_counter > 250: # TODO: make this hyperparam
             done = 1
 
         return reward, done
@@ -628,6 +661,11 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
         self.is_lane_invasion = True 
     """
+
+    def change_weather(self):
+        index = random.choice(range(len(WEATHERS)))
+        self.weather_id = WEATHERS_IDS[index]
+        self.world.set_weather(WEATHERS[WEATHERS_IDS[index]])
 
     def destroy(self):
         #del self.agent
