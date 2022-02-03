@@ -26,7 +26,10 @@ export SCENARIOS=${BASE_CODE_PATH}/data/scenarios/${json_file}
 
 now=`date +"%Y_%m_%d_%H_%M_%S"`
 json=".json"
-CHECKPOINT_ENDPOINT_FILE_NAME="${now}${json}"
+basename "${xml_file}"
+f="$(basename -- ${xml_file})"
+route_name=${f::-4}
+CHECKPOINT_ENDPOINT_FILE_NAME="${now}_${route_name}${json}"
 
 export CHECKPOINT_PATH=${BASE_CODE_PATH}/checkpoint/
 export CHECKPOINT_ENDPOINT=${BASE_CODE_PATH}/${CHECKPOINT_ENDPOINT_FILE_NAME}
