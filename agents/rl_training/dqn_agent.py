@@ -11,6 +11,7 @@ import math
 import weakref
 import random
 
+"""
 seed = 0
 T.manual_seed(seed)
 np.random.seed(seed)
@@ -19,6 +20,7 @@ random.seed(seed)
 T.cuda.manual_seed_all(seed)
 T.backends.cudnn.deterministic = True
 T.backends.cudnn.benchmark = False
+"""
 
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 
@@ -133,6 +135,12 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         self.n_updates = 0
         self.total_loss = 0.0
 
+<<<<<<< HEAD
+=======
+        self.initial_gps = 0.0
+
+        self.is_autopilot = True
+>>>>>>> 317ae20003c39883cec78ae635279d30da4c1639
         self.autopilot_counter = 0
         self.is_autopilot = True
         self.constant_action = None
@@ -269,6 +277,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         else: # training
             dnn_agent_action = int(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch, epsilon=self.epsilon)) # 1 dimensional for DQN
         
+<<<<<<< HEAD
         if self.autopilot_counter > self.autopilot_time:
             self.is_autopilot = False
 
@@ -277,6 +286,20 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         else:
             pass
 
+=======
+        if self.autopilot_counter > 150:
+            self.is_autopilot = False
+
+        if self.autopilot_counter > 100 and self.is_autopilot is True:
+            dnn_agent_action = 0
+        elif self.autopilot_counter <= 100 and self.is_autopilot is True:
+            dnn_agent_action = 2
+        else:
+            dnn_agent_action = dnn_agent_action
+
+        #self.is_autopilot = False
+        
+>>>>>>> 317ae20003c39883cec78ae635279d30da4c1639
         throttle, steer, brake, angle = self.calculate_high_level_action(dnn_agent_action, compass, gps, near_node, far_node, data)
         
         applied_control = carla.VehicleControl()
@@ -332,7 +355,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             # terminate an episode
             if done:
                 if not self.agent.evaluate: #training
-                    self.epsilon *= self.agent.epsilon_decay
+                    self.epsilon *= self.agent.epsilon_decay # exponential decay
                     self.epsilon = max(self.epsilon, self.agent.epsilon_min)
                     self.agent.db.update_epsilon(self.epsilon, self.agent.training_id)
 
@@ -420,7 +443,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
     #TODO: if you change the reward, save the snippet and save the id of it to DB
     def calculate_reward(self, throttle, ego_speed, ego_gps, goal_point, angle):
-        reward = -0.1
+        reward = 0.0 #-0.1
         done = 0
 
         """
@@ -433,6 +456,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         print(f"[Penalty]: angle change {reward} !")
         """
 
+        """
         # distance to each far distance goal points in meters
         distance = np.linalg.norm(goal_point - ego_gps)
         distance_reward = 1.0 - (distance / 28.0)
@@ -441,11 +465,12 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
         print(f"[Reward]: distance_reward {10 * distance_reward}")
         reward += 10 * distance_reward
+        """
 
         # if any of the following is not None, then the agent should brake
-        is_light, is_walker, is_vehicle, is_stop = self.traffic_data() # TODO: try with giving them as inputs (e.g. append them to state information)
+        is_light, is_walker, is_vehicle, _ = self.traffic_data() # TODO: try with giving them as inputs (e.g. append them to state information)
 
-        print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle, " stop-", is_stop) # TODO: make sure light is not becoming red when it is too far
+        print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle) # TODO: make sure light is not becoming red when it is too far
 
         # give penalty if ego vehicle is not braking where it should brake
         if any(x is not None for x in [is_light, is_vehicle]): #is_stop
@@ -464,7 +489,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             if ego_speed < 0.01:
                 reward -= 5
             else:
-                reward += ego_speed
+                reward += 1            
 
         # negative reward for collision or lane invasion
         """
@@ -475,11 +500,26 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         """
         if self.is_collision and not self.is_autopilot:
             print(f"[Penalty]: collision !")
+<<<<<<< HEAD
             reward -= 500
             done = 1
 
         if self.autopilot_counter > 250: # TODO: make this hyperparam
+=======
+            reward -= 1000
             done = 1
+
+        if self.step_number == 1:
+            self.initial_gps = ego_gps
+
+        if self.step_number > 500: # TODO: make this hyperparam
+>>>>>>> 317ae20003c39883cec78ae635279d30da4c1639
+            done = 1
+
+        if done == 1:
+            diff_gps = np.linalg.norm(ego_gps - self.initial_gps) 
+            print(f"diff_gps {diff_gps}")
+            reward += 5 * diff_gps
 
         return reward, done
     
@@ -507,7 +547,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         stop_list = all_actors.filter('*stop*')
 
         traffic_lights = base_utils.get_nearby_lights(self.hero_vehicle, lights_list)
-        stops = base_utils.get_nearby_lights(self.hero_vehicle, stop_list) # TODO: if you need different radius, write new function
+        stops = base_utils.get_nearby_stops(self.hero_vehicle, stop_list) # TODO: if you need different radius, write new function
 
         light = self.is_light_red(traffic_lights)
         walker = self.is_walker_hazard(walkers_list)
@@ -588,6 +628,8 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
     def is_light_red(self, traffic_lights):
         for light in traffic_lights:
             if light.get_state() == carla.TrafficLightState.Red:
+                return True
+            elif light.get_state() == carla.TrafficLightState.Yellow:
                 return True
         
         return None

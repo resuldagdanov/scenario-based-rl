@@ -12,10 +12,12 @@ import torch as T
 import numpy as np
 import random
 
+"""
 seed = 0
 T.manual_seed(seed)
 np.random.seed(seed)
-random.seed(seed) 
+random.seed(seed)
+""" 
 # for cuda
 """
 T.cuda.manual_seed_all(seed)

@@ -15,8 +15,10 @@ import math
 import traceback
 import xml.etree.ElementTree as ET
 import numpy.random as random
+"""
 seed = 0
 random.seed(seed) 
+"""
 
 import py_trees
 

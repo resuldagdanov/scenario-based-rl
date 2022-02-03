@@ -8,10 +8,12 @@ import random
 import cv2
 import json
 
+"""
 seed = 0
 torch.manual_seed(seed)
 np.random.seed(seed)
 random.seed(seed) 
+"""
 
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 from leaderboard.autoagents import autonomous_agent 

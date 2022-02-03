@@ -17,8 +17,10 @@ vehicle stopped close enough to the leading vehicle
 """
 
 import random
+"""
 seed = 0
 random.seed(seed) 
+"""
 
 import py_trees
 

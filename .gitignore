@@ -32,5 +32,6 @@ agents/models/
 
 *.pth
 *.zip
+*.txt
 
 *results/

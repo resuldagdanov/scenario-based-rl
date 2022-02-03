@@ -6,6 +6,7 @@ import torch as T
 import numpy as np
 import random
 
+"""
 seed = 0
 T.manual_seed(seed)
 np.random.seed(seed)
@@ -14,6 +15,7 @@ random.seed(seed)
 T.cuda.manual_seed_all(seed)
 T.backends.cudnn.deterministic = True
 T.backends.cudnn.benchmark = False
+"""
 
 # to add the parent "agents" folder to sys path and import models
 current = os.path.dirname(os.path.realpath(__file__))
@@ -23,7 +25,6 @@ sys.path.append(parent)
 from agent_utils.buffer import ReplayBuffer
 from networks.actor_network import ActorNetwork
 from networks.critic_network import CriticNetwork
-from networks.resnet_backbone import ResNetBackbone
 
 CHECKPOINT_PATH = os.environ.get('CHECKPOINT_PATH', None)
 
