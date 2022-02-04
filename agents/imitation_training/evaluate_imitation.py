@@ -23,14 +23,20 @@ from agent_utils.pid_controller import PIDController
 from agent_utils.planner import RoutePlanner
 from networks.imitation_network import ImitationNetwork
 
+# trained IL model path (should be inside "checkpoint/models/" folder)
+model_folder = "Feb_04_2022-19_14_19_imitation0/"
+model_name = "epoch_30.pth"
 
-DAGGER = False
+# if True: IL vs Autopilot will be checked and Autopilot data is applied when brake commands are not the same
+# if False: IL agent will always be applied without saving data
+DAGGER = True
+# if True: front camera will be displayed
 DEBUG = False
 
 SENSOR_CONFIG = {
     'width': 400,
     'height': 300,
-    'fov': 100
+    'fov': 60
 }
 
 WEATHERS = {
@@ -86,9 +92,6 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
         time_info = "/" + current_date + "-" + current_time + "/"
 
         self.dataset_save_path = os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/dataset/" + os.environ.get('SAVE_DATASET_NAME') + time_info)
-
-        model_folder = "Feb_03_2022-16_47_45_imitation_0/"
-        model_name = "epoch_19.pth"
         model_path = os.path.join(os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/models/" + model_folder), model_name)
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -112,7 +115,8 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
         self._route_planner.set_route(self._plan_gps_HACK, True)
         self._command_planner.set_route(self._global_plan, True)
 
-        self.init_dataset(output_dir=self.dataset_save_path)
+        if DAGGER:
+            self.init_dataset(output_dir=self.dataset_save_path)
         self.init_auto_pilot()
         self.init_privileged_agent()
 
@@ -275,8 +279,11 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
         dnn_agent_brake = self.agent.inference(front_images=front_cv_image, waypoint_input=fused_inputs, speed_sequence=np.array(self.speed_sequence))
 
         if self.check_daggerity(autopilot_brake=is_brake, model_brake=int(dnn_agent_brake)) and DAGGER:
+            print("[DAgger Active !]")
+
             save_dagger = True
             applied_brake = is_brake
+        
         else:
             save_dagger = False
             applied_brake = dnn_agent_brake
@@ -294,9 +301,9 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
         applied_control.steer = steer
         applied_control.brake = brake
 
-        print("[Action]:", throttle, steer, brake, " [Reward]:", reward, " [Done]:", done, "[Waypoint]:", near_node)
-
         label = self.define_classifier_label(reward)
+
+        print("[Action]:", throttle, steer, brake, " [Reward]:", reward, " [Done]:", done, "[Waypoint]:", near_node, "[Class ID]:", label)
 
         measurement_data = {
             'x': gps[0],
