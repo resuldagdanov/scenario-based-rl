@@ -11,7 +11,7 @@ class DatasetLoader(Dataset):
         self.root_dir = root_dir
         self.subfolder_paths = []
 
-        subfolders = ["rgb_front", "measurements"]
+        subfolders = ["rgb_front_60", "measurements"]
 
         for subfolder in subfolders:
             self.subfolder_paths.append(os.path.join(self.root_dir, subfolder))
@@ -54,6 +54,7 @@ class DatasetLoader(Dataset):
             "control": np.array([meas_json['throttle'], meas_json['steer'], meas_json['brake']], np.float32),
             "target_point": tuple(local_command_point),
             "speed_sequence": tuple(np.array(meas_json['speed_sequence'], np.float32)),
-            "reward": np.array([meas_json['reward']], np.float32)
+            "reward": np.array([meas_json['reward']], np.float32),
+            "label": np.array([meas_json['label']], np.float32)
         }
         return sample

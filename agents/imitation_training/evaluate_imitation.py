@@ -24,12 +24,12 @@ from agent_utils.planner import RoutePlanner
 from networks.imitation_network import ImitationNetwork
 
 # trained IL model path (should be inside "checkpoint/models/" folder)
-model_folder = "Feb_04_2022-19_14_19_imitation0/"
-model_name = "epoch_30.pth"
+model_folder = "Feb_05_2022-15_18_48_dagger_2_big" # "Feb_04_2022-19_14_19_imitation_0/"
+model_name = "epoch_15.pth"
 
 # if True: IL vs Autopilot will be checked and Autopilot data is applied when brake commands are not the same
 # if False: IL agent will always be applied without saving data
-DAGGER = True
+DAGGER = False
 # if True: front camera will be displayed
 DEBUG = False
 
