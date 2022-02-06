@@ -200,8 +200,12 @@ if __name__ == "__main__":
     train_dataset_loader = DataLoader(total_training_data, batch_size=config.batch_size, shuffle=True, num_workers=0)
     validation_dataset_loader = DataLoader(total_validation_data, batch_size=config.batch_size, shuffle=True, num_workers=0)
     
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print("Training Device: ", device)
+
     # construct policy switch classification network object
-    network = PolicyClassifierNetwork()
+    network = PolicyClassifierNetwork(device=device)
+    network.to(device)
     
     # define loss criterion
     criterion_policy_switcher = nn.CrossEntropyLoss()
@@ -209,14 +213,6 @@ if __name__ == "__main__":
     # define network optimizer and learning rate scheduler
     optimizer = optim.SGD(network.parameters(), config.learning_rate, momentum=config.momentum)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[config.min_milestone, config.max_milestone], gamma=config.gamma)
-
-    if config.pretrained is True:
-        network.load_state_dict(torch.load(config.trained_model_path))
-
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-    network.to(device)
-    print("Training Device: ", device)
 
     writer = SummaryWriter(log_dir=config.model_save_path + "runs/")
     writer_counter = 0

@@ -5,11 +5,11 @@ import numpy as np
 
 
 class ImitationNetwork(nn.Module):
-    def __init__(self):
+    def __init__(self, device):
         super().__init__()
 
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
+        self.device = device
+        
         # front RGB part import ResNet-50
         self.front_rgb_backbone = torchvision.models.resnet50(pretrained=True)
 

@@ -5,10 +5,10 @@ import numpy as np
 
 
 class PolicyClassifierNetwork(nn.Module):
-    def __init__(self):
+    def __init__(self, device):
         super().__init__()
 
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = device
 
         # front RGB part import ResNet-50
         self.front_rgb_backbone = torchvision.models.resnet50(pretrained=True)
@@ -50,7 +50,6 @@ class PolicyClassifierNetwork(nn.Module):
         return x
 
     def forward(self, front_images, speed_sequence):
-
         # pre-trained ResNet backbone
         front_rgb_features = self.front_rgb_backbone(front_images)
 
@@ -94,8 +93,6 @@ class PolicyClassifierNetwork(nn.Module):
         # inference
         with torch.no_grad():
             label_torch = self.forward(front_images=front_images_torch, speed_sequence=speed_sequence_torch)
-
-        print("label_torch : ", label_torch)
         
         # torch switch decision to CPU numpy array
         label = torch.argmax(nn.functional.softmax(label_torch))
