@@ -30,8 +30,8 @@ from networks.policy_classifier_network import PolicyClassifierNetwork
 
 
 # trained IL model path (should be inside "checkpoint/models/" folder)
-model_folder = "Feb_05_2022-15_18_48_dagger_2_big" # "Feb_04_2022-19_14_19_imitation_0/"
-model_name = "epoch_15.pth"
+model_folder = "Feb_04_2022-19_14_19_imitation_0/" # "Feb_05_2022-15_18_48_dagger_2_big"
+model_name = "epoch_30.pth"
 
 # if True: IL vs Autopilot will be checked and Autopilot data is applied when brake commands are not the same
 # if False: IL agent will always be applied without saving data
@@ -112,41 +112,43 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
         time_info = "/" + current_date + "-" + current_time + "/"
 
         self.dataset_save_path = os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/dataset/" + os.environ.get('SAVE_DATASET_NAME') + time_info)
-        model_path = os.path.join(os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/models/" + model_folder), model_name)
 
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         print("device: ", self.device)
 
+        model_path = os.path.join(os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/models/" + model_folder), model_name)
         self.agent = ImitationNetwork(device=self.device)
         self.agent.to(self.device)
         self.agent.load_state_dict(torch.load(model_path))
+        for param in self.agent.parameters():
+            param.requires_grad = False
         self.agent.eval()
 
         if ACTIVATE_SWITCH:
             # model selection switcher network 6 modes
+            policy_model_path = os.path.join(os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/models/" + policy_model_folder), switch_model_name)
             self.policy_classifier = PolicyClassifierNetwork(device=self.device)
             self.policy_classifier.to(self.device)
-
-            policy_model_path = os.path.join(os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/models/" + policy_model_folder), switch_model_name)
             self.policy_classifier.load_state_dict(torch.load(policy_model_path))
+            for param in self.policy_classifier.parameters():
+                param.requires_grad = False
             self.policy_classifier.eval()
 
-            # load pretrained ResNet
+            # load pretrained ResNet and freeze weights
+            resnet_model_path = os.path.join(os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/models/"), "resnet50.zip")
             self.resnet50 = models.resnet50(pretrained=False)
-            #self.load_resnet_weights()
-
-            # freeze weights
+            self.resnet50.to(self.device)
+            self.resnet50.load_state_dict(torch.load(resnet_model_path))
             for param in self.resnet50.parameters():
                 param.requires_grad = False
-
             self.resnet50.eval()
-            self.resnet50.to(self.device)
 
             rl_model_path = os.path.join(os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/models/" + rl_model_folder), "dqn" + "-ep_" + str(rl_model_eps_num))
-
             self.rl_agent = DQNNetwork2(state_size=1000, n_actions=4, device=self.device)
             self.rl_agent.to(self.device)
             self.rl_agent.load_state_dict(torch.load(rl_model_path))
+            for param in self.rl_agent.parameters():
+                param.requires_grad = False
             self.rl_agent.eval()
 
     def set_global_plan(self, global_plan_gps, global_plan_world_coord):
@@ -513,6 +515,8 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
     def destroy(self):
         del self.agent
         del self.rl_agent
+        del self.policy_classifier
+        del self.resnet50
 
         if self.collision_sensor is not None:
             self.collision_sensor.stop()
