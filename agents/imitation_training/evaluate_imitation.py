@@ -41,11 +41,11 @@ DAGGER = False
 DEBUG = False
 
 # if True: policy classifier will be activated
-ACTIVATE_SWITCH = False
+ACTIVATE_SWITCH = True
 
 # stuck vehicle RL model
 rl_model_folder = "Jan_31_2022-12_02_19_stuck_vehicle"
-rl_model_eps_num = 450
+rl_model_eps_num = 400
 
 # policy switch classifier model
 policy_model_folder = "Feb_05_2022-21_29_35_policy_classifier"
@@ -55,7 +55,8 @@ switch_model_name = "epoch_30.pth"
 SENSOR_CONFIG = {
     'width': 400,
     'height': 300,
-    'fov': 60
+    'high_fov': 100,
+    'low_fov': 60
 }
 
 WEATHERS = {
@@ -224,21 +225,21 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
                     'type': 'sensor.camera.rgb',
                     'x': 1.3, 'y': 0.0, 'z': 2.3,
                     'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0,
-                    'width': self._sensor_data['width'], 'height': self._sensor_data['height'], 'fov': self._sensor_data['fov'],
+                    'width': self._sensor_data['width'], 'height': self._sensor_data['height'], 'fov': self._sensor_data['high_fov'],
                     'id': 'rgb_front'
                     },
                 {
                     'type': 'sensor.camera.rgb',
                     'x': 1.3, 'y': 0.0, 'z': 2.3,
                     'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0,
-                    'width': self._sensor_data['width'], 'height': self._sensor_data['height'], 'fov': 60,
+                    'width': self._sensor_data['width'], 'height': self._sensor_data['height'], 'fov': self._sensor_data['low_fov'],
                     'id': 'rgb_front_60'
                     },
                 {
 					'type': 'sensor.camera.rgb',
 					'x': -1.3, 'y': 0.0, 'z':2.3,
 					'roll': 0.0, 'pitch': 0.0, 'yaw': -180.0,
-					'width': self._sensor_data['width'], 'height': self._sensor_data['height'], 'fov': self._sensor_data['fov'],
+					'width': self._sensor_data['width'], 'height': self._sensor_data['height'], 'fov': self._sensor_data['high_fov'],
 					'id': 'rgb_rear'
 					},
                 {
@@ -308,8 +309,10 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
         # front image
         rgb_front_image = data['rgb_front']
         front_cv_image = rgb_front_image[:, :, ::-1]
+
         rgb_front_60_image = data['rgb_front_60']
         front_60_cv_image = rgb_front_60_image[:, :, ::-1]
+
         rgb_rear_image = data['rgb_rear']
         rear_cv_image = rgb_rear_image[:, :, ::-1]
 
