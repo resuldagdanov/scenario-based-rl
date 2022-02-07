@@ -29,10 +29,6 @@ from networks.dqn_network import DQNNetwork2
 from networks.policy_classifier_network import PolicyClassifierNetwork
 
 
-# trained IL model path (should be inside "checkpoint/models/" folder)
-model_folder = "Feb_04_2022-19_14_19_imitation_0/" # "Feb_05_2022-15_18_48_dagger_2_big"
-model_name = "epoch_30.pth"
-
 # if True: IL vs Autopilot will be checked and Autopilot data is applied when brake commands are not the same
 # if False: IL agent will always be applied without saving data
 DAGGER = False
@@ -43,9 +39,13 @@ DEBUG = False
 # if True: policy classifier will be activated
 ACTIVATE_SWITCH = True
 
+# trained IL model path (should be inside "checkpoint/models/" folder)
+model_folder = "Feb_04_2022-19_14_19_imitation_0" # "Feb_05_2022-15_18_48_dagger_2_big"
+model_name = "epoch_30.pth"
+
 # stuck vehicle RL model
-rl_model_folder = "Jan_31_2022-12_02_19_stuck_vehicle"
-rl_model_eps_num = 400
+rl_model_folder = "Feb_07_2022-14_26_30"
+rl_model_eps_num = 300
 
 # policy switch classifier model
 policy_model_folder = "Feb_05_2022-21_29_35_policy_classifier"
@@ -176,9 +176,10 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
 
         self.switch2rl = False
         self.count_rl_acts = 0
-        self.max_rl_act_steps = 250
+        self.max_rl_act_steps = 100
         
         self.policy_label = 0
+        self.check_count = 0
 
         self.speed_sequence = deque(np.zeros(120), maxlen=120)
 
@@ -330,15 +331,17 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
         # run brake classifier imitation learning agent
         dnn_agent_brake = self.agent.inference(front_images=front_60_cv_image, waypoint_input=fused_inputs, speed_sequence=np.array(self.speed_sequence))
 
-        if ACTIVATE_SWITCH:
+        # when initialized, wait 50 steps until vehicle starts to move
+        if ACTIVATE_SWITCH and self.step > 50:
             with torch.no_grad():
                 self.policy_label = self.policy_classifier.inference(front_images=front_60_cv_image, speed_sequence=np.array(self.speed_sequence))
 
             # 0 class corresponds to running an imitation learning model
-            if self.policy_label == 0:
-                self.switch2rl = False
-            else:
+            if self.policy_label != 0 and self.check_count > 3:
                 self.switch2rl = True
+                self.check_count = 0
+            else:
+                self.check_count += 1
 
         if self.switch2rl:
             dnn_input_image = self.rl_agent.image_to_dnn_input(image=front_cv_image)
@@ -348,22 +351,26 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
                 image_features_torch = self.resnet50(dnn_input_image)
                 
                 # TODO: add actions of another RL models here (right now all models are stuck vehicle case)
-                if self.policy_label != 0:
+                # if self.policy_label != 0:
+                if self.count_rl_acts < self.max_rl_act_steps:
+                    self.count_rl_acts += 1
+
                     print("[Info]: Stuck Vehicle RL is Running ! (class id -> 3)")
                     action_value = self.rl_agent(image_features_torch)
 
-                max_value = torch.argmax(action_value).unsqueeze(0).unsqueeze(0).cpu().detach().numpy()[0][0]
+                    max_value = torch.argmax(action_value).unsqueeze(0).unsqueeze(0).cpu().detach().numpy()[0][0]
+                
+                else:
+                    pass
 
             # apply rl action constant number of times
             if self.count_rl_acts < self.max_rl_act_steps:
-                self.count_rl_acts += 1
-
                 # update near node by shifting future nodes to 90 degrees left or right
                 dnn_agent_brake, near_node = self.calculate_high_level_action(high_level_action=max_value, compass=ego_theta, gps=gps, near_node=near_node)
             
             else:
                 self.switch2rl = False
-                self.count_rl_acts == 0
+                self.count_rl_acts = 0
             
         # if any of the following is not None, then the agent should brake
         is_light, is_walker, is_vehicle, is_stop = self.traffic_data()
