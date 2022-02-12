@@ -11,17 +11,6 @@ import math
 import weakref
 import random
 
-"""
-seed = 0
-T.manual_seed(seed)
-np.random.seed(seed)
-random.seed(seed) 
-# for cuda
-T.cuda.manual_seed_all(seed)
-T.backends.cudnn.deterministic = True
-T.backends.cudnn.benchmark = False
-"""
-
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 
 # to add the parent "agents" folder to sys path and import models
@@ -34,8 +23,8 @@ from agent_utils.pid_controller import PIDController
 from agent_utils.planner import RoutePlanner
 from leaderboard.autoagents import autonomous_agent
 
- #TODO: SENSOR configs can be put to DB
 
+# TODO: sensor configs can be put to DB
 SENSOR_CONFIG = {
             'width': 400,
             'height': 300,
@@ -96,8 +85,6 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
     def init_dnn_agent(self):
         input_dims = (3, SENSOR_CONFIG['height'], SENSOR_CONFIG['width'])
-        #print(f"input_dims: {input_dims}")
-
         self.device = self.agent.device
 
     def init_auto_pilot(self):
@@ -135,13 +122,13 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         self.n_updates = 0
         self.total_loss = 0.0
 
-        self.initial_gps = 0.0
+        self.previous_gps = 0.0
 
         self.is_autopilot = True
         self.autopilot_counter = 0
         self.constant_action = None
 
-        self.autopilot_step = random.randint(90, 105) #for red light #random.randint(98, 128) #for stuck vehicle
+        self.autopilot_step = random.randint(98, 128)
         print("\nRandom Autopilot Step: ", self.autopilot_step)
 
         if self.debug:
@@ -150,7 +137,6 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
     def get_position(self, tick_data):
         gps = tick_data['gps']
         gps = (gps - self._route_planner.mean) * self._route_planner.scale
-
         return gps
 
     def init_privileged_agent(self):
@@ -159,7 +145,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
         self.collision_intensity = 0.0
         self.is_collision = False
-        #self.is_lane_invasion = False
+        # self.is_lane_invasion = False
 
         self.privileged_sensors()
 
@@ -198,15 +184,14 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         rgb_front = rgb_front[:, :, ::-1]
         gps = input_data['gps'][1][:2]
         compass = input_data['imu'][1][-1]
-
         speed = input_data['speed'][1]['speed']
 
         return {
-                'rgb_front': rgb_front,
-                'gps': gps,
-                'speed': speed,
-                'compass': compass
-                }
+            'rgb_front': rgb_front,
+            'gps': gps,
+            'speed': speed,
+            'compass': compass
+            }
 
     def run_step(self, input_data, timestamp):
         if not self.initialized:
@@ -214,22 +199,22 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
         self.autopilot_counter += 1
 
-        if self.autopilot_counter % 10 == 0 and not self.agent.evaluate:
-            self.change_weather()
+        if self.autopilot_counter % 10 == 0:
+            self.previous_gps = gps
+
+            if not self.agent.evaluate:
+                self.change_weather()
 
         data = self.tick(input_data)
         gps = self.get_position(data)
         speed = data['speed']
         compass = data['compass']
 
-        #print(f"compass {compass}")
-
         near_node, near_command = self._route_planner.run_step(gps)
         far_node, far_command = self._command_planner.run_step(gps)
 
         # front image
         rgb_front_image = data['rgb_front']
-        #print(f"rgb_front_image {np.sum(rgb_front_image)}")
         front_cv_image = rgb_front_image[:, :, ::-1]
 
         fused_inputs = np.zeros(3, dtype=np.float32)
@@ -244,13 +229,6 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             cv2.waitKey(1)
 
         # construct network input image format
-        """
-        print(f"front_cv_image.shape {front_cv_image.shape}")
-        print(f"front_cv_image {np.sum(front_cv_image)}")
-        """
-        #print(f"front_cv_image {front_cv_image}")
-        #print(f"fused_inputs {fused_inputs}")
-        #print(f"speed {speed}")
         dnn_input_image = self.image_to_dnn_input(image=front_cv_image)
 
         # fused inputs to torch
@@ -262,17 +240,11 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             image_features_torch = self.agent.resnet50(dnn_input_image)
             image_features = image_features_torch.cpu().detach().numpy()[0]
 
-        """
-        print(f"dnn_input_image {T.sum(dnn_input_image)}")
-        print(f"image_features_torch {image_features_torch}")
-        print(f"fused_inputs_torch {fused_inputs_torch}")
-        """
-
         # get action from value network
         if self.agent.evaluate: # evaluation
-            dnn_agent_action = int(self.agent.select_max_action(image_features=image_features_torch, fused_input=fused_inputs_torch)) # 1 dimensional for DQN            
+            dnn_agent_action = int(self.agent.select_max_action(image_features=image_features_torch, fused_input=fused_inputs_torch))          
         else: # training
-            dnn_agent_action = int(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch, epsilon=self.epsilon)) # 1 dimensional for DQN
+            dnn_agent_action = int(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch, epsilon=self.epsilon))
         
         if self.autopilot_counter > self.autopilot_step + 50:
             self.is_autopilot = False
@@ -293,16 +265,16 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
         # compute step reward and deside for termination
         if self.is_autopilot is False:
-            reward, done = self.calculate_reward(throttle=throttle, ego_speed=speed * 3.6, ego_gps=gps, goal_point=far_node, angle=angle)
+            reward, done = self.calculate_reward(throttle=throttle, ego_speed=speed, ego_gps=gps)
 
         #self.is_lane_invasion = False
         self.is_collision = False
 
         if self.is_autopilot is False:
             loss = None
+
             if self.push_buffer and not self.agent.evaluate:
                 self.agent.memory.push(image_features, fused_inputs, dnn_agent_action, reward, self.next_image_features, self.next_fused_inputs, done)
-                #self.agent.memory.push(image_features, dnn_agent_action, reward, self.next_image_features, done)
 
                 if self.agent.memory.filled_size > self.agent.batch_size:
                     sample_batch = self.agent.memory.sample(self.agent.batch_size)
@@ -321,8 +293,8 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
             if not self.agent.evaluate: #training
                 self.agent.db.insert_data_to_reward_table(self.agent.db.get_model_name(self.agent.training_id), self.agent.db.get_global_episode_number(self.agent.training_id), self.step_number, reward)
-                #running_average = self.agent.db.get_running_average(self.agent.db.get_model_name(self.agent.training_id))
-                #base_utils.tensorboard_writer_running_average(self.writer, self.total_step_num, running_average)
+                # running_average = self.agent.db.get_running_average(self.agent.db.get_model_name(self.agent.training_id))
+                # base_utils.tensorboard_writer_running_average(self.writer, self.total_step_num, running_average)
 
                 if loss is not None:
                     print("[Action]: epsilon: {:.2f}, high_level_action: {:d}, throttle: {:.2f}, steer: {:.2f}, brake: {:.2f}, speed: {:.2f}kmph, loss: {:.2f}, reward: {:.2f}, step: #{:d}, total_step: #{:d}".format(self.epsilon, dnn_agent_action, throttle, steer, brake, speed * 3.6, loss, reward, self.step_number, self.total_step_num))
@@ -405,9 +377,11 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         if high_level_action == 1: # left
             offset = -3.5
             new_near_node = self.shift_point(ego_compass=compass, ego_gps=gps, near_node=near_node, offset_amount=offset)
+        
         elif high_level_action == 3: # right
             offset = 3.5
             new_near_node = self.shift_point(ego_compass=compass, ego_gps=gps, near_node=near_node, offset_amount=offset)
+        
         else: # keep lane
             offset = 0.0
             new_near_node = near_node
@@ -424,77 +398,42 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
         return throttle, steer, brake, angle
 
-
-    #TODO: if you change the reward, save the snippet and save the id of it to DB
-    def calculate_reward(self, throttle, ego_speed, ego_gps, goal_point, angle):
-        reward = 0.0 #-0.1
+    def calculate_reward(self, throttle, ego_speed, ego_gps):
+        reward = 0.0
         done = 0
 
-        """
-        if abs(angle) > 0.03:
-            absolute_value_angle = abs(angle)
-        else:
-            absolute_value_angle = 0.0
-
-        reward -= 25 * absolute_value_angle
-        print(f"[Penalty]: angle change {reward} !")
-        """
-
-        """
-        # distance to each far distance goal points in meters
-        distance = np.linalg.norm(goal_point - ego_gps)
-        distance_reward = 1.0 - (distance / 28.0)
-        distance_reward = max(0.0, distance_reward)
-        distance_reward = min(1.0, distance_reward)
-
-        print(f"[Reward]: distance_reward {10 * distance_reward}")
-        reward += 10 * distance_reward
-        """
-
         # if any of the following is not None, then the agent should brake
-        is_light, is_walker, is_vehicle, _ = self.traffic_data() # TODO: try with giving them as inputs (e.g. append them to state information)
-
-        print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle) # TODO: make sure light is not becoming red when it is too far
+        is_light, is_walker, is_vehicle, _ = self.traffic_data()
+        print("[Traffic]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle)
 
         # give penalty if ego vehicle is not braking where it should brake
-        if any(x is not None for x in [is_light]): #is_stop
-
+        if any(x is not None for x in [is_light, is_walker, is_vehicle]):
+            
             # accelerating while it should brake
-            if throttle > 0.2: #throttle
-                print("[Penalty]: not braking !") # TODO: if it passes red light, turn done True
-                reward -= 1
-
-            # braking as it should be
-            else:
+            if throttle < 0.1:
                 print("[Reward]: correctly braking !")
-                reward += 0.5
-        else:
-            if ego_speed < 0.01:
-                reward -= 0.5
+                # braking is desired
+                reward += 50
             else:
-                reward += 0.5
+                print("[Penalty]: not braking !")
 
-        # negative reward for collision or lane invasion
-        """
-        print(f"self.is_lane_invasion {self.is_lane_invasion}")
-        if self.is_lane_invasion:
-            print("[Penalty]: lane invasion !")
-            reward -= 50
-        """
+            reward -= ego_speed
+
+        else:
+            reward += ego_speed
+        
+        # distance from starting position
+        reward += np.linalg.norm(ego_gps - self.previous_gps)
+
+        # TODO: make this hyperparam
+        if self.step_number > 250:
+            done = 1
+
+        # negative reward for collision
         if self.is_collision:
             print("[Penalty]: collision !")
-            reward -= 10
+            reward -= 1500
             done = 1
-
-        if self.step_number == 1:
-            self.initial_gps = ego_gps
-
-        if self.step_number > 250: # TODO: make this hyperparam
-            done = 1
-
-        if done == 1 and not self.is_collision:
-            diff_gps = np.linalg.norm(ego_gps - self.initial_gps)
-            reward += 0.5 * diff_gps
 
         return reward, done
     
@@ -503,15 +442,15 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
         # get blueprint of the sensors
         bp_collision = blueprint.find('sensor.other.collision')
-        #bp_lane_invasion = blueprint.find('sensor.other.lane_invasion')
+        # bp_lane_invasion = blueprint.find('sensor.other.lane_invasion')
 
         # attach sensors to the ego vehicle
         self.collision_sensor = self.world.spawn_actor(bp_collision, carla.Transform(), attach_to=self.hero_vehicle)
-        #self.lane_invasion_sensor = self.world.spawn_actor(bp_lane_invasion, carla.Transform(), attach_to=self.hero_vehicle)
+        # self.lane_invasion_sensor = self.world.spawn_actor(bp_lane_invasion, carla.Transform(), attach_to=self.hero_vehicle)
 
         # create sensor event callbacks
         self.collision_sensor.listen(lambda event: DqnAgent._on_collision(weakref.ref(self), event))
-        #self.lane_invasion_sensor.listen(lambda event: DqnAgent._on_lane_invasion(weakref.ref(self), event))
+        # self.lane_invasion_sensor.listen(lambda event: DqnAgent._on_lane_invasion(weakref.ref(self), event))
 
     def traffic_data(self):
         all_actors = self.world.get_actors()
@@ -527,6 +466,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         light = self.is_light_red(traffic_lights)
         walker = self.is_walker_hazard(walkers_list)
         vehicle = self.is_vehicle_hazard(vehicle_list)
+
         if len(stops) == 0:
             stop = None
         else:
@@ -612,16 +552,22 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
     def is_walker_hazard(self, walkers_list):
         p1 = base_utils._numpy(self.hero_vehicle.get_location())
         v1 = 13.0 * base_utils._orientation(self.hero_vehicle.get_transform().rotation.yaw)
+        
         for walker in walkers_list:
             v2_hat = base_utils._orientation(walker.get_transform().rotation.yaw)
             s2 = np.linalg.norm(base_utils._numpy(walker.get_velocity()))
+            
             if s2 < 0.05:
                 v2_hat *= s2
+            
             p2 = -3.0 * v2_hat + base_utils._numpy(walker.get_location())
             v2 = 10.0 * v2_hat
+            
             collides, collision_point = base_utils.get_collision(p1, v1, p2, v2)
+            
             if collides:
                 return walker
+
         return None
 
     def is_vehicle_hazard(self, vehicle_list):
@@ -629,23 +575,30 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         p1 = base_utils._numpy(self.hero_vehicle.get_location())
         s1 = max(10, 5.0 * np.linalg.norm(base_utils._numpy(self.hero_vehicle.get_velocity()))) # increases the threshold distance
         s2 = max(20, 5.0 * np.linalg.norm(base_utils._numpy(self.hero_vehicle.get_velocity()))) # increases the threshold distance
+        
         v1_hat = o1
         v1 = s1 * v1_hat
+        
         for target_vehicle in vehicle_list:
             if target_vehicle.id == self.hero_vehicle.id:
                 continue
+            
             o2 = base_utils._orientation(target_vehicle.get_transform().rotation.yaw)
             p2 = base_utils._numpy(target_vehicle.get_location())
             s2 = max(6.0, 4.0 * np.linalg.norm(base_utils._numpy(target_vehicle.get_velocity())))
+            
             v2_hat = o2
             v2 = s2 * v2_hat
             p2_p1 = p2 - p1
+            
             distance = np.linalg.norm(p2_p1)
             p2_p1_hat = p2_p1 / (distance + 1e-4)
+            
             angle_to_car = np.degrees(np.arccos(v1_hat.dot(p2_p1_hat)))
             angle_between_heading = np.degrees(np.arccos(o1.dot(o2)))
             angle_to_car = min(angle_to_car, 360.0 - angle_to_car)
             angle_between_heading = min(angle_between_heading, 360.0 - angle_between_heading)
+            
             if angle_between_heading > 60.0 and not (angle_to_car < 15 and distance < s1):
                 continue
             elif angle_to_car > 30.0:
@@ -656,6 +609,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
             elif distance > s1:
                 continue
             return target_vehicle
+        
         return None
 
     @staticmethod
@@ -669,30 +623,26 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         impulse = event.normal_impulse
         self.collision_intensity = math.sqrt(impulse.x ** 2 + impulse.y ** 2 + impulse.z ** 2)
 
-    """
-    @staticmethod
-    def _on_lane_invasion(weak_self, event):
-        self = weak_self()
-        if not self:
-            return
+    # @staticmethod
+    # def _on_lane_invasion(weak_self, event):
+    #     self = weak_self()
+    #     if not self:
+    #         return
 
-        self.is_lane_invasion = True 
-    """
+    #     self.is_lane_invasion = True 
 
     def change_weather(self):
         index = random.choice(range(len(WEATHERS)))
+
         self.weather_id = WEATHERS_IDS[index]
         self.world.set_weather(WEATHERS[WEATHERS_IDS[index]])
 
     def destroy(self):
-        #del self.agent
-        #print(f"agent is destroyed")
-
         if self.collision_sensor is not None:
             self.collision_sensor.stop()
 
-        #if self.lane_invasion_sensor is not None:
-        #    self.lane_invasion_sensor.stop()
+        # if self.lane_invasion_sensor is not None:
+        #     self.lane_invasion_sensor.stop()
         
         # terminate and go to another episode
         os.kill(os.getpid(), signal.SIGINT)
