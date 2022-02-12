@@ -30,7 +30,7 @@ class DQNNetwork(nn.Module):
         x[:, 2] = (x[:, 2] - 0.406) / 0.225
         return x
 
-    def image_to_dnn_input(self, image, fused_input):
+    def image_to_dnn_input(self, image):
         # convert width height channel to channel width height
         image = np.array(image.transpose((2, 0, 1)), np.float32)
         # BGRA to BGR

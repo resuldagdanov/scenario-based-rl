@@ -117,17 +117,17 @@ class DQNModel():
             if episode_num != 0 : # load previous models if it is not first episode of training
                 self.load_models(episode_num)
 
-    def select_action(self, image_features, fused_input, epsilon):
+    def select_action(self, image_features, epsilon):
         if random.random() < epsilon: # random action
             action = random.choice(range(0, self.n_actions, 1))
             return action
         else:
-            action = self.select_max_action(image_features, fused_input) # greedy action
+            action = self.select_max_action(image_features) # greedy action
             return action
 
-    def select_max_action(self, image_features, fused_input):
+    def select_max_action(self, image_features):
         with T.no_grad():
-            net_out = self.dqn_network(image_features, fused_input)
+            net_out = self.dqn_network(image_features)
             max_action = T.argmax(net_out).cpu().detach().numpy()
         return max_action
 

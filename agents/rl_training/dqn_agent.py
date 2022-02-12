@@ -199,16 +199,16 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
         self.autopilot_counter += 1
 
+        data = self.tick(input_data)
+        gps = self.get_position(data)
+        speed = data['speed']
+        compass = data['compass']
+
         if self.autopilot_counter % 10 == 0:
             self.previous_gps = gps
 
             if not self.agent.evaluate:
                 self.change_weather()
-
-        data = self.tick(input_data)
-        gps = self.get_position(data)
-        speed = data['speed']
-        compass = data['compass']
 
         near_node, near_command = self._route_planner.run_step(gps)
         far_node, far_command = self._command_planner.run_step(gps)
@@ -242,9 +242,9 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
         # get action from value network
         if self.agent.evaluate: # evaluation
-            dnn_agent_action = int(self.agent.select_max_action(image_features=image_features_torch, fused_input=fused_inputs_torch))          
+            dnn_agent_action = int(self.agent.select_max_action(image_features=image_features_torch))          
         else: # training
-            dnn_agent_action = int(self.agent.select_action(image_features=image_features_torch, fused_input=fused_inputs_torch, epsilon=self.epsilon))
+            dnn_agent_action = int(self.agent.select_action(image_features=image_features_torch, epsilon=self.epsilon))
         
         if self.autopilot_counter > self.autopilot_step + 50:
             self.is_autopilot = False

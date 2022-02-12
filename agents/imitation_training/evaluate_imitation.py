@@ -25,7 +25,7 @@ from agent_utils.pid_controller import PIDController
 from agent_utils.planner import RoutePlanner
 
 from networks.imitation_network import ImitationNetwork
-from networks.dqn_network import DQNNetwork2
+from networks.dqn_network import DQNNetwork
 from networks.policy_classifier_network import PolicyClassifierNetwork
 
 
@@ -43,7 +43,7 @@ ACTIVATE_SWITCH = True
 IS_WEATHER_CHANGE = True
 
 # trained IL model path (should be inside "checkpoint/models/" folder)
-model_folder = "Feb_05_2022-15_18_48_dagger_2" #"Feb_04_2022-19_14_19_imitation_0"
+model_folder = "Feb_05_2022-15_18_48_dagger_2_big" #"Feb_04_2022-19_14_19_imitation_0"
 model_name = "epoch_15.pth"
 
 # stuck vehicle RL model
@@ -89,7 +89,7 @@ WEATHERS_IDS = list(WEATHERS)
 
 def get_entry_point():
     return 'ImitationAgent'
-    
+
 
 class ImitationAgent(autonomous_agent.AutonomousAgent):
     def setup(self, path_to_conf_file, route_id, rl_model=None):
@@ -147,7 +147,7 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
             self.resnet50.eval()
 
             rl_model_path = os.path.join(os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/models/" + rl_model_folder), "dqn" + "-ep_" + str(rl_model_eps_num))
-            self.rl_agent = DQNNetwork2(state_size=1000, n_actions=4, device=self.device)
+            self.rl_agent = DQNNetwork(state_size=1000, n_actions=4, device=self.device)
             self.rl_agent.to(self.device)
             self.rl_agent.load_state_dict(torch.load(rl_model_path))
             for param in self.rl_agent.parameters():
