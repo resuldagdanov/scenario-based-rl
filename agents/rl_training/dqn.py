@@ -74,7 +74,7 @@ class DQNModel():
 
         # load pretrained ResNet
         self.resnet50 = models.resnet50(pretrained=False)
-        resnet_model_path = os.path.join(os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/models/"), "resnet50.zip")
+        resnet_model_path = os.path.join(os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/models/"), "resnet50")
         self.resnet50.load_state_dict(T.load(resnet_model_path))
 
         # freeze weights
@@ -136,21 +136,21 @@ class DQNModel():
 
         # convert sample_batch vectors to tensor
         image_features = T.tensor(image_features, dtype=T.float32).to(self.device)
-        fused_inputs = T.tensor(fused_inputs, dtype=T.float32).to(self.device)
+        #fused_inputs = T.tensor(fused_inputs, dtype=T.float32).to(self.device)
         actions = T.tensor(actions, dtype=T.int64).to(self.device) # this is discrete for DQN
         rewards = T.unsqueeze(T.tensor(rewards, dtype=T.float32), dim=1).to(self.device)
         next_image_features = T.tensor(next_image_features, dtype=T.float32).to(self.device)
-        next_fused_inputs = T.tensor(next_fused_inputs, dtype=T.float32).to(self.device)
+        #next_fused_inputs = T.tensor(next_fused_inputs, dtype=T.float32).to(self.device)
         dones = T.tensor(dones, dtype=T.uint8).to(self.device)        
 
         dones_mask = (dones == 1) # True for terminal states, False for others
 
-        max_next_state_action_value = self.target_dqn_network(next_image_features, next_fused_inputs).max(1).values.unsqueeze(1)
+        max_next_state_action_value = self.target_dqn_network(next_image_features).max(1).values.unsqueeze(1)
         max_next_state_action_value[dones_mask] = 0.0
-        
+ 
         target = rewards + self.gamma * max_next_state_action_value
-        current = self.dqn_network(image_features, fused_inputs).gather(1, actions)
-
+        current = self.dqn_network(image_features).gather(1, actions)
+        
         # compute and backward loss for dqn network
         loss = self.l1(current, target)
         self.optimizer.zero_grad()

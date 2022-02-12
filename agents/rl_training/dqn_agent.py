@@ -128,7 +128,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         self.autopilot_counter = 0
         self.constant_action = None
 
-        self.autopilot_step = random.randint(98, 128)
+        self.autopilot_step = random.randint(95, 105) # red light # random.randint(98, 128) # stuck vehicle
         print("\nRandom Autopilot Step: ", self.autopilot_step)
 
         if self.debug:

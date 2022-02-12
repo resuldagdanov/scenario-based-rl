@@ -9,10 +9,10 @@ export evaluate=false # true
 export model_name="Feb_07_2022-14_26_30" # only used if evaluate true, make sure it exists
 export load_episode_number=300 # only used if evaluate true, make sure it exists
 
-export repetitions=50
-export max_episode_batch_num=40
+export repetitions=5
+export max_episode_batch_num=1
 export json_file="all_towns_traffic_scenarios_WOR.json"
-export xml_file="failed_routes/town05_long/stuck_vehicle_1.xml"
+export xml_file="failed_routes/town05_short/traffic_light_3.xml" #"failed_routes/town05_long/stuck_vehicle_1.xml"
 
 max_episode_num=`expr $repetitions \* $max_episode_batch_num`
 
