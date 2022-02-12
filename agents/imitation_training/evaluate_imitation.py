@@ -39,9 +39,12 @@ DEBUG = False
 # if True: policy classifier will be activated
 ACTIVATE_SWITCH = True
 
+# if False: only clear weather will be active
+IS_WEATHER_CHANGE = True
+
 # trained IL model path (should be inside "checkpoint/models/" folder)
-model_folder = "Feb_04_2022-19_14_19_imitation_0" # "Feb_05_2022-15_18_48_dagger_2_big"
-model_name = "epoch_30.pth"
+model_folder = "Feb_05_2022-15_18_48_dagger_2" #"Feb_04_2022-19_14_19_imitation_0"
+model_name = "epoch_15.pth"
 
 # stuck vehicle RL model
 rl_model_folder = "Feb_07_2022-14_26_30"
@@ -181,6 +184,7 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
         self.policy_label = 0
         self.check_count = 0
 
+        self.previous_gps = 0.0
         self.speed_sequence = deque(np.zeros(120), maxlen=120)
 
         if self.debug:
@@ -294,11 +298,12 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
         speed = data['speed']
         compass = data['compass']
 
-        if self.step % 20 == 0:
+        if self.step % 20 == 0 and IS_WEATHER_CHANGE:
             self.change_weather()
 
         if self.step % 10 == 0:
             self.speed_sequence.append(speed)
+            self.previous_gps = gps
 
         # fix for theta=nan in some measurements
         if np.isnan(data['compass']):
@@ -336,8 +341,9 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
             with torch.no_grad():
                 self.policy_label = self.policy_classifier.inference(front_images=front_60_cv_image, speed_sequence=np.array(self.speed_sequence))
 
+            # TODO: train different DQN agents
             # 0 class corresponds to running an imitation learning model
-            if self.policy_label != 0 and self.check_count > 3:
+            if self.policy_label == 3 and self.check_count > 3:
                 self.switch2rl = True
                 self.check_count = 0
             else:
@@ -374,7 +380,7 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
             
         # if any of the following is not None, then the agent should brake
         is_light, is_walker, is_vehicle, is_stop = self.traffic_data()
-        # print("[Scenario]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle, " stop-", is_stop)
+        print("[Traffic]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle, " stop-", is_stop)
 
         # by using priviledged information determine braking
         is_brake = any(x is not None for x in [is_light, is_walker, is_vehicle, is_stop])
@@ -393,8 +399,7 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
         steer, throttle, brake, target_speed, angle = self.get_control(target=near_node, far_target=far_node, tick_data=data, brake=applied_brake)
 
         # compute step reward and deside for termination
-        reward, done = self.calculate_reward(throttle=throttle, ego_speed=speed*3.6, angle=angle, is_light=is_light, is_vehicle=is_vehicle, is_walker=is_walker, is_stop=is_stop)
-
+        reward, done = self.calculate_reward(throttle=throttle, ego_speed=speed, ego_gps=gps, is_light=is_light, is_vehicle=is_vehicle, is_walker=is_walker, is_stop=is_stop)
         label = self.define_classifier_label(reward)
 
         print("[Action]:", throttle, steer, brake, " [Reward]:", reward, " [Done]:", done, "[Waypoint]:", near_node, "[GT Class ID]:", label, "[Predicted Class ID]:", self.policy_label)
@@ -521,9 +526,11 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
 
     def destroy(self):
         del self.agent
-        del self.rl_agent
-        del self.policy_classifier
-        del self.resnet50
+
+        if ACTIVATE_SWITCH:
+            del self.rl_agent
+            del self.policy_classifier
+            del self.resnet50
 
         if self.collision_sensor is not None:
             self.collision_sensor.stop()
@@ -596,12 +603,12 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
 
         return light, walker, vehicle, stop
 
-    def calculate_reward(self, throttle, ego_speed, angle, is_light, is_vehicle, is_walker, is_stop):
+    def calculate_reward(self, throttle, ego_speed, ego_gps, is_light, is_vehicle, is_walker, is_stop):
         reward = 0.0
         done = 0
 
         # give penalty if ego vehicle is not braking where it should brake
-        if any(x is not None for x in [is_light, is_walker, is_vehicle, is_stop]):
+        if any(x is not None for x in [is_light, is_walker, is_vehicle]):
             self.count_is_seen += 1
             
             # throttle desired after too much waiting around vehicle or walker
@@ -612,39 +619,25 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
             # braking desired
             else:
                 # accelerating while it should brake
-                if throttle > 0.2:
-                    print("[Penalty]: not braking !")
-                    reward -= 50
-                else:
+                if throttle < 0.1:
                     print("[Reward]: correctly braking !")
                     reward += 50
+                else:
+                    print("[Penalty]: not braking !")
+                reward -= ego_speed
 
-            self.count_vehicle_stop = 0
-                
-        # terminate if vehicle is not moving for too long steps
         else:
+            reward += ego_speed
             self.count_is_seen = 0
-
-            if ego_speed <= 0.5:
-                self.count_vehicle_stop += 1
-            else:
-                self.count_vehicle_stop = 0
-
-            if self.count_vehicle_stop > 100:
-                print("[Penalty]: too long stopping !")
-                reward -= 20
-                done = 1
-            else:
-                reward += ego_speed
-                done = 0
+        
+        # distance from starting position
+        reward += np.linalg.norm(ego_gps - self.previous_gps)
 
         # negative reward for collision
         if self.is_collision:
             print("[Penalty]: collision !")
-            reward -= 1000
+            reward -= 1500
             done = 1
-        else:
-            done = 0
 
         return reward, done
 
