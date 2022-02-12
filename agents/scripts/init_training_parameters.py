@@ -7,17 +7,6 @@ import random
 import torch as T
 from torchvision import models
 
-"""
-seed = 0
-T.manual_seed(seed)
-np.random.seed(seed)
-random.seed(seed) 
-# for cuda
-T.cuda.manual_seed_all(seed)
-T.backends.cudnn.deterministic = True
-T.backends.cudnn.benchmark = False
-"""
-
 # to add the parent "agents" folder to sys path and import models
 current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
@@ -55,8 +44,8 @@ parser.add_argument('--write_resnet', type=bool, default=False, help='if True, w
 
 args = parser.parse_args()
 
-#args.debug = True
-args.is_cpu = False #False
+# args.debug = True
+args.is_cpu = False # False
 args.n_actions = 4
 
 for arg in vars(args):
