@@ -24,6 +24,8 @@ from agent_utils.planner import RoutePlanner
 from leaderboard.autoagents import autonomous_agent
 
 
+IS_STUCK_VEHICLE = False
+
 # TODO: sensor configs can be put to DB
 SENSOR_CONFIG = {
             'width': 400,
@@ -406,8 +408,14 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
         is_light, is_walker, is_vehicle, _ = self.traffic_data()
         print("[Traffic]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle)
 
+        # when stucke vehicle is trained, do not get penalized for not braking while affecting vehicle or pedestrian exist
+        if IS_STUCK_VEHICLE:
+            objects_of_concern = [is_light]
+        else:
+            objects_of_concern = [is_light, is_walker, is_vehicle]
+        
         # give penalty if ego vehicle is not braking where it should brake
-        if any(x is not None for x in [is_light, is_walker, is_vehicle]):
+        if any(x is not None for x in objects_of_concern):
             
             # accelerating while it should brake
             if throttle < 0.1:
