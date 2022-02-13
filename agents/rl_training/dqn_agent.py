@@ -410,7 +410,7 @@ class DqnAgent(autonomous_agent.AutonomousAgent):
 
         # when stucke vehicle is trained, do not get penalized for not braking while affecting vehicle or pedestrian exist
         if IS_STUCK_VEHICLE:
-            objects_of_concern = [is_light]
+            objects_of_concern = []
         else:
             objects_of_concern = [is_light, is_walker, is_vehicle]
         
