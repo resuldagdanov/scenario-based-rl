@@ -3,6 +3,7 @@ import numpy as np
 np.random.seed(0)
 from datetime import datetime
 
+
 def get_time_info():
     today = datetime.today() # month - date - year
     now = datetime.now() # hours - minutes - seconds
@@ -14,6 +15,7 @@ def get_time_info():
     time_info = current_date + "-" + current_time
 
     return time_info
+
 
 def _numpy(carla_vector, normalize=False):
     result = np.float32([carla_vector.x, carla_vector.y])
@@ -58,6 +60,7 @@ def get_collision(p1, v1, p2, v2):
 
     return collides, p1 + x[0] * v1
 
+
 def get_nearby_lights(vehicle, lights, pixels_per_meter=5.5, size=512, radius=5):
     result = list()
 
@@ -99,24 +102,3 @@ def get_nearby_lights(vehicle, lights, pixels_per_meter=5.5, size=512, radius=5)
         result.append(light)
 
     return result
-
-def tensorboard_writer(writer, eps, episode_total_reward, best_reward, policy_loss, value_loss, n_updates):
-    writer.add_scalar("episode total reward - episode", episode_total_reward, eps)
-    writer.add_scalar("best reward - episode", best_reward, eps)
-
-    if n_updates != 0:
-        writer.add_scalar("policy loss - episode", policy_loss / n_updates, eps)
-        writer.add_scalar("value loss - episode", value_loss / n_updates, eps)
-        
-def tensorboard_writer_with_one_loss(writer, eps, episode_total_reward, best_reward, value_loss, n_updates):
-    writer.add_scalar("episode total reward - episode", episode_total_reward, eps)
-    writer.add_scalar("best reward - episode", best_reward, eps)
-
-    if n_updates != 0:
-        writer.add_scalar("value loss - episode", value_loss / n_updates, eps)
-
-def tensorboard_writer_evaluation(writer, eps, episode_total_reward):
-    writer.add_scalar("episode total reward - episode", episode_total_reward, eps)
-
-def tensorboard_writer_running_average(writer, total_step_num, running_average):
-    writer.add_scalar("running average (100 steps) - total step number", running_average, total_step_num)

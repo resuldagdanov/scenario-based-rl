@@ -17,9 +17,9 @@ parent = os.path.dirname(current)
 sys.path.append(parent)
 
 from collections import deque
-from agent_utils import base_utils
-from agent_utils.pid_controller import PIDController
-from agent_utils.planner import RoutePlanner
+from utils import base_utils
+from utils.pid_controller import PIDController
+from utils.planner import RoutePlanner
 
 
 DEBUG = False
