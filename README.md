@@ -1,5 +1,5 @@
-# scenario-based-rl
-Implementation of Deep Reinforcement Learning Methods on Carla Simulation with Trainings Based on Scenarios
+# imitation-learning
+Implementation of Imitation Learning Method on Carla Simulation with Trainings Based on Scenarios
 
 ## version
 carla version 0.9.10.1
@@ -16,43 +16,7 @@ pygame 2.0.1
 
 <!--add pytorch version-->
 
-## how to download and run posgtresql
-Follow instructions https://www.postgresql.org/download/linux/ubuntu/
-```sh
-sudo apt install postgresql postgresql-contrib
-```
-```sh
-pip install psycopg2-binary
-```
-```sh
-sudo service postgresql start                   # start postgresql server
-```
-```sh
-systemctl status postgresql                     # see whether postgresql server is active
-```
-```sh
-sudo service postgresql stop                    # stop postgresql server
-```
-```sh
-sudo -u postgres psql
-```
-```sh
-postgres=# \password                            # enter postgres as password
-```
-```sh
-postgres=# CREATE DATABASE "BUFFER_DB";;        # check it typing \l
-```
-## PGADMIN4 (gui for postgresql database)
-https://www.pgadmin.org/download/pgadmin-4-apt/
 
-## how to run
-In terminal,
-
-```sh
-cd scenario-based-rl/agents/scripts
-
-./main.sh
-```
 
 
 ## Run Carla Server on GPU
