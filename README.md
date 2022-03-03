@@ -1,22 +1,33 @@
-# imitation-learning
+# imitation-learning in carla simulator
 Implementation of Imitation Learning Method on Carla Simulation with Trainings Based on Scenarios
 
-## version
-carla version 0.9.10.1
-
-python 3.7.11
-
-unreal engine 4.24
-
-scenario_runner 0.9.9
-
-leaderboard
-
-pygame 2.0.1
-
+## versions
+* carla version 0.9.10.1
+* python 3.7.11
+* unreal engine 4.24
+* scenario_runner 0.9.9
+* leaderboard
+* pygame 2.0.1
 <!--add pytorch version-->
 
+```sh
+pip install -r requirements.txt
+```
 
+## Prepare Necessary Directory Exports to Bashrc
+
+```sh
+gedit ~/.bashrc
+
+export DeFIX_PATH=PATH_TO_MAIN_DeFIX_REPO
+export CARLA_ROOT=PATH_TO_CARLA_ROOT_SH
+
+export SCENARIO_RUNNER_ROOT="${DeFIX_PATH}/scenario_runner"
+export LEADERBOARD_ROOT="${DeFIX_PATH}/leaderboard"
+export PYTHONPATH="${CARLA_ROOT}/PythonAPI/carla/":"${SCENARIO_RUNNER_ROOT}":"${LEADERBOARD_ROOT}":"${CARLA_ROOT}/PythonAPI/carla/dist/carla-0.9.11-py3.7-linux-x86_64.egg":${PYTHONPATH}
+
+source ~/.bashrc
+```
 
 
 ## Run Carla Server on GPU
