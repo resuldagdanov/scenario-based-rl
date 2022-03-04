@@ -60,7 +60,7 @@ def get_entry_point():
     
 
 class AutopilotAgent(autonomous_agent.AutonomousAgent):
-    def setup(self, path_to_conf_file, route_id, rl_model=None):
+    def setup(self, path_to_conf_file, route_id):
         self.track = autonomous_agent.Track.SENSORS
         self._sensor_data = SENSOR_CONFIG
         self.config_path = path_to_conf_file
