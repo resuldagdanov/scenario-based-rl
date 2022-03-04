@@ -1,6 +1,19 @@
 # imitation-learning in carla simulator
 Implementation of Imitation Learning Method on Carla Simulation with Trainings Based on Scenarios
 
+## Installation Steps
+
+* Download [Carla 0.9.10.1](https://carla-releases.s3.eu-west-3.amazonaws.com/Linux/CARLA_0.9.10.1.tar.gz)
+* unzip folder to PATH_TO_CARLA_ROOT_SH (user defined path)
+
+```sh
+conda create -n carla python=3.7
+
+conda activate carla
+
+pip install -r requirements.txt
+```
+
 ## versions
 * carla version 0.9.10.1
 * python 3.7.11
@@ -24,15 +37,27 @@ export CARLA_ROOT=PATH_TO_CARLA_ROOT_SH
 
 export SCENARIO_RUNNER_ROOT="${DeFIX_PATH}/scenario_runner"
 export LEADERBOARD_ROOT="${DeFIX_PATH}/leaderboard"
-export PYTHONPATH="${CARLA_ROOT}/PythonAPI/carla/":"${SCENARIO_RUNNER_ROOT}":"${LEADERBOARD_ROOT}":"${CARLA_ROOT}/PythonAPI/carla/dist/carla-0.9.11-py3.7-linux-x86_64.egg":${PYTHONPATH}
+export PYTHONPATH="${CARLA_ROOT}/PythonAPI/carla/":"${SCENARIO_RUNNER_ROOT}":"${LEADERBOARD_ROOT}":"${CARLA_ROOT}/PythonAPI/carla/dist/carla-0.9.10-py3.7-linux-x86_64.egg":${PYTHONPATH}
 
 source ~/.bashrc
 ```
 
-
 ## Run Carla Server on GPU
 ```sh
+cd $CARLA_ROOT
 ./CarlaUE4.sh -prefernvidia
+```
+
+## Run Carla Autopilot (Expert Policy)
+```sh
+cd $DeFIX_PATH/imitation-learning/scripts
+. run_autopilot.sh
+```
+
+## Run Imitation Learning Agent (Brake Classifier Agent)
+```sh
+cd $DeFIX_PATH/imitation-learning/scripts
+. run_imitation.sh
 ```
 
 ## List of Supported Scenarios
