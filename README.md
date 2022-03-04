@@ -21,14 +21,13 @@ pip install -r requirements.txt
 * scenario_runner 0.9.9
 * leaderboard
 * pygame 2.0.1
-<!--add pytorch version-->
+* pytorch 1.7.1
 
 ```sh
 pip install -r requirements.txt
 ```
 
 ## Prepare Necessary Directory Exports to Bashrc
-
 ```sh
 gedit ~/.bashrc
 
@@ -61,7 +60,6 @@ cd $DeFIX_PATH/imitation-learning/scripts
 ```
 
 ## List of Supported Scenarios
-
 Welcome to the ScenarioRunner for CARLA! This document provides a list of all
 currently supported scenarios, and a short description for each one.
 
