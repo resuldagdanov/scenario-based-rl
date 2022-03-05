@@ -1,5 +1,4 @@
 import os
-import sys
 import weakref
 import numpy as np
 import random
@@ -8,25 +7,16 @@ import json
 import carla
 import torch
 
-from torchvision import models
-
+from collections import deque
 from datetime import datetime
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 from leaderboard.autoagents import autonomous_agent 
 
-# to add the parent "agents" folder to sys path and import models
-current = os.path.dirname(os.path.realpath(__file__))
-parent = os.path.dirname(current)
-sys.path.append(parent)
-
-from collections import deque
 from agent_utils import base_utils
 from agent_utils.pid_controller import PIDController
 from agent_utils.planner import RoutePlanner
 
 from networks.imitation_network import ImitationNetwork
-from networks.dqn_network import DQNNetwork
-from networks.policy_classifier_network import PolicyClassifierNetwork
 
 
 # if True: IL vs Autopilot will be checked and Autopilot data is applied when brake commands are not the same
@@ -36,24 +26,12 @@ DAGGER = False
 # if True: front camera will be displayed
 DEBUG = False
 
-# if True: policy classifier will be activated
-ACTIVATE_SWITCH = True
-
 # if False: only clear weather will be active
 IS_WEATHER_CHANGE = True
 
-# trained IL model path (should be inside "checkpoint/models/" folder)
-model_folder = "Feb_05_2022-15_18_48_dagger_2_big" #"Feb_04_2022-19_14_19_imitation_0"
-model_name = "epoch_15.pth"
-
-# stuck vehicle RL model
-rl_model_folder = "Feb_07_2022-14_26_30"
-rl_model_eps_num = 300
-
-# policy switch classifier model
-policy_model_folder = "Feb_05_2022-21_29_35_policy_classifier"
-switch_model_name = "epoch_30.pth"
-
+# trained IL model path (should be inside "checkpoint/models/imitation/" folder)
+model_folder = "Feb_04_2022-19_14_19"
+model_name = "epoch_30.pth"
 
 SENSOR_CONFIG = {
     'width': 400,
@@ -92,7 +70,7 @@ def get_entry_point():
 
 
 class ImitationAgent(autonomous_agent.AutonomousAgent):
-    def setup(self, path_to_conf_file, route_id, rl_model=None):
+    def setup(self, path_to_conf_file, route_id):
         self.track = autonomous_agent.Track.SENSORS
         self._sensor_data = SENSOR_CONFIG
         self.config_path = path_to_conf_file
@@ -119,40 +97,15 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         print("device: ", self.device)
 
-        model_path = os.path.join(os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/models/" + model_folder), model_name)
         self.agent = ImitationNetwork(device=self.device)
         self.agent.to(self.device)
+
+        model_path = os.path.join(os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/models/imitation/" + model_folder), model_name)
         self.agent.load_state_dict(torch.load(model_path))
+
         for param in self.agent.parameters():
             param.requires_grad = False
         self.agent.eval()
-
-        if ACTIVATE_SWITCH:
-            # model selection switcher network 6 modes
-            policy_model_path = os.path.join(os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/models/" + policy_model_folder), switch_model_name)
-            self.policy_classifier = PolicyClassifierNetwork(device=self.device)
-            self.policy_classifier.to(self.device)
-            self.policy_classifier.load_state_dict(torch.load(policy_model_path))
-            for param in self.policy_classifier.parameters():
-                param.requires_grad = False
-            self.policy_classifier.eval()
-
-            # load pretrained ResNet and freeze weights
-            resnet_model_path = os.path.join(os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/models/"), "resnet50.zip")
-            self.resnet50 = models.resnet50(pretrained=False)
-            self.resnet50.to(self.device)
-            self.resnet50.load_state_dict(torch.load(resnet_model_path))
-            for param in self.resnet50.parameters():
-                param.requires_grad = False
-            self.resnet50.eval()
-
-            rl_model_path = os.path.join(os.path.join(os.environ.get('BASE_CODE_PATH'), "checkpoint/models/" + rl_model_folder), "dqn" + "-ep_" + str(rl_model_eps_num))
-            self.rl_agent = DQNNetwork(state_size=1000, n_actions=4, device=self.device)
-            self.rl_agent.to(self.device)
-            self.rl_agent.load_state_dict(torch.load(rl_model_path))
-            for param in self.rl_agent.parameters():
-                param.requires_grad = False
-            self.rl_agent.eval()
 
     def set_global_plan(self, global_plan_gps, global_plan_world_coord):
         super().set_global_plan(global_plan_gps, global_plan_world_coord)
@@ -169,6 +122,7 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
 
         if DAGGER:
             self.init_dataset(output_dir=self.dataset_save_path)
+        
         self.init_auto_pilot()
         self.init_privileged_agent()
 
@@ -176,14 +130,7 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
 
         self.count_vehicle_stop = 0
         self.count_is_seen = 0
-
-        self.switch2rl = False
-        self.count_rl_acts = 0
-        self.max_rl_act_steps = 100
         
-        self.policy_label = 0
-        self.check_count = 0
-
         self.previous_gps = 0.0
         self.speed_sequence = deque(np.zeros(120), maxlen=120)
 
@@ -336,48 +283,6 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
         # run brake classifier imitation learning agent
         dnn_agent_brake = self.agent.inference(front_images=front_60_cv_image, waypoint_input=fused_inputs, speed_sequence=np.array(self.speed_sequence))
 
-        # when initialized, wait 50 steps until vehicle starts to move
-        if ACTIVATE_SWITCH and self.step > 50:
-            with torch.no_grad():
-                self.policy_label = self.policy_classifier.inference(front_images=front_60_cv_image, speed_sequence=np.array(self.speed_sequence))
-
-            # TODO: train different DQN agents
-            # 0 class corresponds to running an imitation learning model
-            if self.policy_label == 3 and self.check_count > 3:
-                self.switch2rl = True
-                self.check_count = 0
-            else:
-                self.check_count += 1
-
-        if self.switch2rl:
-            dnn_input_image = self.rl_agent.image_to_dnn_input(image=front_cv_image)
-
-            # apply freezed pre-trained resnet model onto the image
-            with torch.no_grad():
-                image_features_torch = self.resnet50(dnn_input_image)
-                
-                # TODO: add actions of another RL models here (right now all models are stuck vehicle case)
-                # if self.policy_label != 0:
-                if self.count_rl_acts < self.max_rl_act_steps:
-                    self.count_rl_acts += 1
-
-                    print("[Info]: Stuck Vehicle RL is Running ! (class id -> 3)")
-                    action_value = self.rl_agent(image_features_torch)
-
-                    max_value = torch.argmax(action_value).unsqueeze(0).unsqueeze(0).cpu().detach().numpy()[0][0]
-                
-                else:
-                    pass
-
-            # apply rl action constant number of times
-            if self.count_rl_acts < self.max_rl_act_steps:
-                # update near node by shifting future nodes to 90 degrees left or right
-                dnn_agent_brake, near_node = self.calculate_high_level_action(high_level_action=max_value, compass=ego_theta, gps=gps, near_node=near_node)
-            
-            else:
-                self.switch2rl = False
-                self.count_rl_acts = 0
-            
         # if any of the following is not None, then the agent should brake
         is_light, is_walker, is_vehicle, is_stop = self.traffic_data()
         print("[Traffic]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle, " stop-", is_stop)
@@ -402,7 +307,7 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
         reward, done = self.calculate_reward(throttle=throttle, ego_speed=speed, ego_gps=gps, is_light=is_light, is_vehicle=is_vehicle, is_walker=is_walker, is_stop=is_stop)
         label = self.define_classifier_label(reward)
 
-        print("[Action]:", throttle, steer, brake, " [Reward]:", reward, " [Done]:", done, "[Waypoint]:", near_node, "[GT Class ID]:", label, "[Predicted Class ID]:", self.policy_label)
+        print("[Action]:", throttle, steer, brake, " [Reward]:", reward, " [Done]:", done, "[Waypoint]:", near_node, "[GT Class ID]:", label)
 
         self.is_collision = False
 
@@ -527,11 +432,6 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
     def destroy(self):
         del self.agent
 
-        if ACTIVATE_SWITCH:
-            del self.rl_agent
-            del self.policy_classifier
-            del self.resnet50
-
         if self.collision_sensor is not None:
             self.collision_sensor.stop()
 
@@ -551,29 +451,6 @@ class ImitationAgent(autonomous_agent.AutonomousAgent):
         else:
             label = 0
         return label
-
-    def calculate_high_level_action(self, high_level_action, compass, gps, near_node):
-        # 0 -> brake
-        # 1 -> go to left lane of next_waypoint
-        # 2 -> keep lane
-        # 3 -> go to right lane of next_waypoint
-
-        if high_level_action == 1: # left
-            offset = -3.5
-            new_near_node = self.shift_point(ego_compass=compass, ego_gps=gps, near_node=near_node, offset_amount=offset)
-        elif high_level_action == 3: # right
-            offset = 3.5
-            new_near_node = self.shift_point(ego_compass=compass, ego_gps=gps, near_node=near_node, offset_amount=offset)
-        else: # keep lane
-            offset = 0.0
-            new_near_node = near_node
-
-        if high_level_action == 0:
-            brake = 1.0
-        else:
-            brake = 0.0
-
-        return brake, new_near_node
 
     def traffic_data(self):
         all_actors = self.world.get_actors()

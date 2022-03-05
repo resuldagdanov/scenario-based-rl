@@ -5,7 +5,7 @@ pkill -9 python
 pkill -9 python
 
 export xml_file="original_routes/routes_town05_tiny.xml"
-export json_file="all_towns_traffic_scenarios_autopilot.json" # "all_towns_traffic_scenarios_WOR.json"
+export json_file="all_towns_traffic_scenarios_autopilot.json"
 
 now=`date +"%Y_%m_%d_%H_%M_%S"`
 json=".json"
