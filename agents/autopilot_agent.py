@@ -1,5 +1,4 @@
 import os
-import sys
 import weakref
 import numpy as np
 import carla
@@ -7,19 +6,14 @@ import random
 import cv2
 import json
 
+from collections import deque
 from datetime import datetime
 from srunner.scenariomanager.carla_data_provider import CarlaDataProvider
 from leaderboard.autoagents import autonomous_agent 
 
-# to add the parent "agents" folder to sys path and import models
-current = os.path.dirname(os.path.realpath(__file__))
-parent = os.path.dirname(current)
-sys.path.append(parent)
-
-from collections import deque
-from utils import base_utils
-from utils.pid_controller import PIDController
-from utils.planner import RoutePlanner
+from agent_utils import base_utils
+from agent_utils.pid_controller import PIDController
+from agent_utils.planner import RoutePlanner
 
 
 DEBUG = False
