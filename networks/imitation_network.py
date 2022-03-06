@@ -16,7 +16,7 @@ class ImitationNetwork(nn.Module):
         self.front_rgb_backbone = torchvision.models.resnet50(pretrained=False)
 
         # NOTE: comment out the following two lines if resnet model is not pre-save and "pretrained=True" in previous line
-        resnet_model_path = os.path.join(os.path.join(os.environ.get("BASE_CODE_PATH"), "checkpoint/models/"), "resnet50.zip")
+        resnet_model_path = os.path.join(os.path.join(os.environ.get("DeFIX_PATH"), "checkpoint/models/"), "resnet50.zip")
         self.front_rgb_backbone.load_state_dict(torch.load(resnet_model_path))
 
         # remove last layer of front RGB of ResNet-50
