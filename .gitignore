@@ -26,3 +26,10 @@ checkpoint/models/
 agents/models/
 
 *runs/
+
+*.png
+*.json
+*.pth
+*.zip
+
+*results/
