@@ -2,57 +2,63 @@
 Implementation of Deep Reinforcement Learning Methods on Carla Simulation with Trainings Based on Scenarios
 
 ## version
-carla version 0.9.13
+carla version 0.9.10.1
 
-python 3.8.10
+python 3.7.11
 
-unreal engine 4.26.2
+unreal engine 4.24
 
-scenario_runner 0.9.12
+scenario_runner 0.9.9
 
-leaderboard ?
+leaderboard
 
 pygame 2.0.1
 
+<!--add pytorch version-->
+
+## how to download and run posgtresql
+Follow instructions https://www.postgresql.org/download/linux/ubuntu/
+```sh
+sudo apt install postgresql postgresql-contrib
+```
+```sh
+pip install psycopg2-binary
+```
+```sh
+sudo service postgresql start                   # start postgresql server
+```
+```sh
+systemctl status postgresql                     # see whether postgresql server is active
+```
+```sh
+sudo service postgresql stop                    # stop postgresql server
+```
+```sh
+sudo -u postgres psql
+```
+```sh
+postgres=# \password                            # enter postgres as password
+```
+```sh
+postgres=# CREATE DATABASE "BUFFER_DB";;        # check it typing \l
+```
+## PGADMIN4 (gui for postgresql database)
+https://www.pgadmin.org/download/pgadmin-4-apt/
 
 ## how to run
-In one terminal,
+In terminal,
 
-    cd CARLA_0.9.13
+```sh
+cd scenario-based-rl/agents/scripts
 
-    ./CarlaUE4.sh
+./main.sh
+```
 
-In another terminal,
 
-    cd scenario-based-rl/agents/rl_training
-
-    """
-    parser.add_argument(
-        '--scenario', default='StationaryObjectCrossing_1', help='Name of the scenario to be executed. Use the preposition \'group:\' to run all scenarios of one class, e.g. ControlLoss or FollowLeadingVehicle (default: StationaryObjectCrossing_1)')
-    parser.add_argument(
-        '--max_episode', default=2, help='Number of episodes to train the agent (default: 2)', type=int)
-    parser.add_argument(
-        '--seed', default=1, help='Seed for random and numpy packages (default: 1)', type=int)
-    parser.add_argument(
-        '--cpu', help='true=CPU false=CUDA (default is True)', action='store_false')
-    parser.add_argument(
-        '--batch_size', default=64, help='Batch size for RL Agent (default: 64)', type=int)
-    parser.add_argument(
-        '--buffer_size', default=500_000, help='Buffer size for RL Agent (default: 500_000)', type=int)
-    parser.add_argument(
-        '--load_model', help='Load saved models for RL Agent (default is False)', action='store_true')
-    parser.add_argument(
-        '--save_model', help='Save models of RL Agent (default is True)', action='store_false')
-    parser.add_argument(
-        '--height', default=720, help='Camera height (default: 720)', type=int)
-    parser.add_argument(
-        '--width', default=1280, help='Camera width (default: 1280)', type=int)
-    """
-
-    python main.py --scenario $scenario_name --max_episode $max_episode_number ...
-    
-    ex: python main.py --scenario DynamicObjectCrossing_1 --max_episode 1000
-
+## Run Carla Server on GPU
+```sh
+./CarlaUE4.sh -prefernvidia
+```
 
 ## List of Supported Scenarios
 

@@ -27,9 +27,11 @@ agents/models/
 
 *runs/
 
-*.png
 *.json
+*.png
+
 *.pth
 *.zip
+#*.txt
 
 *results/
