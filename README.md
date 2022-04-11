@@ -47,7 +47,7 @@ cd $CARLA_ROOT
 ./CarlaUE4.sh -prefernvidia
 ```
 
-## Run Carla Autopilot (Expert Policy)
+## Run Carla Autopilot (Carla Autopilot Policy)
 ```sh
 cd $DeFIX_PATH/imitation-learning/scripts
 . run_autopilot.sh
