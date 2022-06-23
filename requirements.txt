@@ -1,7 +1,6 @@
 absl-py==1.0.0
 auditwheel==5.1.0
 cachetools==4.2.4
-carla==0.9.13
 certifi==2021.10.8
 charset-normalizer==2.0.9
 dictor==0.1.7
