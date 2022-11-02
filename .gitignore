@@ -36,3 +36,4 @@ agents/models/
 
 *results/
 checkpoint/dataset/*
+*.code-workspace
